@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState, Suspense } from "react"
 import { MainLayout } from "./main-layout"
 import { 
@@ -13,6 +13,7 @@ import {
 function AuthValidator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isValidating, setIsValidating] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
@@ -27,9 +28,86 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Observar cambios en el estado de autenticación de visionaries-tech
+    // Verificar si hay token en la URL (SSO desde Aura)
+    const tokenFromUrl = searchParams.get('token')
+    
+    if (tokenFromUrl) {
+      // Validar token de la URL
+      const validateTokenFromUrl = async () => {
+        try {
+          console.log('[Auth] Token detectado en URL, validando...')
+          
+          // Validar acceso interno con el backend usando el token de la URL
+          const response = await fetch('/api/internal/validate-access', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${tokenFromUrl}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          const data = await response.json()
+
+          if (data.valid) {
+            console.log('[Auth] Token válido, usuario autorizado:', data.user.email)
+            // Guardar token en sessionStorage para uso posterior
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('portalAuthToken', tokenFromUrl)
+            }
+            // Limpiar token de la URL
+            router.replace(pathname)
+            setIsAuthorized(true)
+          } else {
+            console.log('[Auth] Token inválido o sin acceso interno:', data.error)
+            setIsAuthorized(false)
+            router.push('/login')
+          }
+        } catch (error) {
+          console.error('[Auth] Error validando token de URL:', error)
+          setIsAuthorized(false)
+          router.push('/login')
+        } finally {
+          setIsValidating(false)
+        }
+      }
+
+      validateTokenFromUrl()
+      return
+    }
+
+    // Flujo normal: Observar cambios en el estado de autenticación de visionaries-tech
     const unsubscribe = onAuthStateChange(async (user) => {
       if (!user) {
+        // Verificar si hay token guardado en sessionStorage
+        if (typeof window !== 'undefined') {
+          const savedToken = sessionStorage.getItem('portalAuthToken')
+          if (savedToken) {
+            // Intentar validar con el token guardado
+            try {
+              const response = await fetch('/api/internal/validate-access', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${savedToken}`,
+                  'Content-Type': 'application/json',
+                },
+              })
+              const data = await response.json()
+              if (data.valid) {
+                console.log('[Auth] Token guardado válido, usuario autorizado')
+                setIsAuthorized(true)
+                setIsValidating(false)
+                return
+              } else {
+                // Token inválido, limpiar
+                sessionStorage.removeItem('portalAuthToken')
+              }
+            } catch (error) {
+              console.error('[Auth] Error validando token guardado:', error)
+              sessionStorage.removeItem('portalAuthToken')
+            }
+          }
+        }
+        
         console.log('[Auth] No hay usuario autenticado, redirigiendo a login')
         setIsValidating(false)
         setIsAuthorized(false)
@@ -62,6 +140,10 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
 
         if (data.valid) {
           console.log('[Auth] Usuario autorizado:', data.user.email)
+          // Guardar token en sessionStorage
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('portalAuthToken', idToken)
+          }
           setIsAuthorized(true)
         } else {
           console.log('[Auth] Usuario sin acceso interno:', data.error)
@@ -78,7 +160,7 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
     })
 
     return () => unsubscribe()
-  }, [pathname, router])
+  }, [pathname, router, searchParams])
 
   const shouldShowLayout = !noLayoutRoutes.includes(pathname)
 
