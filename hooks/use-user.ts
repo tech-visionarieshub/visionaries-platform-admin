@@ -20,16 +20,15 @@ interface UserStore {
 }
 
 export const useUser = create<UserStore>()((set) => ({
-  user: {
-    id: "1",
-    name: "Gaby Pino",
-    email: "gabypino@visionarieshub.com",
-    role: "admin",
-    avatar: "GP",
-  },
+  user: null, // Iniciar sin usuario - requiere login
   setUser: (user) => set({ user }),
   clearUser: () => set({ user: null }),
-  logout: () => set({ user: null }),
+  logout: () => {
+    set({ user: null })
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('portalAuth')
+    }
+  },
 }))
 
 export const useUserStore = useUser

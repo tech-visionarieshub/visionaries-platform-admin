@@ -2,13 +2,16 @@
 
 import type React from "react"
 
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams, useRouter } from "next/navigation"
 import { useEffect, useState, Suspense } from "react"
 import { MainLayout } from "./main-layout"
+import { useUser } from "@/hooks/use-user"
 
 function AuthValidator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const user = useUser((state) => state.user)
   const [isValidating, setIsValidating] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
@@ -24,13 +27,26 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // Obtener token del query param
-      const token = searchParams.get('token')
+      // Si el usuario está autenticado localmente (login directo), permitir acceso
+      if (user && user.id) {
+        console.log('[Auth] Usuario autenticado localmente')
+        setIsValidating(false)
+        setIsAuthorized(true)
+        return
+      }
+
+      // Verificar si hay token en localStorage (para acceso desde AURA)
+      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('portalAuth') : null
+      
+      // Obtener token del query param o localStorage
+      const token = searchParams.get('token') || storedToken
       
       if (!token) {
-        console.log('[Auth] No token found')
+        console.log('[Auth] No token found, redirecting to login')
         setIsValidating(false)
         setIsAuthorized(false)
+        // Redirigir a login en lugar de mostrar error
+        router.push('/login')
         return
       }
 
@@ -52,17 +68,19 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
         } else {
           console.log('[Auth] Token inválido:', data.error)
           setIsAuthorized(false)
+          router.push('/login')
         }
       } catch (error) {
         console.error('[Auth] Error validando token:', error)
         setIsAuthorized(false)
+        router.push('/login')
       } finally {
         setIsValidating(false)
       }
     }
 
     validateToken()
-  }, [pathname, searchParams])
+  }, [pathname, searchParams, router, user])
 
   const shouldShowLayout = !noLayoutRoutes.includes(pathname)
 
@@ -77,17 +95,13 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // Si no está autorizado y no es una ruta de login, mostrar loading mientras redirige
   if (!isAuthorized && !noLayoutRoutes.includes(pathname)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
-          <h1 className="mb-2 text-2xl font-bold">Acceso no autorizado</h1>
-          <p className="text-muted-foreground mb-4">
-            No tienes permiso para acceder a esta plataforma.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Por favor, accede desde AURA para obtener un token válido.
-          </p>
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+          <p className="text-muted-foreground">Redirigiendo...</p>
         </div>
       </div>
     )
