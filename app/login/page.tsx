@@ -1,63 +1,52 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useUser } from "@/hooks/use-user"
 import { AlertCircle } from "lucide-react"
-import { authenticateUser } from "@/lib/firebase"
+import { signIn, signInWithGoogle } from "@/lib/firebase/visionaries-tech"
 
 export default function LoginPage() {
   const router = useRouter()
-  const setUser = useUser((state) => state.setUser)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-
-    // Validate email domain
-    if (!email.endsWith("@visionarieshub.com")) {
-      setError("Solo se permiten correos del dominio @visionarieshub.com")
-      return
-    }
-
-    if (!password) {
-      setError("La contraseña es requerida")
-      return
-    }
-
     setLoading(true)
 
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    const authenticatedUser = authenticateUser(email, password)
-
-    if (!authenticatedUser) {
-      setError("No tienes acceso a la plataforma. Contacta al administrador para solicitar acceso.")
+    try {
+      await signIn(email, password)
+      // onAuthStateChange en layout-wrapper.tsx manejará la redirección
+      router.push("/")
+    } catch (error: any) {
+      console.error('[Login] Error:', error)
+      setError(error.message || "Error al iniciar sesión")
+    } finally {
       setLoading(false)
-      return
     }
+  }
 
-    setUser({
-      id: authenticatedUser.id,
-      name: authenticatedUser.name,
-      email: authenticatedUser.email,
-      role: authenticatedUser.role,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authenticatedUser.email}`,
-    })
+  const handleGoogleLogin = async () => {
+    setError("")
+    setLoading(true)
 
-    setLoading(false)
-    router.push("/crm/dashboard")
+    try {
+      await signInWithGoogle()
+      router.push("/")
+    } catch (error: any) {
+      console.error('[Login] Error:', error)
+      setError(error.message || "Error al iniciar sesión con Google")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -70,16 +59,16 @@ export default function LoginPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Visionaries Platform</CardTitle>
-          <CardDescription>Ingresa tus credenciales para acceder</CardDescription>
+          <CardDescription>Ingresa con tu cuenta de Aura</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email corporativo</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="tu-nombre@visionarieshub.com"
+                placeholder="tu-email@visionarieshub.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -110,13 +99,24 @@ export default function LoginPage() {
             <Button className="w-full" type="submit" disabled={loading}>
               {loading ? "Ingresando..." : "Ingresar"}
             </Button>
-
-            <div className="pt-4 border-t">
-              <p className="text-xs text-muted-foreground text-center">
-                Login simulado con Firebase - El rol es asignado por el administrador
-              </p>
-            </div>
           </form>
+
+          <div className="mt-4">
+            <Button 
+              className="w-full" 
+              variant="outline" 
+              onClick={handleGoogleLogin}
+              disabled={loading}
+            >
+              Continuar con Google
+            </Button>
+          </div>
+
+          <div className="pt-4 border-t mt-4">
+            <p className="text-xs text-muted-foreground text-center">
+              Usa las mismas credenciales que en Aura
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

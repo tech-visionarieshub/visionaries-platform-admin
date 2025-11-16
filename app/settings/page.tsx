@@ -11,7 +11,7 @@ import { RoleBadge } from "@/components/auth/role-badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Save, LogOut, Users, Shield, Plus, Trash2, DollarSign, RotateCcw } from "lucide-react"
+import { Eye, EyeOff, Save, LogOut, Shield, Plus, Trash2, DollarSign, RotateCcw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -25,7 +25,7 @@ import {
   moduleLabels,
   type Permission,
 } from "@/lib/permissions"
-import { getUsers, createUser, updateUser, deleteUser, type FirebaseUser } from "@/lib/firebase"
+// Gestión de usuarios ahora se hace desde visionaries-tech con Custom Claims
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -63,20 +63,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState(user?.email || "")
   const [role, setRole] = useState<UserRole>(user?.role || "admin")
 
-  const [users, setUsers] = useState<FirebaseUser[]>([])
-
-  useEffect(() => {
-    const loadUsers = () => {
-      const firebaseUsers = getUsers()
-      setUsers(firebaseUsers)
-    }
-    loadUsers()
-  }, [])
-
-  const [showAddUserDialog, setShowAddUserDialog] = useState(false)
-  const [newUserName, setNewUserName] = useState("")
-  const [newUserEmail, setNewUserEmail] = useState("")
-  const [newUserRole, setNewUserRole] = useState<UserRole>("developer")
+  // Gestión de usuarios removida - ahora se maneja desde visionaries-tech con Custom Claims
 
   const [apiKeys, setApiKeys] = useState({
     github: "••••••••••••••••",
@@ -140,22 +127,7 @@ export default function SettingsPage() {
     })
   }
 
-  const handleUserRoleChange = (userId: string, newRole: UserRole) => {
-    try {
-      updateUser(userId, { role: newRole })
-      setUsers(getUsers())
-      toast({
-        title: "Rol actualizado",
-        description: "El rol del usuario se ha actualizado correctamente",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al actualizar rol",
-        variant: "destructive",
-      })
-    }
-  }
+  // handleUserRoleChange removido - ahora se maneja desde visionaries-tech
 
   const handleLogout = () => {
     logout()
@@ -248,76 +220,7 @@ export default function SettingsPage() {
     })
   }
 
-  const handleAddUser = () => {
-    if (!newUserName.trim() || !newUserEmail.trim()) {
-      toast({
-        title: "Error",
-        description: "Todos los campos son requeridos",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!newUserEmail.endsWith("@visionarieshub.com")) {
-      toast({
-        title: "Error",
-        description: "Solo se permiten correos del dominio @visionarieshub.com",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      createUser({
-        name: newUserName,
-        email: newUserEmail,
-        role: newUserRole,
-      })
-
-      setUsers(getUsers())
-      setNewUserName("")
-      setNewUserEmail("")
-      setNewUserRole("developer")
-      setShowAddUserDialog(false)
-
-      toast({
-        title: "Usuario agregado",
-        description: `${newUserName} ahora tiene acceso a la plataforma`,
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al agregar usuario",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleDeleteUser = (userId: string) => {
-    if (userId === "1") {
-      toast({
-        title: "Error",
-        description: "No puedes eliminar al administrador principal",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      deleteUser(userId)
-      setUsers(getUsers())
-      toast({
-        title: "Usuario eliminado",
-        description: "El usuario ya no tiene acceso a la plataforma",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al eliminar usuario",
-        variant: "destructive",
-      })
-    }
-  }
+  // handleAddUser y handleDeleteUser removidos - ahora se maneja desde visionaries-tech
 
   const handleSaveCotizacionesConfig = () => {
     const errors = validateConfig(cotizacionesConfig)
@@ -741,129 +644,11 @@ export default function SettingsPage() {
 
         {user.role === "admin" && (
           <TabsContent value="roles" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Gestión de Usuarios
-                    </CardTitle>
-                    <CardDescription>Administra los usuarios que tienen acceso a la plataforma</CardDescription>
-                  </div>
-                  <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Agregar Usuario
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Agregar Nuevo Usuario</DialogTitle>
-                        <DialogDescription>
-                          Crea un nuevo usuario para darle acceso a la plataforma. Solo se permiten correos del dominio
-                          @visionarieshub.com
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="new-user-name">Nombre completo</Label>
-                          <Input
-                            id="new-user-name"
-                            placeholder="ej: Juan Pérez"
-                            value={newUserName}
-                            onChange={(e) => setNewUserName(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="new-user-email">Email corporativo</Label>
-                          <Input
-                            id="new-user-email"
-                            type="email"
-                            placeholder="juan@visionarieshub.com"
-                            value={newUserEmail}
-                            onChange={(e) => setNewUserEmail(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="new-user-role">Rol</Label>
-                          <Select value={newUserRole} onValueChange={(value) => setNewUserRole(value as UserRole)}>
-                            <SelectTrigger id="new-user-role">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="pm">Project Manager</SelectItem>
-                              <SelectItem value="developer">Developer</SelectItem>
-                              <SelectItem value="qa">QA Tester</SelectItem>
-                              <SelectItem value="client">Cliente</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
-                          Cancelar
-                        </Button>
-                        <Button onClick={handleAddUser}>Agregar Usuario</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Rol Actual</TableHead>
-                      <TableHead>Cambiar Rol</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                        <TableCell>
-                          <RoleBadge role={u.role} />
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={u.role}
-                            onValueChange={(value) => handleUserRoleChange(u.id, value as UserRole)}
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="pm">Project Manager</SelectItem>
-                              <SelectItem value="developer">Developer</SelectItem>
-                              <SelectItem value="qa">QA Tester</SelectItem>
-                              <SelectItem value="client">Cliente</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteUser(u.id)}
-                            disabled={u.id === "1"}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <div className="bg-muted/50 border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Nota:</strong> La gestión de usuarios ahora se realiza desde visionaries-tech usando Custom Claims de Firebase Auth.
+              </p>
+            </div>
 
             <Card>
               <CardHeader>

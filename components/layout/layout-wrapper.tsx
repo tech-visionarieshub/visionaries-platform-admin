@@ -1,17 +1,18 @@
 "use client"
 
 import type React from "react"
-
-import { usePathname, useSearchParams, useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState, Suspense } from "react"
 import { MainLayout } from "./main-layout"
-import { useUser } from "@/hooks/use-user"
+import { 
+  onAuthStateChange, 
+  getIdToken, 
+  getCurrentUser 
+} from "@/lib/firebase/visionaries-tech"
 
 function AuthValidator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const user = useUser((state) => state.user)
   const [isValidating, setIsValidating] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
@@ -19,68 +20,65 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
   const noLayoutRoutes = ["/login"]
 
   useEffect(() => {
-    async function validateToken() {
-      // Permitir acceso a login sin validación
-      if (noLayoutRoutes.includes(pathname)) {
-        setIsValidating(false)
-        setIsAuthorized(true)
-        return
-      }
+    // Permitir acceso a login sin validación
+    if (noLayoutRoutes.includes(pathname)) {
+      setIsValidating(false)
+      setIsAuthorized(true)
+      return
+    }
 
-      // Si el usuario está autenticado localmente (login directo), permitir acceso
-      if (user && user.id) {
-        console.log('[Auth] Usuario autenticado localmente')
-        setIsValidating(false)
-        setIsAuthorized(true)
-        return
-      }
-
-      // Verificar si hay token en localStorage (para acceso desde AURA)
-      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('portalAuth') : null
-      
-      // Obtener token del query param o localStorage
-      const token = searchParams.get('token') || storedToken
-      
-      if (!token) {
-        console.log('[Auth] No token found, redirecting to login')
+    // Observar cambios en el estado de autenticación de visionaries-tech
+    const unsubscribe = onAuthStateChange(async (user) => {
+      if (!user) {
+        console.log('[Auth] No hay usuario autenticado, redirigiendo a login')
         setIsValidating(false)
         setIsAuthorized(false)
-        // Redirigir a login en lugar de mostrar error
         router.push('/login')
         return
       }
 
       try {
-        // Validar JWT en el servidor
-        const response = await fetch('/api/validate-token', {
+        // Obtener idToken del usuario
+        const idToken = await getIdToken();
+        
+        if (!idToken) {
+          console.log('[Auth] No se pudo obtener token')
+          setIsValidating(false)
+          setIsAuthorized(false)
+          router.push('/login')
+          return
+        }
+
+        // Validar acceso interno con el backend
+        const response = await fetch('/api/internal/validate-access', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json',
+          },
         })
-        
+
         const data = await response.json()
-        
+
         if (data.valid) {
-          console.log('[Auth] Token válido')
+          console.log('[Auth] Usuario autorizado:', data.user.email)
           setIsAuthorized(true)
-          // Guardar token en localStorage para futuras peticiones
-          localStorage.setItem('portalAuth', token)
         } else {
-          console.log('[Auth] Token inválido:', data.error)
+          console.log('[Auth] Usuario sin acceso interno:', data.error)
           setIsAuthorized(false)
           router.push('/login')
         }
       } catch (error) {
-        console.error('[Auth] Error validando token:', error)
+        console.error('[Auth] Error validando acceso:', error)
         setIsAuthorized(false)
         router.push('/login')
       } finally {
         setIsValidating(false)
       }
-    }
+    })
 
-    validateToken()
-  }, [pathname, searchParams, router, user])
+    return () => unsubscribe()
+  }, [pathname, router])
 
   const shouldShowLayout = !noLayoutRoutes.includes(pathname)
 
@@ -95,7 +93,6 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Si no está autorizado y no es una ruta de login, mostrar loading mientras redirige
   if (!isAuthorized && !noLayoutRoutes.includes(pathname)) {
     return (
       <div className="flex h-screen items-center justify-center">
