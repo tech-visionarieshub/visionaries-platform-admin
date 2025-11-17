@@ -134,13 +134,57 @@ export default function SettingsPage() {
     async function loadConfig() {
       try {
         const config = await getCotizacionesConfig()
-        setCotizacionesConfig(config)
+        // Normalizar la configuración para asegurar que tenga todas las propiedades necesarias
+        const normalizedConfig: CotizacionesConfig = {
+          tarifas: {
+            desarrolladorMin: config?.tarifas?.desarrolladorMin ?? 800,
+            gabyMin: config?.tarifas?.gabyMin ?? 1000,
+          },
+          porcentajes: {
+            impuestos: config?.porcentajes?.impuestos ?? 2,
+            arely: config?.porcentajes?.arely ?? 5,
+            desarrollador: config?.porcentajes?.desarrollador ?? 27,
+            gastosOperativos: config?.porcentajes?.gastosOperativos ?? 18.15,
+            marketing: config?.porcentajes?.marketing ?? 3,
+            ahorro: config?.porcentajes?.ahorro ?? 5,
+            gaby: config?.porcentajes?.gaby ?? 40,
+          },
+          reglas: {
+            mensualidadMinima: config?.reglas?.mensualidadMinima ?? 64000,
+            horasTrabajoSemana: config?.reglas?.horasTrabajoSemana ?? 20,
+            costoPrototipadoUSD: config?.reglas?.costoPrototipadoUSD ?? 600,
+            tipoCambioUSD: config?.reglas?.tipoCambioUSD ?? 20,
+          },
+        }
+        setCotizacionesConfig(normalizedConfig)
       } catch (err: any) {
         // Si es error de autenticación, no hacer nada (ya redirige)
         if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
           return
         }
         console.error('Error loading config:', err)
+        // En caso de error, usar configuración por defecto
+        setCotizacionesConfig({
+          tarifas: {
+            desarrolladorMin: 800,
+            gabyMin: 1000,
+          },
+          porcentajes: {
+            impuestos: 2,
+            arely: 5,
+            desarrollador: 27,
+            gastosOperativos: 18.15,
+            marketing: 3,
+            ahorro: 5,
+            gaby: 40,
+          },
+          reglas: {
+            mensualidadMinima: 64000,
+            horasTrabajoSemana: 20,
+            costoPrototipadoUSD: 600,
+            tipoCambioUSD: 20,
+          },
+        })
       } finally {
         setLoadingConfig(false)
       }
@@ -544,6 +588,19 @@ export default function SettingsPage() {
     return (
       <div className="container mx-auto p-6 max-w-6xl">
         <p>Cargando configuración...</p>
+      </div>
+    )
+  }
+
+  // Verificaciones defensivas adicionales
+  if (!cotizacionesConfig.tarifas || !cotizacionesConfig.porcentajes || !cotizacionesConfig.reglas) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        <Alert variant="destructive">
+          <AlertDescription>
+            Error: La configuración está incompleta. Por favor, recarga la página.
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }
