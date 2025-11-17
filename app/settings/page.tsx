@@ -502,10 +502,29 @@ export default function SettingsPage() {
     }
   }
 
-  if (!user) {
-    router.push("/login")
-    return null
-  }
+  // El layout-wrapper ya maneja la autenticación
+  // Si llegamos aquí, el usuario está autorizado
+  // Cargar usuario desde Firebase Auth si no está en el store
+  useEffect(() => {
+    const loadUserFromFirebase = async () => {
+      try {
+        const currentUser = getCurrentUser()
+        if (currentUser && !user) {
+          // Si hay usuario de Firebase pero no en el store, actualizar el store
+          setUser({
+            id: currentUser.uid,
+            name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+            email: currentUser.email || '',
+            role: 'admin', // Default, se puede actualizar desde la API
+            avatar: currentUser.photoURL || undefined,
+          })
+        }
+      } catch (error) {
+        console.error('Error loading user from Firebase:', error)
+      }
+    }
+    loadUserFromFirebase()
+  }, [user, setUser])
 
   const permissionLabels: Record<keyof PermissionMatrix, string> = {
     backlog: "Backlog Scrum",
