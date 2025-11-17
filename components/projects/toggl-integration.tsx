@@ -13,7 +13,7 @@ const mockTimeEntries = [
     id: "1",
     taskId: "TASK-101",
     taskName: "Implementar autenticación JWT",
-    user: "Carlos Méndez",
+    user: "Carlos García",
     date: "2025-01-28",
     duration: 4.5,
     estimated: 6,
@@ -33,7 +33,7 @@ const mockTimeEntries = [
     id: "3",
     taskId: "TASK-103",
     taskName: "API de usuarios",
-    user: "Carlos Méndez",
+    user: "Carlos García",
     date: "2025-01-27",
     duration: 3.5,
     estimated: 8,
@@ -52,7 +52,7 @@ const mockTimeEntries = [
 ]
 
 const mockTeamSummary = [
-  { user: "Carlos Méndez", hours: 24.5, estimated: 28, efficiency: 87 },
+  { user: "Carlos García", hours: 24.5, estimated: 28, efficiency: 87 },
   { user: "Ana García", hours: 32.2, estimated: 30, efficiency: 107 },
   { user: "Luis Torres", hours: 18.0, estimated: 20, efficiency: 90 },
 ]

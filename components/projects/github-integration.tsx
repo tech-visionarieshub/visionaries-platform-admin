@@ -96,7 +96,7 @@ const mockGitHubData = {
       velocity: 6.8,
     },
     {
-      name: "Carlos Méndez",
+      name: "Carlos García",
       commits: 42,
       prs: 8,
       linesAdded: 2987,

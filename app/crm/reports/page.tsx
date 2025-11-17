@@ -49,7 +49,7 @@ const leadsBySourceData = [
 ]
 
 const performanceByUserData = [
-  { user: "Carlos Méndez", leads: 18, converted: 8, rate: 44 },
+  { user: "Carlos García", leads: 18, converted: 8, rate: 44 },
   { user: "Ana García", leads: 15, converted: 6, rate: 40 },
   { user: "Luis Torres", leads: 12, converted: 4, rate: 33 },
 ]

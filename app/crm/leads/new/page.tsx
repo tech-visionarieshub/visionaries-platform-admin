@@ -142,7 +142,7 @@ export default function NewLeadPage() {
                     <SelectValue placeholder="Selecciona un responsable" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user1">Carlos Méndez</SelectItem>
+                    <SelectItem value="user1">Carlos García</SelectItem>
                     <SelectItem value="user2">Ana García</SelectItem>
                     <SelectItem value="user3">Luis Torres</SelectItem>
                   </SelectContent>
