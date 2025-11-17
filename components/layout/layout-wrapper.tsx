@@ -11,12 +11,14 @@ import {
 } from "@/lib/firebase/visionaries-tech"
 import { hasRouteAccess } from "@/lib/routes"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/hooks/use-user"
 
 function AuthValidator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { setUser } = useUser()
   const [isValidating, setIsValidating] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
