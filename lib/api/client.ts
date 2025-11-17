@@ -22,14 +22,28 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   try {
-    const token = await getIdToken();
+    // Intentar obtener token de Firebase Auth primero
+    let token = await getIdToken();
+    
+    // Si no hay token de Firebase, intentar usar el token guardado en sessionStorage
+    if (!token && typeof window !== 'undefined') {
+      const savedToken = sessionStorage.getItem('portalAuthToken');
+      if (savedToken) {
+        token = savedToken;
+      }
+    }
     
     if (!token) {
-      // Si no hay token, redirigir al login
+      // Si no hay token, redirigir al login solo si no estamos ya en login
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
         if (currentPath !== '/login') {
-          window.location.href = '/login';
+          // Esperar un poco para que el layout-wrapper termine de validar
+          setTimeout(() => {
+            if (!sessionStorage.getItem('portalAuthToken')) {
+              window.location.href = '/login';
+            }
+          }, 1000);
         }
       }
       throw new AuthenticationError('No authentication token available. Please log in.');
