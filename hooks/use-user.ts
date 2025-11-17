@@ -11,6 +11,7 @@ interface User {
   email: string
   role: UserRole
   avatar?: string
+  superadmin?: boolean
 }
 
 interface UserStore {

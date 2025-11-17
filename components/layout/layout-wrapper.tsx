@@ -84,6 +84,20 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
             if (typeof window !== 'undefined') {
               sessionStorage.setItem('portalAuthToken', tokenFromUrl)
             }
+            
+            // Guardar información del usuario en el store
+            const currentUser = getCurrentUser()
+            if (currentUser) {
+              setUser({
+                id: currentUser.uid,
+                name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+                email: currentUser.email || data.user.email || '',
+                role: (data.user.role as any) || 'admin',
+                avatar: currentUser.photoURL || undefined,
+                superadmin: data.user.superadmin || false,
+              })
+            }
+            
             // Limpiar token de la URL y redirigir a home (no a login)
             const targetPath = pathname === '/login' ? '/' : pathname
             router.replace(targetPath)
@@ -197,6 +211,20 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('portalAuthToken', idToken)
           }
+          
+          // Guardar información del usuario en el store
+          const currentUser = getCurrentUser()
+          if (currentUser) {
+            setUser({
+              id: currentUser.uid,
+              name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+              email: currentUser.email || data.user.email || '',
+              role: (data.user.role as any) || 'admin',
+              avatar: currentUser.photoURL || undefined,
+              superadmin: data.user.superadmin || false,
+            })
+          }
+          
           setIsAuthorized(true)
         } else {
           console.log('[Auth] Usuario sin acceso interno:', data.error)

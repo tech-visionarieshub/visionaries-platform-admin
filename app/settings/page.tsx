@@ -495,7 +495,7 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.superadmin) {
       loadInternalUsers()
     }
   }, [user])
@@ -634,7 +634,7 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="profile">Perfil</TabsTrigger>
           <TabsTrigger value="integrations">Integraciones</TabsTrigger>
-          {user?.role === "admin" && (
+          {(user?.role === "admin" || user?.superadmin) && (
             <>
               <TabsTrigger value="roles">
                 <Shield className="h-4 w-4 mr-2" />
