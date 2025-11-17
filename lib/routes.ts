@@ -279,9 +279,36 @@ export function routeMatches(pattern: string, actualPath: string): boolean {
 const ALWAYS_ALLOWED_ROUTES = ['/settings', '/login', '/']
 
 /**
+ * Verifica si un usuario es superadmin
+ */
+export function isSuperAdmin(email?: string, claims?: Record<string, any>): boolean {
+  // Verificar por email específico
+  if (email === 'adminplatform@visionarieshub.com') {
+    return true
+  }
+  
+  // Verificar por custom claim
+  if (claims?.superadmin === true) {
+    return true
+  }
+  
+  return false
+}
+
+/**
  * Verifica si un usuario tiene acceso a una ruta específica
  */
-export function hasRouteAccess(allowedRoutes: string[], currentPath: string): boolean {
+export function hasRouteAccess(
+  allowedRoutes: string[], 
+  currentPath: string, 
+  userEmail?: string,
+  userClaims?: Record<string, any>
+): boolean {
+  // Superadmin tiene acceso a todo (pasado y futuro)
+  if (isSuperAdmin(userEmail, userClaims)) {
+    return true
+  }
+
   // Rutas que siempre están permitidas para usuarios internos
   if (ALWAYS_ALLOWED_ROUTES.includes(currentPath)) {
     return true

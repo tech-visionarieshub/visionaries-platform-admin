@@ -33,6 +33,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verificar si es superadmin
+    const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true;
+
     // Token válido y con acceso interno
     return NextResponse.json({
       valid: true,
@@ -41,6 +44,7 @@ export async function POST(request: NextRequest) {
         email: decoded.email,
         role: decoded.role,
         internal: decoded.internal,
+        superadmin: isSuperAdmin,
         allowedRoutes: decoded.allowedRoutes || [],
       }
     });
