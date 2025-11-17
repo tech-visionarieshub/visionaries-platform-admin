@@ -134,6 +134,35 @@ export default function SettingsPage() {
     async function loadConfig() {
       try {
         const config = await getCotizacionesConfig()
+        
+        // Si config es null, usar configuración por defecto
+        if (!config) {
+          const defaultConfig: CotizacionesConfig = {
+            tarifas: {
+              desarrolladorMin: 800,
+              gabyMin: 1000,
+            },
+            porcentajes: {
+              impuestos: 2,
+              arely: 5,
+              desarrollador: 27,
+              gastosOperativos: 18.15,
+              marketing: 3,
+              ahorro: 5,
+              gaby: 40,
+            },
+            reglas: {
+              mensualidadMinima: 64000,
+              horasTrabajoSemana: 20,
+              costoPrototipadoUSD: 600,
+              tipoCambioUSD: 20,
+            },
+          }
+          setCotizacionesConfig(defaultConfig)
+          setLoadingConfig(false)
+          return
+        }
+        
         // Normalizar la configuración para asegurar que tenga todas las propiedades necesarias
         const normalizedConfig: CotizacionesConfig = {
           tarifas: {
@@ -157,14 +186,16 @@ export default function SettingsPage() {
           },
         }
         setCotizacionesConfig(normalizedConfig)
+        setLoadingConfig(false)
       } catch (err: any) {
         // Si es error de autenticación, no hacer nada (ya redirige)
         if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          setLoadingConfig(false)
           return
         }
         console.error('Error loading config:', err)
         // En caso de error, usar configuración por defecto
-        setCotizacionesConfig({
+        const defaultConfig: CotizacionesConfig = {
           tarifas: {
             desarrolladorMin: 800,
             gabyMin: 1000,
@@ -184,8 +215,8 @@ export default function SettingsPage() {
             costoPrototipadoUSD: 600,
             tipoCambioUSD: 20,
           },
-        })
-      } finally {
+        }
+        setCotizacionesConfig(defaultConfig)
         setLoadingConfig(false)
       }
     }
@@ -553,15 +584,21 @@ export default function SettingsPage() {
     const loadUserFromFirebase = async () => {
       try {
         const currentUser = getCurrentUser()
-        if (currentUser && !user) {
-          // Si hay usuario de Firebase pero no en el store, actualizar el store
-          setUser({
-            id: currentUser.uid,
-            name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
-            email: currentUser.email || '',
-            role: 'admin', // Default, se puede actualizar desde la API
-            avatar: currentUser.photoURL || undefined,
-          })
+        if (currentUser) {
+          // Verificar si el usuario es superadmin
+          const isSuperAdmin = currentUser.email === 'adminplatform@visionarieshub.com'
+          
+          // Si hay usuario de Firebase pero no en el store, o si el usuario cambió, actualizar el store
+          if (!user || user.id !== currentUser.uid) {
+            setUser({
+              id: currentUser.uid,
+              name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+              email: currentUser.email || '',
+              role: 'admin', // Default, se puede actualizar desde la API
+              avatar: currentUser.photoURL || undefined,
+              superadmin: isSuperAdmin,
+            })
+          }
         }
       } catch (error) {
         console.error('Error loading user from Firebase:', error)
