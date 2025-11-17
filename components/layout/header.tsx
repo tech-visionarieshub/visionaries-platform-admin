@@ -218,7 +218,7 @@ export function Header() {
               {user?.avatar || "GP"}
             </div>
             <div className="hidden md:block text-sm">
-              <p className="font-medium leading-tight">{user?.name || "Gaby Pino"}</p>
+              <p className="font-medium leading-tight">{user?.name || user?.email?.split('@')[0] || "Usuario"}</p>
               <p className="text-xs text-muted-foreground capitalize">{user?.role || "Admin"}</p>
             </div>
           </div>

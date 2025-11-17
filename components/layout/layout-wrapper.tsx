@@ -88,11 +88,16 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
             }
             
             // Guardar información del usuario en el store
+            // Forzar refresh del token para obtener displayName actualizado
             const currentUser = getCurrentUser()
             if (currentUser) {
+              // Obtener displayName actualizado del token
+              const tokenResult = await currentUser.getIdTokenResult(true)
+              const updatedDisplayName = currentUser.displayName || tokenResult.claims.name || currentUser.email?.split('@')[0] || 'Usuario'
+              
               setUser({
                 id: currentUser.uid,
-                name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+                name: updatedDisplayName,
                 email: currentUser.email || data.user.email || '',
                 role: (data.user.role as any) || 'admin',
                 avatar: currentUser.photoURL || undefined,
@@ -215,11 +220,16 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
           }
           
           // Guardar información del usuario en el store
+          // Forzar refresh del token para obtener displayName actualizado
           const currentUser = getCurrentUser()
           if (currentUser) {
+            // Obtener displayName actualizado del token
+            const tokenResult = await currentUser.getIdTokenResult(true)
+            const updatedDisplayName = currentUser.displayName || tokenResult.claims.name || currentUser.email?.split('@')[0] || 'Usuario'
+            
             setUser({
               id: currentUser.uid,
-              name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+              name: updatedDisplayName,
               email: currentUser.email || data.user.email || '',
               role: (data.user.role as any) || 'admin',
               avatar: currentUser.photoURL || undefined,

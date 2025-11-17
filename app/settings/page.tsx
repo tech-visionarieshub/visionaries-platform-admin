@@ -588,11 +588,15 @@ export default function SettingsPage() {
           // Verificar si el usuario es superadmin
           const isSuperAdmin = currentUser.email === 'adminplatform@visionarieshub.com'
           
+          // Forzar refresh del token para obtener displayName actualizado
+          const tokenResult = await currentUser.getIdTokenResult(true)
+          const updatedDisplayName = currentUser.displayName || tokenResult.claims.name || currentUser.email?.split('@')[0] || 'Usuario'
+          
           // Si hay usuario de Firebase pero no en el store, o si el usuario cambió, actualizar el store
-          if (!user || user.id !== currentUser.uid) {
+          if (!user || user.id !== currentUser.uid || user.name !== updatedDisplayName) {
             setUser({
               id: currentUser.uid,
-              name: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+              name: updatedDisplayName,
               email: currentUser.email || '',
               role: 'admin', // Default, se puede actualizar desde la API
               avatar: currentUser.photoURL || undefined,
@@ -605,6 +609,10 @@ export default function SettingsPage() {
       }
     }
     loadUserFromFirebase()
+    
+    // Refrescar cada 30 segundos para obtener cambios en displayName
+    const interval = setInterval(loadUserFromFirebase, 30000)
+    return () => clearInterval(interval)
   }, [user, setUser])
 
   const permissionLabels: Record<keyof PermissionMatrix, string> = {
