@@ -10,6 +10,7 @@ import {
   getCurrentUser 
 } from "@/lib/firebase/visionaries-tech"
 import { hasRouteAccess } from "@/lib/routes"
+import { useToast } from "@/hooks/use-toast"
 
 function AuthValidator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
