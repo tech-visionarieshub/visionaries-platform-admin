@@ -605,6 +605,15 @@ export default function SettingsPage() {
     )
   }
 
+  // Verificar que el usuario esté disponible antes de renderizar
+  if (!user) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        <p>Cargando usuario...</p>
+      </div>
+    )
+  }
+
   const tarifaArely = calcularTarifaArely(cotizacionesConfig)
   const sumaPorcentajes = Object.values(cotizacionesConfig.porcentajes).reduce((sum, val) => sum + val, 0)
 
@@ -625,7 +634,7 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="profile">Perfil</TabsTrigger>
           <TabsTrigger value="integrations">Integraciones</TabsTrigger>
-          {user.role === "admin" && (
+          {user?.role === "admin" && (
             <>
               <TabsTrigger value="roles">
                 <Shield className="h-4 w-4 mr-2" />
@@ -983,7 +992,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {user.role === "admin" && (
+        {user?.role === "admin" && (
           <TabsContent value="roles" className="space-y-6">
             <div className="bg-muted/50 border rounded-lg p-4">
               <p className="text-sm text-muted-foreground">
@@ -1168,7 +1177,7 @@ export default function SettingsPage() {
           </TabsContent>
         )}
 
-        {user.role === "admin" && (
+        {user?.role === "admin" && (
           <TabsContent value="cotizaciones" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -1563,7 +1572,7 @@ export default function SettingsPage() {
           </TabsContent>
         )}
 
-        {user.role === "admin" && (
+        {user?.role === "admin" && (
           <TabsContent value="internal-users" className="space-y-6">
             <Card>
               <CardHeader>
