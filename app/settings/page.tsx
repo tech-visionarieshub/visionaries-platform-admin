@@ -48,7 +48,7 @@ import {
   type CotizacionesConfig,
 } from "@/lib/mock-data/cotizaciones-config"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { getIdToken } from "@/lib/firebase/visionaries-tech"
+import { getIdToken, getCurrentUser } from "@/lib/firebase/visionaries-tech"
 import { RouteSelector } from "@/components/admin/route-selector"
 
 type PermissionMatrix = {
