@@ -1,52 +1,12 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { AlertCircle } from "lucide-react"
-import { signIn, signInWithGoogle } from "@/lib/firebase/visionaries-tech"
+import { AlertCircle, ArrowLeft, Shield, Mail } from "lucide-react"
 
-export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    try {
-      await signIn(email, password)
-      // onAuthStateChange en layout-wrapper.tsx manejará la redirección
-      router.push("/")
-    } catch (error: any) {
-      console.error('[Login] Error:', error)
-      setError(error.message || "Error al iniciar sesión")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGoogleLogin = async () => {
-    setError("")
-    setLoading(true)
-
-    try {
-      await signInWithGoogle()
-      router.push("/")
-    } catch (error: any) {
-      console.error('[Login] Error:', error)
-      setError(error.message || "Error al iniciar sesión con Google")
-    } finally {
-      setLoading(false)
-    }
+export default function UnauthorizedPage() {
+  const handleGoToAura = () => {
+    window.location.href = "https://aura.visionarieshub.com"
   }
 
   return (
@@ -54,68 +14,50 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">V</span>
+            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
+              <Shield className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Visionaries Platform</CardTitle>
-          <CardDescription>Ingresa con tu cuenta de Aura</CardDescription>
+          <CardTitle className="text-2xl font-bold">Acceso No Autorizado</CardTitle>
+          <CardDescription>
+            No tienes permiso para acceder a esta plataforma
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+        <CardContent className="space-y-6">
+          <div className="flex items-start gap-3 text-sm text-muted-foreground bg-amber-50 p-4 rounded-lg border border-amber-200">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="tu-email@visionarieshub.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
+              <p>
+                El Portal Admin solo está disponible para usuarios autorizados con acceso interno.
+              </p>
+              <p>
+                Si necesitas acceso a esta plataforma, por favor contacta al administrador.
+              </p>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-md">
-                <AlertCircle className="h-4 w-4" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <Button className="w-full" type="submit" disabled={loading}>
-              {loading ? "Ingresando..." : "Ingresar"}
-            </Button>
-          </form>
-
-          <div className="mt-4">
+          <div className="space-y-3">
             <Button 
               className="w-full" 
-              variant="outline" 
-              onClick={handleGoogleLogin}
-              disabled={loading}
+              onClick={handleGoToAura}
+              size="lg"
             >
-              Continuar con Google
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a Aura
             </Button>
-          </div>
 
-          <div className="pt-4 border-t mt-4">
-            <p className="text-xs text-muted-foreground text-center">
-              Usa las mismas credenciales que en Aura
-            </p>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                ¿Necesitas acceso?
+              </p>
+              <a 
+                href="mailto:adminplatform@visionarieshub.com?subject=Solicitud de acceso al Portal Admin"
+                className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
+              >
+                <Mail className="h-4 w-4" />
+                Contactar al administrador
+              </a>
+            </div>
           </div>
         </CardContent>
       </Card>
