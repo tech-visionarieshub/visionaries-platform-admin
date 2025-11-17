@@ -34,19 +34,36 @@ export async function apiRequest<T>(
     }
     
     if (!token) {
-      // Si no hay token, redirigir al login solo si no estamos ya en login
+      // Si no hay token, esperar un momento para que el layout-wrapper termine de validar
+      // El layout-wrapper guarda el token en sessionStorage cuando valida exitosamente
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
         if (currentPath !== '/login') {
-          // Esperar un poco para que el layout-wrapper termine de validar
-          setTimeout(() => {
-            if (!sessionStorage.getItem('portalAuthToken')) {
-              window.location.href = '/login';
+          // Esperar hasta 2 segundos para que el token esté disponible
+          let attempts = 0;
+          const maxAttempts = 20; // 2 segundos (20 * 100ms)
+          
+          while (!token && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const savedToken = sessionStorage.getItem('portalAuthToken');
+            if (savedToken) {
+              token = savedToken;
+              break;
             }
-          }, 1000);
+            attempts++;
+          }
+          
+          // Si después de esperar aún no hay token, redirigir
+          if (!token) {
+            window.location.href = '/login';
+            throw new AuthenticationError('No authentication token available. Please log in.');
+          }
+        } else {
+          throw new AuthenticationError('No authentication token available. Please log in.');
         }
+      } else {
+        throw new AuthenticationError('No authentication token available. Please log in.');
       }
-      throw new AuthenticationError('No authentication token available. Please log in.');
     }
 
     const response = await fetch(endpoint, {
