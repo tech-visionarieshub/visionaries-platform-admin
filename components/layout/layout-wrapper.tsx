@@ -35,7 +35,11 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
       // Validar token de la URL
       const validateTokenFromUrl = async () => {
         try {
-          console.log('[Auth] Token detectado en URL, validando...')
+          console.log('[Auth] Token detectado en URL, validando...', { 
+            pathname, 
+            tokenLength: tokenFromUrl.length,
+            tokenPreview: tokenFromUrl.substring(0, 20) + '...'
+          })
           
           // Validar acceso interno con el backend usando el token de la URL
           const response = await fetch('/api/internal/validate-access', {
@@ -46,7 +50,13 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
             },
           })
 
+          console.log('[Auth] Respuesta de validación:', { 
+            status: response.status, 
+            ok: response.ok 
+          })
+
           const data = await response.json()
+          console.log('[Auth] Datos de validación:', { valid: data.valid, error: data.error })
 
           if (data.valid) {
             console.log('[Auth] Token válido, usuario autorizado:', data.user.email)
@@ -54,8 +64,9 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
             if (typeof window !== 'undefined') {
               sessionStorage.setItem('portalAuthToken', tokenFromUrl)
             }
-            // Limpiar token de la URL
-            router.replace(pathname)
+            // Limpiar token de la URL y redirigir a home (no a login)
+            const targetPath = pathname === '/login' ? '/' : pathname
+            router.replace(targetPath)
             setIsAuthorized(true)
           } else {
             console.log('[Auth] Token inválido o sin acceso interno:', data.error)
@@ -64,8 +75,15 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           console.error('[Auth] Error validando token de URL:', error)
+          // Si hay un error de red o del servidor, mostrar mensaje más específico
+          if (error instanceof Error) {
+            console.error('[Auth] Detalles del error:', error.message)
+          }
           setIsAuthorized(false)
-          router.push('/login')
+          // Solo redirigir a login si no estamos ya ahí
+          if (pathname !== '/login') {
+            router.push('/login')
+          }
         } finally {
           setIsValidating(false)
         }
