@@ -41,6 +41,8 @@ import {
   getCotizacionesConfig,
   saveCotizacionesConfig,
   resetCotizacionesConfig,
+} from "@/lib/api/config-api"
+import {
   validateConfig,
   calcularTarifaArely,
   type CotizacionesConfig,
@@ -124,12 +126,29 @@ export default function SettingsPage() {
   const [showAddRoleDialog, setShowAddRoleDialog] = useState(false)
   const [showAddModuleDialog, setShowAddModuleDialog] = useState(false)
 
-  const [cotizacionesConfig, setCotizacionesConfig] = useState<CotizacionesConfig>(getCotizacionesConfig())
+  const [cotizacionesConfig, setCotizacionesConfig] = useState<CotizacionesConfig | null>(null)
   const [configErrors, setConfigErrors] = useState<string[]>([])
+  const [loadingConfig, setLoadingConfig] = useState(true)
 
   useEffect(() => {
-    const errors = validateConfig(cotizacionesConfig)
-    setConfigErrors(errors)
+    async function loadConfig() {
+      try {
+        const config = await getCotizacionesConfig()
+        setCotizacionesConfig(config)
+      } catch (err) {
+        console.error('Error loading config:', err)
+      } finally {
+        setLoadingConfig(false)
+      }
+    }
+    loadConfig()
+  }, [])
+
+  useEffect(() => {
+    if (cotizacionesConfig) {
+      const errors = validateConfig(cotizacionesConfig)
+      setConfigErrors(errors)
+    }
   }, [cotizacionesConfig])
 
   const handleSaveProfile = () => {
@@ -433,7 +452,9 @@ export default function SettingsPage() {
     }
   }, [user])
 
-  const handleSaveCotizacionesConfig = () => {
+  const handleSaveCotizacionesConfig = async () => {
+    if (!cotizacionesConfig) return
+    
     const errors = validateConfig(cotizacionesConfig)
     if (errors.length > 0) {
       toast({
@@ -444,20 +465,37 @@ export default function SettingsPage() {
       return
     }
 
-    saveCotizacionesConfig(cotizacionesConfig)
-    toast({
-      title: "Configuración guardada",
-      description: "Los cambios en la configuración de cotizaciones se han guardado correctamente",
-    })
+    try {
+      await saveCotizacionesConfig(cotizacionesConfig)
+      toast({
+        title: "Configuración guardada",
+        description: "Los cambios en la configuración de cotizaciones se han guardado correctamente",
+      })
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Error al guardar la configuración",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleResetCotizacionesConfig = () => {
-    resetCotizacionesConfig()
-    setCotizacionesConfig(getCotizacionesConfig())
-    toast({
-      title: "Configuración restablecida",
-      description: "Se han restaurado los valores por defecto",
-    })
+  const handleResetCotizacionesConfig = async () => {
+    try {
+      await resetCotizacionesConfig()
+      const config = await getCotizacionesConfig()
+      setCotizacionesConfig(config)
+      toast({
+        title: "Configuración restablecida",
+        description: "Se han restaurado los valores por defecto",
+      })
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Error al restablecer la configuración",
+        variant: "destructive",
+      })
+    }
   }
 
   if (!user) {
@@ -477,6 +515,14 @@ export default function SettingsPage() {
     calendarSync: "Sincronización Calendar",
     projectSettings: "Configuración Proyecto",
     aiGenerator: "Generador IA",
+  }
+
+  if (loadingConfig || !cotizacionesConfig) {
+    return (
+      <div className="container mx-auto p-6 max-w-6xl">
+        <p>Cargando configuración...</p>
+      </div>
+    )
   }
 
   const tarifaArely = calcularTarifaArely(cotizacionesConfig)

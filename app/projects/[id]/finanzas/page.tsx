@@ -5,18 +5,44 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DollarSign, TrendingUp, TrendingDown, Clock, FileText, ExternalLink } from "lucide-react"
 import Link from "next/link"
-import { mockProjects } from "@/lib/mock-data/projects"
-import { mockFacturas, mockEgresos } from "@/lib/mock-data/finanzas"
+import { getProjectById } from "@/lib/api/projects-api"
+import { getFacturas, getEgresos } from "@/lib/api/finanzas-api"
+import { useEffect, useState } from "react"
+import type { Project } from "@/lib/mock-data/projects"
+import type { Factura, Egreso } from "@/lib/mock-data/finanzas"
 
 export default function ProjectFinancePage({ params }: { params: { id: string } }) {
-  const project = mockProjects.find((p) => p.id === params.id)
+  const [project, setProject] = useState<Project | null>(null)
+  const [facturas, setFacturas] = useState<Factura[]>([])
+  const [egresos, setEgresos] = useState<Egreso[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (!project) {
-    return <div>Proyecto no encontrado</div>
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [projectData, facturasData, egresosData] = await Promise.all([
+          getProjectById(params.id),
+          getFacturas(),
+          getEgresos(),
+        ])
+        setProject(projectData)
+        setFacturas(facturasData)
+        setEgresos(egresosData)
+      } catch (err) {
+        console.error('Error loading data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [params.id])
+
+  if (loading || !project) {
+    return <div>Cargando datos del proyecto...</div>
   }
 
-  const projectInvoices = mockFacturas.filter((f) => f.empresa === project.client)
-  const projectExpenses = mockEgresos.filter((e) => e.empresa === project.client)
+  const projectInvoices = facturas.filter((f) => f.empresa === project.client)
+  const projectExpenses = egresos.filter((e) => e.empresa === project.client)
 
   const totalFacturado = projectInvoices.reduce((sum, f) => sum + f.total, 0)
   const totalPagado = projectInvoices.filter((f) => f.status === "Pagada").reduce((sum, f) => sum + f.total, 0)

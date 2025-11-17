@@ -1,4 +1,7 @@
-import { notFound } from "next/navigation"
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
 import { ArrowLeft, Clock, FileText, Send, CheckCircle, XCircle, Edit } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -6,17 +9,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getCotizaciones } from "@/lib/mock-data/cotizaciones"
+import { getCotizacionById } from "@/lib/api/cotizaciones-api"
+import type { Cotizacion } from "@/lib/mock-data/cotizaciones"
 import { ConvertToProjectButton } from "@/components/cotizaciones/convert-to-project-button"
 
-export default async function CotizacionDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default function CotizacionDetailPage() {
+  const params = useParams()
+  const id = params.id as string
+  const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const cotizaciones = getCotizaciones()
-  const cotizacion = cotizaciones.find((c) => c.id === id)
+  useEffect(() => {
+    async function loadCotizacion() {
+      try {
+        const data = await getCotizacionById(id)
+        setCotizacion(data)
+      } catch (err) {
+        console.error('Error loading cotizacion:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (id) {
+      loadCotizacion()
+    }
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <p>Cargando cotización...</p>
+      </div>
+    )
+  }
 
   if (!cotizacion) {
-    notFound()
+    return (
+      <div className="space-y-6">
+        <p>Cotización no encontrada</p>
+      </div>
+    )
   }
 
   const estadoConfig = {

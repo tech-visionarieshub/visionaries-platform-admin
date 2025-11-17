@@ -17,7 +17,8 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Search, Plus, FileText, Download, LinkIcon } from "lucide-react"
 import { toast } from "sonner"
-import { mockComplementos, type Complemento } from "@/lib/mock-data/finanzas"
+import { getComplementos, type Complemento } from "@/lib/api/finanzas-api"
+import { useEffect } from "react"
 
 const FORMAS_PAGO = [
   { value: "01", label: "01 - Efectivo" },
@@ -28,7 +29,22 @@ const FORMAS_PAGO = [
 ]
 
 export function ComplementosTable() {
-  const [complementos, setComplementos] = useState<Complemento[]>(mockComplementos)
+  const [complementos, setComplementos] = useState<Complemento[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadComplementos() {
+      try {
+        const data = await getComplementos()
+        setComplementos(data)
+      } catch (err) {
+        console.error('Error loading complementos:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadComplementos()
+  }, [])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [mesFilter, setMesFilter] = useState<string>("all")

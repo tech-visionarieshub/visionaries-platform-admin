@@ -17,7 +17,10 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Trash2, Download } from "lucide-react"
 import { toast } from "sonner"
-import { mockTeamMembers, type PaymentMethod, type TeamMember } from "@/lib/mock-data/finanzas"
+import { getNomina, type TeamMember } from "@/lib/api/finanzas-api"
+import { useEffect } from "react"
+
+type PaymentMethod = "Efectivo" | "Factura" | "Transferencia"
 
 const MESES = [
   "Enero",
@@ -35,7 +38,22 @@ const MESES = [
 ]
 
 export function NominaTable() {
-  const [team, setTeam] = useState<TeamMember[]>(mockTeamMembers)
+  const [team, setTeam] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadNomina() {
+      try {
+        const data = await getNomina()
+        setTeam(data)
+      } catch (err) {
+        console.error('Error loading nomina:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadNomina()
+  }, [])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedYear, setSelectedYear] = useState("2025")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)

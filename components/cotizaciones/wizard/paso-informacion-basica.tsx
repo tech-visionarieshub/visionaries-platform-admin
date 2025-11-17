@@ -6,7 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import type { CotizacionDraft } from "@/lib/types/cotizacion"
-import { mockClientes } from "@/lib/mock-data/finanzas"
+import { getClientes } from "@/lib/api/finanzas-api"
+import { useState, useEffect } from "react"
+import type { Cliente } from "@/lib/api/finanzas-api"
 
 type Props = {
   cotizacion: CotizacionDraft
@@ -14,6 +16,23 @@ type Props = {
 }
 
 export function PasoInformacionBasica({ cotizacion, actualizarCotizacion }: Props) {
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [loadingClientes, setLoadingClientes] = useState(true)
+
+  useEffect(() => {
+    async function loadClientes() {
+      try {
+        const data = await getClientes()
+        setClientes(data)
+      } catch (err) {
+        console.error('Error loading clientes:', err)
+      } finally {
+        setLoadingClientes(false)
+      }
+    }
+    loadClientes()
+  }, [])
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,20 +56,21 @@ export function PasoInformacionBasica({ cotizacion, actualizarCotizacion }: Prop
           <Select
             value={cotizacion.clienteId}
             onValueChange={(value) => {
-              const cliente = mockClientes.find((c) => c.id === value)
+              const cliente = clientes.find((c) => c.id === value)
               actualizarCotizacion({
                 clienteId: value,
-                clienteNombre: cliente?.nombre || "",
+                clienteNombre: cliente?.empresa || "",
               })
             }}
+            disabled={loadingClientes}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Selecciona un cliente" />
+              <SelectValue placeholder={loadingClientes ? "Cargando clientes..." : "Selecciona un cliente"} />
             </SelectTrigger>
             <SelectContent>
-              {mockClientes.map((cliente) => (
+              {clientes.map((cliente) => (
                 <SelectItem key={cliente.id} value={cliente.id}>
-                  {cliente.nombre}
+                  {cliente.empresa}
                 </SelectItem>
               ))}
             </SelectContent>

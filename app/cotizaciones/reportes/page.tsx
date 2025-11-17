@@ -1,11 +1,28 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { getCotizaciones } from "@/lib/mock-data/cotizaciones"
+import { getCotizaciones } from "@/lib/api/cotizaciones-api"
+import type { Cotizacion } from "@/lib/mock-data/cotizaciones"
 import { Clock, DollarSign, CheckCircle2, FileText, Target } from "lucide-react"
+import { useState, useEffect } from "react"
 
 export default function CotizacionesReportesPage() {
-  const cotizaciones = getCotizaciones()
+  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadCotizaciones() {
+      try {
+        const data = await getCotizaciones()
+        setCotizaciones(data)
+      } catch (err) {
+        console.error('Error loading cotizaciones:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadCotizaciones()
+  }, [])
 
   // Calculate metrics
   const total = cotizaciones.length
@@ -39,6 +56,14 @@ export default function CotizacionesReportesPage() {
     },
     {} as Record<string, { total: number; aceptadas: number; valorTotal: number; valorAceptado: number }>,
   )
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <p>Cargando reportes...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

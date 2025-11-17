@@ -1,3 +1,6 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Search, Filter, Plus, Clock, CheckCircle2, AlertCircle, FolderKanban } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -5,7 +8,8 @@ import { Card } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
-import { mockProjects } from "@/lib/mock-data/projects"
+import { getProjects } from "@/lib/api/projects-api"
+import type { Project } from "@/lib/mock-data/projects"
 
 const statusConfig = {
   "En desarrollo": { variant: "info" as const, icon: Clock },
@@ -15,6 +19,46 @@ const statusConfig = {
 }
 
 export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadProjects() {
+      try {
+        setLoading(true)
+        const data = await getProjects()
+        setProjects(data)
+      } catch (err: any) {
+        setError(err.message || 'Error cargando proyectos')
+        console.error('Error loading projects:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadProjects()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Cargando proyectos...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-destructive">Error: {error}</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -47,7 +91,7 @@ export default function ProjectsPage() {
 
       {/* Projects Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {mockProjects.map((project) => {
+        {projects.map((project) => {
           const StatusIcon = statusConfig[project.status as keyof typeof statusConfig].icon
 
           return (

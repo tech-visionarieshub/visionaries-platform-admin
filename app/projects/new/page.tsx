@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,13 +12,28 @@ import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { getClientes } from "@/lib/mock-data/finanzas"
-import { addProject } from "@/lib/mock-data/projects"
+import { getClientes } from "@/lib/api/finanzas-api"
+import { createProject } from "@/lib/api/projects-api"
 
 export default function NewProjectPage() {
   const router = useRouter()
-  const clientes = getClientes()
+  const [clientes, setClientes] = useState<Array<{ id: string; nombre: string }>>([])
   const [loading, setLoading] = useState(false)
+  const [loadingClientes, setLoadingClientes] = useState(true)
+
+  useEffect(() => {
+    async function loadClientes() {
+      try {
+        const data = await getClientes()
+        setClientes(data.map(c => ({ id: c.id, nombre: c.empresa })))
+      } catch (err) {
+        console.error('Error loading clientes:', err)
+      } finally {
+        setLoadingClientes(false)
+      }
+    }
+    loadClientes()
+  }, [])
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -35,33 +50,34 @@ export default function NewProjectPage() {
     e.preventDefault()
     setLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const cliente = clientes.find((c) => c.id === formData.clientId)
 
-    const cliente = clientes.find((c) => c.id === formData.clientId)
+      const newProject = await createProject({
+        name: formData.name,
+        description: formData.description,
+        client: cliente?.nombre || "",
+        clientId: formData.clientId,
+        status: "En desarrollo" as const,
+        progress: 0,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        budget: Number.parseFloat(formData.budget) || 0,
+        hoursEstimated: 0,
+        hoursWorked: 0,
+        features: Number.parseInt(formData.features) || 0,
+        completedFeatures: 0,
+        responsible: formData.responsible,
+        cotizacionId: formData.cotizacionId || undefined,
+      })
 
-    const newProject = {
-      id: Date.now().toString(),
-      name: formData.name,
-      description: formData.description,
-      client: cliente?.nombre || "",
-      clientId: formData.clientId,
-      status: "En desarrollo" as const,
-      progress: 0,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      budget: Number.parseFloat(formData.budget) || 0,
-      spent: 0,
-      features: Number.parseInt(formData.features) || 0,
-      completedFeatures: 0,
-      team: [formData.responsible],
-      responsible: formData.responsible,
-      cotizacionId: formData.cotizacionId || undefined,
+      router.push(`/projects/${newProject.id}`)
+    } catch (error: any) {
+      console.error('Error creating project:', error)
+      alert('Error al crear el proyecto: ' + (error.message || 'Error desconocido'))
+    } finally {
+      setLoading(false)
     }
-
-    addProject(newProject)
-    setLoading(false)
-    router.push(`/projects/${newProject.id}`)
   }
 
   return (

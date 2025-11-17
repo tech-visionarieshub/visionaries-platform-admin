@@ -17,10 +17,29 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, FileText, Download, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-import { mockEgresos, mockCategorias, mockLineasNegocio, type Egreso } from "@/lib/mock-data/finanzas"
+import { getEgresos, type Egreso } from "@/lib/api/finanzas-api"
+import { useEffect } from "react"
+
+const mockCategorias = ["Automatización", "Plataforma", "Estudios", "Cursos", "Conferencias", "Productos", "CFH"]
+const mockLineasNegocio = ["iLab", "Pivot", "Co-Founders Academy", "Gaby Pino"]
 
 export function EgresosTable() {
-  const [egresos, setEgresos] = useState<Egreso[]>(mockEgresos)
+  const [egresos, setEgresos] = useState<Egreso[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadEgresos() {
+      try {
+        const data = await getEgresos()
+        setEgresos(data)
+      } catch (err) {
+        console.error('Error loading egresos:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadEgresos()
+  }, [])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [tipoFilter, setTipoFilter] = useState<string>("all")

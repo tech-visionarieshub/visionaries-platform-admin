@@ -17,10 +17,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Search, Plus, FileText, Send, XCircle, Receipt } from "lucide-react"
-import { mockFacturas, type Factura } from "@/lib/mock-data/finanzas"
+import { getFacturas, type Factura } from "@/lib/api/finanzas-api"
+import { useEffect } from "react"
 
 export function FacturasTable() {
-  const [facturas, setFacturas] = useState<Factura[]>(mockFacturas)
+  const [facturas, setFacturas] = useState<Factura[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadFacturas() {
+      try {
+        const data = await getFacturas()
+        setFacturas(data)
+      } catch (err) {
+        console.error('Error loading facturas:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadFacturas()
+  }, [])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [mesFilter, setMesFilter] = useState<string>("all")

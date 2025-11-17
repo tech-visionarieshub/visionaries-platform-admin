@@ -1,4 +1,7 @@
-import { notFound } from "next/navigation"
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
 import { ArrowLeft, Clock, FileText, Lightbulb, DollarSign, Copy, Pencil } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -6,19 +9,45 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getCotizacionesTemplates } from "@/lib/mock-data/cotizaciones-templates"
+import { getTemplateById } from "@/lib/api/templates-api"
+import type { CotizacionTemplate } from "@/lib/mock-data/cotizaciones-templates"
 
-export default async function TemplateDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default function TemplateDetailPage() {
+  const params = useParams()
+  const id = params.id as string
+  const [template, setTemplate] = useState<CotizacionTemplate | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  console.log("[v0] Loading template with ID:", id)
+  useEffect(() => {
+    async function loadTemplate() {
+      try {
+        const data = await getTemplateById(id)
+        setTemplate(data)
+      } catch (err) {
+        console.error("Error loading template:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (id) {
+      loadTemplate()
+    }
+  }, [id])
 
-  const templates = getCotizacionesTemplates()
-  const template = templates.find((t) => t.id === id)
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <p>Cargando template...</p>
+      </div>
+    )
+  }
 
   if (!template) {
-    console.log("[v0] Template not found for ID:", id)
-    notFound()
+    return (
+      <div className="space-y-6">
+        <p>Template no encontrado</p>
+      </div>
+    )
   }
 
   const totalHoras = template.estimacionBase.fases.reduce(

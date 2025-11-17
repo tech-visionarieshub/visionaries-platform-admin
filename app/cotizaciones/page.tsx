@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,29 +8,47 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, FileText, TrendingUp, Clock, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
-import { mockCotizaciones, type EstadoCotizacion } from "@/lib/mock-data/cotizaciones"
+import { getCotizaciones } from "@/lib/api/cotizaciones-api"
+import type { Cotizacion, EstadoCotizacion } from "@/lib/mock-data/cotizaciones"
 
 export default function CotizacionesPage() {
+  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [estadoFilter, setEstadoFilter] = useState<string>("all")
   const [tipoFilter, setTipoFilter] = useState<string>("all")
 
+  useEffect(() => {
+    async function loadCotizaciones() {
+      try {
+        setLoading(true)
+        const data = await getCotizaciones()
+        setCotizaciones(data)
+      } catch (err: any) {
+        console.error('Error loading cotizaciones:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadCotizaciones()
+  }, [])
+
   // Calcular métricas
-  const totalCotizaciones = mockCotizaciones.length
-  const cotizacionesAceptadas = mockCotizaciones.filter((c) => c.estado === "Aceptada").length
+  const totalCotizaciones = cotizaciones.length
+  const cotizacionesAceptadas = cotizaciones.filter((c) => c.estado === "Aceptada").length
   const tasaAceptacion = totalCotizaciones > 0 ? ((cotizacionesAceptadas / totalCotizaciones) * 100).toFixed(1) : "0"
   const valorPromedio =
-    mockCotizaciones.length > 0
-      ? (mockCotizaciones.reduce((sum, c) => sum + (c.desglose?.costoTotal || 0), 0) / mockCotizaciones.length).toFixed(
+    cotizaciones.length > 0
+      ? (cotizaciones.reduce((sum, c) => sum + (c.desglose?.costoTotal || 0), 0) / cotizaciones.length).toFixed(
           0,
         )
       : "0"
-  const pipelineActual = mockCotizaciones
+  const pipelineActual = cotizaciones
     .filter((c) => c.estado === "Enviada" || c.estado === "En revisión")
     .reduce((sum, c) => sum + (c.desglose?.costoTotal || 0), 0)
 
   // Filtrar cotizaciones
-  const filteredCotizaciones = mockCotizaciones.filter((cot) => {
+  const filteredCotizaciones = cotizaciones.filter((cot) => {
     const matchesSearch =
       cot.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cot.folio.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -178,22 +196,27 @@ export default function CotizacionesPage() {
 
       {/* Tabla de cotizaciones */}
       <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b bg-muted/50">
-              <tr>
-                <th className="text-left p-4 font-medium">Folio</th>
-                <th className="text-left p-4 font-medium">Cliente</th>
-                <th className="text-left p-4 font-medium">Título</th>
-                <th className="text-left p-4 font-medium">Tipo</th>
-                <th className="text-left p-4 font-medium">Estado</th>
-                <th className="text-right p-4 font-medium">Total</th>
-                <th className="text-left p-4 font-medium">Fecha</th>
-                <th className="text-right p-4 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCotizaciones.map((cot) => {
+        {loading ? (
+          <div className="p-8 text-center text-muted-foreground">
+            Cargando cotizaciones...
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b bg-muted/50">
+                <tr>
+                  <th className="text-left p-4 font-medium">Folio</th>
+                  <th className="text-left p-4 font-medium">Cliente</th>
+                  <th className="text-left p-4 font-medium">Título</th>
+                  <th className="text-left p-4 font-medium">Tipo</th>
+                  <th className="text-left p-4 font-medium">Estado</th>
+                  <th className="text-right p-4 font-medium">Total</th>
+                  <th className="text-left p-4 font-medium">Fecha</th>
+                  <th className="text-right p-4 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCotizaciones.map((cot) => {
                 const estadoBadge = getEstadoBadge(cot.estado)
                 return (
                   <tr key={cot.id} className="border-b hover:bg-muted/50 transition-colors">
@@ -224,11 +247,12 @@ export default function CotizacionesPage() {
                   </tr>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {filteredCotizaciones.length === 0 && (
+        {!loading && filteredCotizaciones.length === 0 && (
           <div className="p-8 text-center text-muted-foreground">
             No se encontraron cotizaciones que coincidan con los filtros.
           </div>

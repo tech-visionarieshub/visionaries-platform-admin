@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getCotizacionesConfig } from "@/lib/mock-data/cotizaciones-config"
+import { getCotizacionesConfig } from "@/lib/api/config-api"
 
 export function PasoCalculoEconomico({ data, onChange }: any) {
   const [config, setConfig] = useState<any>(null)
@@ -9,7 +9,15 @@ export function PasoCalculoEconomico({ data, onChange }: any) {
   const [mesesProyecto, setMesesProyecto] = useState(3)
 
   useEffect(() => {
-    setConfig(getCotizacionesConfig())
+    async function loadConfig() {
+      try {
+        const configData = await getCotizacionesConfig()
+        setConfig(configData)
+      } catch (err) {
+        console.error('Error loading config:', err)
+      }
+    }
+    loadConfig()
   }, [])
 
   useEffect(() => {

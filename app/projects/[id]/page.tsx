@@ -1,25 +1,64 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { mockProjects } from "@/lib/mock-data/projects"
-import { getCotizaciones } from "@/lib/mock-data/cotizaciones"
+import { getProjectById } from "@/lib/api/projects-api"
+import { getCotizacionById } from "@/lib/api/cotizaciones-api"
+import type { Project } from "@/lib/mock-data/projects"
+import type { Cotizacion } from "@/lib/mock-data/cotizaciones"
 import { Badge } from "@/components/ui/badge"
 import { FileText, TrendingUp, TrendingDown, CheckCircle2, Circle } from "lucide-react"
 import Link from "next/link"
 
-const project = mockProjects[0]
-
-const cotizaciones = getCotizaciones()
-const cotizacion = project.cotizacionId ? cotizaciones.find((c) => c.id === project.cotizacionId) : null
-
-const budgetVariance = cotizacion
-  ? ((project.budget - (cotizacion.desglose?.costoTotal || 0)) / (cotizacion.desglose?.costoTotal || 1)) * 100
-  : 0
-
-const hoursVariance = cotizacion
-  ? ((project.hoursWorked - (cotizacion.desglose?.horasTotales || 0)) / (cotizacion.desglose?.horasTotales || 1)) * 100
-  : 0
-
 export default function ProjectSummaryPage() {
+  const params = useParams()
+  const id = params.id as string
+  const [project, setProject] = useState<Project | null>(null)
+  const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const projectData = await getProjectById(id)
+        setProject(projectData)
+        
+        if (projectData.cotizacionId) {
+          try {
+            const cotizacionData = await getCotizacionById(projectData.cotizacionId)
+            setCotizacion(cotizacionData)
+          } catch (err) {
+            console.error('Error loading cotizacion:', err)
+          }
+        }
+      } catch (err) {
+        console.error('Error loading project:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (id) {
+      loadData()
+    }
+  }, [id])
+
+  if (loading || !project) {
+    return (
+      <div className="space-y-6">
+        <p>Cargando proyecto...</p>
+      </div>
+    )
+  }
+
+  const budgetVariance = cotizacion
+    ? ((project.budget - (cotizacion.desglose?.costoTotal || 0)) / (cotizacion.desglose?.costoTotal || 1)) * 100
+    : 0
+
+  const hoursVariance = cotizacion
+    ? ((project.hoursWorked - (cotizacion.desglose?.horasTotales || 0)) / (cotizacion.desglose?.horasTotales || 1)) * 100
+    : 0
   return (
     <div className="space-y-6">
       {cotizacion && (

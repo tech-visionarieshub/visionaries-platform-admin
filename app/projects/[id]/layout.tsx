@@ -1,11 +1,15 @@
+"use client"
+
 import type React from "react"
+import { useState, useEffect } from "react"
 import { ArrowLeft, Calendar, User, DollarSign, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
-import { mockProjects } from "@/lib/mock-data/projects"
+import { getProjectById } from "@/lib/api/projects-api"
+import type { Project } from "@/lib/mock-data/projects"
 
 const navItems = [
   { href: "", label: "Resumen" },
@@ -31,7 +35,30 @@ export default function ProjectLayout({
   children: React.ReactNode
   params: { id: string }
 }) {
-  const project = mockProjects.find((p) => p.id === params.id) || mockProjects[0]
+  const [project, setProject] = useState<Project | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadProject() {
+      try {
+        const data = await getProjectById(params.id)
+        setProject(data)
+      } catch (err) {
+        console.error('Error loading project:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadProject()
+  }, [params.id])
+
+  if (loading || !project) {
+    return (
+      <div className="space-y-6">
+        <p>Cargando proyecto...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

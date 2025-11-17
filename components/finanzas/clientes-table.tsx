@@ -9,18 +9,38 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Plus, Edit, Trash2, Mail, Building2, FileText } from "lucide-react"
-import { mockClientes } from "@/lib/mock-data/finanzas"
-import { getCotizaciones } from "@/lib/mock-data/cotizaciones"
+import { getClientes, getCotizaciones } from "@/lib/api/finanzas-api"
+import { getCotizaciones as getCotizacionesAPI } from "@/lib/api/cotizaciones-api"
 import Link from "next/link"
+import { useEffect } from "react"
+import type { Cliente } from "@/lib/api/finanzas-api"
 
 export function ClientesTable() {
-  const [clientes, setClientes] = useState(mockClientes)
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [cotizaciones, setCotizaciones] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCliente, setSelectedCliente] = useState<(typeof mockClientes)[0] | null>(null)
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
-  const cotizaciones = getCotizaciones()
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [clientesData, cotizacionesData] = await Promise.all([
+          getClientes(),
+          getCotizacionesAPI(),
+        ])
+        setClientes(clientesData)
+        setCotizaciones(cotizacionesData)
+      } catch (err) {
+        console.error('Error loading data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
 
   const getClienteStats = (clienteId: string) => {
     const clienteCotizaciones = cotizaciones.filter((c) => c.clienteId === clienteId)

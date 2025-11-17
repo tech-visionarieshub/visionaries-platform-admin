@@ -7,21 +7,30 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { mockTemplates, type CotizacionTemplate } from "@/lib/mock-data/cotizaciones-templates"
+import { getTemplates } from "@/lib/api/templates-api"
+import type { CotizacionTemplate } from "@/lib/mock-data/cotizaciones-templates"
 import { Plus, Copy, Edit, Eye, Search, Clock, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
+import { useEffect } from "react"
 
 export default function TemplatesPage() {
+  const [templates, setTemplates] = useState<CotizacionTemplate[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [tipoFiltro, setTipoFiltro] = useState<string>("all")
 
-  const templates = React.useMemo(() => {
-    try {
-      return mockTemplates || []
-    } catch (error) {
-      console.error("[v0] Error loading templates:", error)
-      return []
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const data = await getTemplates()
+        setTemplates(data)
+      } catch (err) {
+        console.error("Error loading templates:", err)
+      } finally {
+        setLoading(false)
+      }
     }
+    loadTemplates()
   }, [])
 
   const filteredTemplates = templates.filter((template) => {
@@ -80,18 +89,28 @@ export default function TemplatesPage() {
       </Card>
 
       {/* Grid de Templates */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTemplates.map((template) => (
-          <TemplateCard key={template.id} template={template} />
-        ))}
-      </div>
-
-      {filteredTemplates.length === 0 && (
+      {loading ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No se encontraron templates</p>
+            <p className="text-muted-foreground">Cargando templates...</p>
           </CardContent>
         </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTemplates.map((template) => (
+              <TemplateCard key={template.id} template={template} />
+            ))}
+          </div>
+
+          {filteredTemplates.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">No se encontraron templates</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   )
