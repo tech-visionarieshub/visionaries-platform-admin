@@ -45,6 +45,23 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[Validate Access] Error:', error);
+    console.error('[Validate Access] Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack?.substring(0, 500)
+    });
+    
+    // Error de configuración (falta service account)
+    if (error.message?.includes('FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH')) {
+      return NextResponse.json(
+        { 
+          valid: false, 
+          error: 'Configuration error',
+          message: 'Falta configurar FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH en Vercel'
+        },
+        { status: 500 }
+      );
+    }
     
     if (error.code === 'auth/id-token-expired') {
       return NextResponse.json(
@@ -61,7 +78,11 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { valid: false, error: 'Server error' },
+      { 
+        valid: false, 
+        error: 'Server error',
+        message: error.message || 'Error desconocido al validar token'
+      },
       { status: 500 }
     );
   }

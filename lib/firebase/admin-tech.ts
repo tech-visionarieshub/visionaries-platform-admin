@@ -18,10 +18,12 @@ export function getAuraApp(): admin.app.App {
       const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH;
       
       if (!serviceAccount) {
-        throw new Error(
+        const error = new Error(
           'FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH no está configurado. ' +
-          'Necesitas el JSON del service account de visionaries-tech.'
+          'Necesitas el JSON del service account de visionaries-tech en las variables de entorno de Vercel.'
         );
+        console.error('[Admin Tech] Error de configuración:', error.message);
+        throw error;
       }
 
       let credential;
