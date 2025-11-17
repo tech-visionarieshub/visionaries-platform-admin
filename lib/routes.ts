@@ -273,9 +273,20 @@ export function routeMatches(pattern: string, actualPath: string): boolean {
 }
 
 /**
+ * Rutas que siempre están disponibles para usuarios con acceso interno
+ * Estas rutas no requieren estar en allowedRoutes
+ */
+const ALWAYS_ALLOWED_ROUTES = ['/settings', '/login', '/']
+
+/**
  * Verifica si un usuario tiene acceso a una ruta específica
  */
 export function hasRouteAccess(allowedRoutes: string[], currentPath: string): boolean {
+  // Rutas que siempre están permitidas para usuarios internos
+  if (ALWAYS_ALLOWED_ROUTES.includes(currentPath)) {
+    return true
+  }
+
   // Si tiene acceso a todas las rutas (wildcard)
   if (allowedRoutes.includes('*') || allowedRoutes.includes('/')) {
     return true
