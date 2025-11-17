@@ -177,10 +177,10 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
         const data = await response.json()
 
         if (data.valid) {
-              // Verificar acceso a la ruta actual
-              const allowedRoutes = data.user.allowedRoutes || []
-              const isSuperAdmin = data.user.superadmin === true || data.user.email === 'adminplatform@visionarieshub.com'
-              if (!isSuperAdmin && allowedRoutes.length > 0 && !hasRouteAccess(allowedRoutes, pathname, data.user.email, { superadmin: data.user.superadmin })) {
+          // Verificar acceso a la ruta actual
+          const allowedRoutes = data.user.allowedRoutes || []
+          const isSuperAdmin = data.user.superadmin === true || data.user.email === 'adminplatform@visionarieshub.com'
+          if (!isSuperAdmin && allowedRoutes.length > 0 && !hasRouteAccess(allowedRoutes, pathname, data.user.email, { superadmin: data.user.superadmin })) {
             console.log('[Auth] Usuario no tiene acceso a esta ruta:', pathname)
             toast({
               title: "Acceso denegado",
