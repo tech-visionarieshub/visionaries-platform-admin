@@ -46,7 +46,11 @@ export function NominaTable() {
       try {
         const data = await getNomina()
         setTeam(data)
-      } catch (err) {
+      } catch (err: any) {
+        // Si es error de autenticación, no hacer nada (ya redirige)
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
         console.error('Error loading nomina:', err)
       } finally {
         setLoading(false)

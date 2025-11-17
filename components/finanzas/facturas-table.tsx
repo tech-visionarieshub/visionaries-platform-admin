@@ -29,7 +29,11 @@ export function FacturasTable() {
       try {
         const data = await getFacturas()
         setFacturas(data)
-      } catch (err) {
+      } catch (err: any) {
+        // Si es error de autenticación, no hacer nada (ya redirige)
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
         console.error('Error loading facturas:', err)
       } finally {
         setLoading(false)

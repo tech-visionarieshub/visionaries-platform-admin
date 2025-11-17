@@ -29,7 +29,12 @@ export default function ProjectsPage() {
         setLoading(true)
         const data = await getProjects()
         setProjects(data)
+        setError(null)
       } catch (err: any) {
+        // Si es error de autenticación, no mostrar error (ya redirige)
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
         setError(err.message || 'Error cargando proyectos')
         console.error('Error loading projects:', err)
       } finally {

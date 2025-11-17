@@ -26,7 +26,11 @@ export default function NewProjectPage() {
       try {
         const data = await getClientes()
         setClientes(data.map(c => ({ id: c.id, nombre: c.empresa })))
-      } catch (err) {
+      } catch (err: any) {
+        // Si es error de autenticación, no hacer nada (ya redirige)
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
         console.error('Error loading clientes:', err)
       } finally {
         setLoadingClientes(false)

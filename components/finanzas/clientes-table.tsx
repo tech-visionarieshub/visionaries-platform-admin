@@ -33,7 +33,11 @@ export function ClientesTable() {
         ])
         setClientes(clientesData)
         setCotizaciones(cotizacionesData)
-      } catch (err) {
+      } catch (err: any) {
+        // Si es error de autenticación, no hacer nada (ya redirige)
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
         console.error('Error loading data:', err)
       } finally {
         setLoading(false)

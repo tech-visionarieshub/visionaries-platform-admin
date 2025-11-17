@@ -7,6 +7,13 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
 /**
  * Cliente API base para hacer peticiones autenticadas
  */
@@ -18,7 +25,14 @@ export async function apiRequest<T>(
     const token = await getIdToken();
     
     if (!token) {
-      throw new Error('No authentication token available');
+      // Si no hay token, redirigir al login
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+      throw new AuthenticationError('No authentication token available. Please log in.');
     }
 
     const response = await fetch(endpoint, {
@@ -33,12 +47,22 @@ export async function apiRequest<T>(
     const data = await response.json();
 
     if (!response.ok) {
+      // Si es error 401, redirigir al login
+      if (response.status === 401 && typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login') {
+          window.location.href = '/login';
+        }
+      }
       throw new Error(data.error || data.message || `HTTP ${response.status}`);
     }
 
     return data;
   } catch (error: any) {
-    console.error(`[API Client] Error in ${endpoint}:`, error);
+    // No loggear errores de autenticación que ya redirigen
+    if (!(error instanceof AuthenticationError)) {
+      console.error(`[API Client] Error in ${endpoint}:`, error);
+    }
     throw error;
   }
 }
