@@ -12,7 +12,7 @@ import { getAuraAuth } from '@/lib/firebase/admin-tech';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, role = 'admin' } = body;
+    const { email, role = 'admin', allowedRoutes = [] } = body;
 
     if (!email) {
       return NextResponse.json(
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     await auth.setCustomUserClaims(user.uid, {
       internal: true,
       role: role,
+      allowedRoutes: Array.isArray(allowedRoutes) ? allowedRoutes : [],
     });
 
     return NextResponse.json({

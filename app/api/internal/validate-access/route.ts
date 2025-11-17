@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
         email: decoded.email,
         role: decoded.role,
         internal: decoded.internal,
+        allowedRoutes: decoded.allowedRoutes || [],
       }
     });
   } catch (error: any) {

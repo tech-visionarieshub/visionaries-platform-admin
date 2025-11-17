@@ -9,11 +9,13 @@ import {
   getIdToken, 
   getCurrentUser 
 } from "@/lib/firebase/visionaries-tech"
+import { hasRouteAccess } from "@/lib/routes"
 
 function AuthValidator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { toast } = useToast()
   const [isValidating, setIsValidating] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
@@ -60,6 +62,22 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
 
           if (data.valid) {
             console.log('[Auth] Token válido, usuario autorizado:', data.user.email)
+            
+            // Verificar acceso a la ruta actual
+            const allowedRoutes = data.user.allowedRoutes || []
+            if (allowedRoutes.length > 0 && !hasRouteAccess(allowedRoutes, pathname)) {
+              console.log('[Auth] Usuario no tiene acceso a esta ruta:', pathname)
+              toast({
+                title: "Acceso denegado",
+                description: "No tienes permiso para acceder a esta sección.",
+                variant: "destructive",
+              })
+              router.push('/')
+              setIsAuthorized(false)
+              setIsValidating(false)
+              return
+            }
+            
             // Guardar token en sessionStorage para uso posterior
             if (typeof window !== 'undefined') {
               sessionStorage.setItem('portalAuthToken', tokenFromUrl)
@@ -157,6 +175,20 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
         const data = await response.json()
 
         if (data.valid) {
+          // Verificar acceso a la ruta actual
+          const allowedRoutes = data.user.allowedRoutes || []
+          if (allowedRoutes.length > 0 && !hasRouteAccess(allowedRoutes, pathname)) {
+            console.log('[Auth] Usuario no tiene acceso a esta ruta:', pathname)
+            toast({
+              title: "Acceso denegado",
+              description: "No tienes permiso para acceder a esta sección.",
+              variant: "destructive",
+            })
+            router.push('/')
+            setIsAuthorized(false)
+            setIsValidating(false)
+            return
+          }
           console.log('[Auth] Usuario autorizado:', data.user.email)
           // Guardar token en sessionStorage
           if (typeof window !== 'undefined') {

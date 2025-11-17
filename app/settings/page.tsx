@@ -11,7 +11,7 @@ import { RoleBadge } from "@/components/auth/role-badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Save, LogOut, Shield, Plus, Trash2, DollarSign, RotateCcw } from "lucide-react"
+import { Eye, EyeOff, Save, LogOut, Shield, Plus, Trash2, DollarSign, RotateCcw, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -46,6 +46,8 @@ import {
   type CotizacionesConfig,
 } from "@/lib/mock-data/cotizaciones-config"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getIdToken } from "@/lib/firebase/visionaries-tech"
+import { RouteSelector } from "@/components/admin/route-selector"
 
 type PermissionMatrix = {
   [role: string]: {
@@ -63,7 +65,28 @@ export default function SettingsPage() {
   const [email, setEmail] = useState(user?.email || "")
   const [role, setRole] = useState<UserRole>(user?.role || "admin")
 
-  // Gestión de usuarios removida - ahora se maneja desde visionaries-tech con Custom Claims
+  // Gestión de usuarios internos
+  interface InternalUser {
+    uid: string
+    email: string
+    displayName: string
+    role: string
+    allowedRoutes?: string[]
+    internal: boolean
+    emailVerified: boolean
+    disabled: boolean
+    creationTime: string
+    lastSignInTime: string | null
+  }
+
+  const [internalUsers, setInternalUsers] = useState<InternalUser[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [showAddUserDialog, setShowAddUserDialog] = useState(false)
+  const [newUserEmail, setNewUserEmail] = useState("")
+  const [newUserRole, setNewUserRole] = useState<UserRole>("admin")
+  const [newUserRoutes, setNewUserRoutes] = useState<string[]>([])
+  const [editingUser, setEditingUser] = useState<InternalUser | null>(null)
+  const [editingUserRoutes, setEditingUserRoutes] = useState<string[]>([])
 
   const [apiKeys, setApiKeys] = useState({
     github: "••••••••••••••••",
@@ -220,7 +243,195 @@ export default function SettingsPage() {
     })
   }
 
-  // handleAddUser y handleDeleteUser removidos - ahora se maneja desde visionaries-tech
+  // Funciones para gestión de usuarios internos
+  const loadInternalUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      // Intentar obtener token del sessionStorage primero (SSO desde Aura)
+      let token = typeof window !== 'undefined' ? sessionStorage.getItem('portalAuthToken') : null
+      
+      // Si no hay token en sessionStorage, obtenerlo de Firebase Auth
+      if (!token) {
+        token = await getIdToken()
+      }
+
+      if (!token) {
+        throw new Error('No hay token disponible')
+      }
+
+      const response = await fetch('/api/admin/list-internal-users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al cargar usuarios')
+      }
+
+      const data = await response.json()
+      setInternalUsers(data.users || [])
+    } catch (error) {
+      console.error('Error cargando usuarios:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los usuarios. Asegúrate de estar autenticado.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleAddInternalUser = async () => {
+    if (!newUserEmail.trim()) {
+      toast({
+        title: "Error",
+        description: "El email es requerido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      let token = typeof window !== 'undefined' ? sessionStorage.getItem('portalAuthToken') : null
+      if (!token) {
+        token = await getIdToken()
+      }
+      if (!token) {
+        throw new Error('No hay token disponible')
+      }
+
+      const response = await fetch('/api/admin/assign-internal-access', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: newUserEmail,
+          role: newUserRole,
+          allowedRoutes: newUserRoutes,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Usuario agregado",
+          description: data.message,
+        })
+        setNewUserEmail("")
+        setNewUserRole("admin")
+        setNewUserRoutes([])
+        setShowAddUserDialog(false)
+        loadInternalUsers()
+      } else {
+        throw new Error(data.error || 'Error al agregar usuario')
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al agregar usuario",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleUpdateUserRole = async (userEmail: string, newRole: UserRole, allowedRoutes?: string[]) => {
+    try {
+      let token = typeof window !== 'undefined' ? sessionStorage.getItem('portalAuthToken') : null
+      if (!token) {
+        token = await getIdToken()
+      }
+      if (!token) {
+        throw new Error('No hay token disponible')
+      }
+
+      const response = await fetch('/api/admin/update-user-role', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          role: newRole,
+          allowedRoutes: allowedRoutes,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Rol actualizado",
+          description: data.message,
+        })
+        loadInternalUsers()
+      } else {
+        throw new Error(data.error || 'Error al actualizar rol')
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al actualizar rol",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleRevokeAccess = async (userEmail: string) => {
+    if (!confirm(`¿Estás seguro de revocar el acceso interno de ${userEmail}?`)) {
+      return
+    }
+
+    try {
+      let token = typeof window !== 'undefined' ? sessionStorage.getItem('portalAuthToken') : null
+      if (!token) {
+        token = await getIdToken()
+      }
+      if (!token) {
+        throw new Error('No hay token disponible')
+      }
+
+      const response = await fetch('/api/admin/revoke-internal-access', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userEmail,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Acceso revocado",
+          description: data.message,
+        })
+        loadInternalUsers()
+      } else {
+        throw new Error(data.error || 'Error al revocar acceso')
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al revocar acceso",
+        variant: "destructive",
+      })
+    }
+  }
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      loadInternalUsers()
+    }
+  }, [user])
 
   const handleSaveCotizacionesConfig = () => {
     const errors = validateConfig(cotizacionesConfig)
@@ -297,6 +508,10 @@ export default function SettingsPage() {
               <TabsTrigger value="cotizaciones">
                 <DollarSign className="h-4 w-4 mr-2" />
                 Cotizaciones
+              </TabsTrigger>
+              <TabsTrigger value="internal-users">
+                <Users className="h-4 w-4 mr-2" />
+                Usuarios Internos
               </TabsTrigger>
             </>
           )}
@@ -1219,6 +1434,212 @@ export default function SettingsPage() {
                 Guardar Configuración
               </Button>
             </div>
+          </TabsContent>
+        )}
+
+        {user.role === "admin" && (
+          <TabsContent value="internal-users" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Gestión de Usuarios Internos</CardTitle>
+                    <CardDescription>
+                      Administra los usuarios con acceso al Portal Admin y sus permisos por ruta
+                    </CardDescription>
+                  </div>
+                  <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Agregar Usuario
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Agregar Usuario Interno</DialogTitle>
+                        <DialogDescription>
+                          Asigna acceso interno a un usuario. El usuario debe existir en visionaries-tech.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="new-user-email">Email</Label>
+                          <Input
+                            id="new-user-email"
+                            type="email"
+                            placeholder="usuario@example.com"
+                            value={newUserEmail}
+                            onChange={(e) => setNewUserEmail(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="new-user-role">Rol</Label>
+                          <Select value={newUserRole} onValueChange={(value) => setNewUserRole(value as UserRole)}>
+                            <SelectTrigger id="new-user-role">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="pm">PM</SelectItem>
+                              <SelectItem value="developer">Developer</SelectItem>
+                              <SelectItem value="qa">QA</SelectItem>
+                              <SelectItem value="client">Client</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <RouteSelector
+                            selectedRoutes={newUserRoutes}
+                            onRoutesChange={setNewUserRoutes}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
+                          Cancelar
+                        </Button>
+                        <Button onClick={handleAddInternalUser} disabled={!newUserEmail.trim()}>
+                          Agregar Usuario
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingUsers ? (
+                  <div className="text-center py-8">Cargando usuarios...</div>
+                ) : internalUsers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No hay usuarios con acceso interno
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Rol</TableHead>
+                        <TableHead>Rutas Permitidas</TableHead>
+                        <TableHead>Último Acceso</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {internalUsers.map((internalUser) => (
+                        <TableRow key={internalUser.uid}>
+                          <TableCell className="font-medium">{internalUser.email}</TableCell>
+                          <TableCell>
+                            <RoleBadge role={internalUser.role as UserRole} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {internalUser.allowedRoutes && internalUser.allowedRoutes.length > 0 ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  {internalUser.allowedRoutes.length} ruta{internalUser.allowedRoutes.length !== 1 ? 's' : ''}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  Sin rutas
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {internalUser.lastSignInTime
+                              ? new Date(internalUser.lastSignInTime).toLocaleDateString()
+                              : 'Nunca'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingUser(internalUser)
+                                      setEditingUserRoutes(internalUser.allowedRoutes || [])
+                                    }}
+                                  >
+                                    Editar
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Editar Usuario: {internalUser.email}</DialogTitle>
+                                    <DialogDescription>
+                                      Actualiza el rol y las rutas permitidas para este usuario
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div className="space-y-2">
+                                      <Label>Rol</Label>
+                                      <Select
+                                        value={internalUser.role}
+                                        onValueChange={(value) => {
+                                          handleUpdateUserRole(internalUser.email, value as UserRole, editingUserRoutes)
+                                        }}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="admin">Admin</SelectItem>
+                                          <SelectItem value="pm">PM</SelectItem>
+                                          <SelectItem value="developer">Developer</SelectItem>
+                                          <SelectItem value="qa">QA</SelectItem>
+                                          <SelectItem value="client">Client</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <RouteSelector
+                                        selectedRoutes={editingUserRoutes}
+                                        onRoutesChange={setEditingUserRoutes}
+                                      />
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setEditingUser(null)
+                                        setEditingUserRoutes([])
+                                      }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      onClick={() => {
+                                        if (editingUser) {
+                                          handleUpdateUserRole(editingUser.email, internalUser.role as UserRole, editingUserRoutes)
+                                          setEditingUser(null)
+                                          setEditingUserRoutes([])
+                                        }
+                                      }}
+                                    >
+                                      Guardar Cambios
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleRevokeAccess(internalUser.email)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>
