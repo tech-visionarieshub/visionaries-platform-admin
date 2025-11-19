@@ -132,38 +132,48 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadConfig() {
-      console.log('[Settings] Iniciando carga de configuración...')
+      const defaultConfig: CotizacionesConfig = {
+        tarifas: {
+          desarrolladorMin: 800,
+          gabyMin: 1000,
+        },
+        porcentajes: {
+          impuestos: 2,
+          arely: 5,
+          desarrollador: 27,
+          gastosOperativos: 18.15,
+          marketing: 3,
+          ahorro: 5,
+          gaby: 40,
+        },
+        reglas: {
+          mensualidadMinima: 64000,
+          horasTrabajoSemana: 20,
+          costoPrototipadoUSD: 600,
+          tipoCambioUSD: 20,
+        },
+      }
+
       try {
-        const config = await getCotizacionesConfig()
-        console.log('[Settings] Config obtenida:', config)
+        console.log('[Settings] Iniciando carga de configuración...')
+        
+        // Agregar timeout de 10 segundos
+        const timeoutPromise = new Promise<null>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Timeout: La carga de configuración tardó demasiado'))
+          }, 10000)
+        })
+
+        const configPromise = getCotizacionesConfig()
+        const config = await Promise.race([configPromise, timeoutPromise])
+        
+        console.log('[Settings] Configuración cargada:', config)
         
         // Si config es null, usar configuración por defecto
         if (!config) {
           console.log('[Settings] Config es null, usando configuración por defecto')
-          const defaultConfig: CotizacionesConfig = {
-            tarifas: {
-              desarrolladorMin: 800,
-              gabyMin: 1000,
-            },
-            porcentajes: {
-              impuestos: 2,
-              arely: 5,
-              desarrollador: 27,
-              gastosOperativos: 18.15,
-              marketing: 3,
-              ahorro: 5,
-              gaby: 40,
-            },
-            reglas: {
-              mensualidadMinima: 64000,
-              horasTrabajoSemana: 20,
-              costoPrototipadoUSD: 600,
-              tipoCambioUSD: 20,
-            },
-          }
           setCotizacionesConfig(defaultConfig)
           setLoadingConfig(false)
-          console.log('[Settings] Configuración por defecto establecida')
           return
         }
         
@@ -191,12 +201,8 @@ export default function SettingsPage() {
         }
         setCotizacionesConfig(normalizedConfig)
         setLoadingConfig(false)
-        console.log('[Settings] Configuración normalizada establecida')
       } catch (err: any) {
         console.error('[Settings] Error loading config:', err)
-        console.error('[Settings] Error name:', err.name)
-        console.error('[Settings] Error message:', err.message)
-        console.error('[Settings] Error stack:', err.stack)
         
         // Si es error de autenticación, no hacer nada (ya redirige)
         if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
@@ -205,32 +211,10 @@ export default function SettingsPage() {
           return
         }
         
-        // En caso de error, usar configuración por defecto
+        // En caso de cualquier error (incluyendo timeout), usar configuración por defecto
         console.log('[Settings] Usando configuración por defecto debido a error')
-        const defaultConfig: CotizacionesConfig = {
-          tarifas: {
-            desarrolladorMin: 800,
-            gabyMin: 1000,
-          },
-          porcentajes: {
-            impuestos: 2,
-            arely: 5,
-            desarrollador: 27,
-            gastosOperativos: 18.15,
-            marketing: 3,
-            ahorro: 5,
-            gaby: 40,
-          },
-          reglas: {
-            mensualidadMinima: 64000,
-            horasTrabajoSemana: 20,
-            costoPrototipadoUSD: 600,
-            tipoCambioUSD: 20,
-          },
-        }
         setCotizacionesConfig(defaultConfig)
         setLoadingConfig(false)
-        console.log('[Settings] Configuración por defecto establecida después de error')
       }
     }
     loadConfig()
