@@ -132,11 +132,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadConfig() {
+      console.log('[Settings] Iniciando carga de configuración...')
       try {
         const config = await getCotizacionesConfig()
+        console.log('[Settings] Config obtenida:', config)
         
         // Si config es null, usar configuración por defecto
         if (!config) {
+          console.log('[Settings] Config es null, usando configuración por defecto')
           const defaultConfig: CotizacionesConfig = {
             tarifas: {
               desarrolladorMin: 800,
@@ -160,6 +163,7 @@ export default function SettingsPage() {
           }
           setCotizacionesConfig(defaultConfig)
           setLoadingConfig(false)
+          console.log('[Settings] Configuración por defecto establecida')
           return
         }
         
@@ -187,14 +191,22 @@ export default function SettingsPage() {
         }
         setCotizacionesConfig(normalizedConfig)
         setLoadingConfig(false)
+        console.log('[Settings] Configuración normalizada establecida')
       } catch (err: any) {
+        console.error('[Settings] Error loading config:', err)
+        console.error('[Settings] Error name:', err.name)
+        console.error('[Settings] Error message:', err.message)
+        console.error('[Settings] Error stack:', err.stack)
+        
         // Si es error de autenticación, no hacer nada (ya redirige)
         if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          console.log('[Settings] Error de autenticación, redirigiendo...')
           setLoadingConfig(false)
           return
         }
-        console.error('Error loading config:', err)
+        
         // En caso de error, usar configuración por defecto
+        console.log('[Settings] Usando configuración por defecto debido a error')
         const defaultConfig: CotizacionesConfig = {
           tarifas: {
             desarrolladorMin: 800,
@@ -218,6 +230,7 @@ export default function SettingsPage() {
         }
         setCotizacionesConfig(defaultConfig)
         setLoadingConfig(false)
+        console.log('[Settings] Configuración por defecto establecida después de error')
       }
     }
     loadConfig()
