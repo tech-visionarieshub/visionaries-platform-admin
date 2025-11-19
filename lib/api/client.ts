@@ -111,19 +111,11 @@ export async function apiGet<T>(endpoint: string, params?: Record<string, string
     });
   }
 
-  console.log('[API Client] GET request to:', url.toString());
   const response = await apiRequest<T>(url.toString(), {
     method: 'GET',
   });
-  
-  console.log('[API Client] GET response:', response);
-  
-  // La API puede retornar { success: true, data: T } o directamente T
-  if (response && typeof response === 'object' && 'data' in response) {
-    return (response as any).data as T;
-  }
-  
-  return response as T;
+
+  return response.data as T;
 }
 
 /**
