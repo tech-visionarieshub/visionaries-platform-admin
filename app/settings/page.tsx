@@ -1712,11 +1712,11 @@ export default function SettingsPage() {
                               id="new-user-superadmin"
                               checked={newUserSuperadmin}
                               onCheckedChange={setNewUserSuperadmin}
-                            />
+                          />
                             <Label htmlFor="new-user-superadmin" className="cursor-pointer">
                               Superadmin (acceso completo sin restricciones)
                             </Label>
-                          </div>
+                        </div>
                         )}
                         <Alert>
                           <AlertDescription className="text-sm">

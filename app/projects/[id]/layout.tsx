@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { ArrowLeft, Calendar, User, DollarSign, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -52,8 +52,9 @@ export default function ProjectLayout({
   params,
 }: {
   children: React.ReactNode
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const resolvedParams = use(params)
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -64,7 +65,7 @@ export default function ProjectLayout({
   useEffect(() => {
     async function loadProject() {
       try {
-        const data = await getProjectById(params.id)
+        const data = await getProjectById(resolvedParams.id)
         setProject(data)
       } catch (err) {
         console.error('Error loading project:', err)
@@ -73,7 +74,7 @@ export default function ProjectLayout({
       }
     }
     loadProject()
-  }, [params.id])
+  }, [resolvedParams.id])
 
   const handleEditClick = () => {
     if (project) {
@@ -200,7 +201,7 @@ export default function ProjectLayout({
           {navItems.map((item) => (
             <Link
               key={item.href}
-              href={`/projects/${params.id}${item.href}`}
+              href={`/projects/${resolvedParams.id}${item.href}`}
               className="px-4 py-2 text-sm font-medium rounded-md hover:bg-accent whitespace-nowrap transition-colors"
             >
               {item.label}

@@ -28,12 +28,22 @@ export function getInternalApp(): admin.app.App {
 
       let credential;
       try {
-        // Intentar parsear como JSON string
-        const serviceAccountJson = JSON.parse(serviceAccount);
-        credential = admin.credential.cert(serviceAccountJson);
-      } catch {
-        // Si falla, asumir que es path a archivo
-        credential = admin.credential.cert(serviceAccount);
+        // Intentar parsear como JSON string primero
+        try {
+          const serviceAccountJson = JSON.parse(serviceAccount);
+          credential = admin.credential.cert(serviceAccountJson);
+        } catch (jsonError) {
+          // Si no es JSON válido, asumir que es path a archivo
+          if (serviceAccount.startsWith('{')) {
+            throw jsonError; // Es JSON pero inválido, propagar el error
+          }
+          credential = admin.credential.cert(serviceAccount);
+        }
+      } catch (error) {
+        throw new Error(
+          'FIREBASE_SERVICE_ACCOUNT_PLATFORM_ADMIN debe ser un JSON válido o una ruta a archivo. ' +
+          'Error: ' + (error instanceof Error ? error.message : String(error))
+        );
       }
 
       internalApp = admin.initializeApp(

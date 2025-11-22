@@ -145,7 +145,9 @@ export default function ProjectsPage() {
       {/* Projects Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {projects.map((project) => {
-          const StatusIcon = statusConfig[project.status as keyof typeof statusConfig].icon
+          const statusKey = project.status as keyof typeof statusConfig
+          const statusInfo = statusConfig[statusKey] || { variant: "default" as const, icon: FolderKanban }
+          const StatusIcon = statusInfo.icon
 
           return (
             <Link key={project.id} href={`/projects/${project.id}`}>
@@ -157,7 +159,7 @@ export default function ProjectsPage() {
                       <h3 className="font-semibold text-lg text-[#0E0734] mb-1">{project.name}</h3>
                       <p className="text-sm text-muted-foreground">{project.client}</p>
                     </div>
-                    <StatusBadge variant={statusConfig[project.status as keyof typeof statusConfig].variant}>
+                    <StatusBadge variant={statusInfo.variant}>
                       {project.status}
                     </StatusBadge>
                   </div>
