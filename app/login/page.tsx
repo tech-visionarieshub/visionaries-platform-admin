@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Shield, AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
+import { Shield, AlertCircle, Loader2, Info, ArrowRight } from "lucide-react"
 import { signInWithGoogle, getAuthInstance } from "@/lib/firebase/visionaries-tech"
 import { useToast } from "@/hooks/use-toast"
 
@@ -26,9 +26,9 @@ export default function LoginPage() {
     setIsLoading(true)
     setError(null)
     try {
-      console.log("Iniciando login con Google...")
+      console.log("[Auth] Iniciando login con Google...")
       const result = await signInWithGoogle()
-      console.log("Login exitoso:", result.user.email)
+      console.log("[Auth] Login exitoso:", result.user.email)
       
       // Verificar claims preliminarmente
       const tokenResult = await result.user.getIdTokenResult()
@@ -48,8 +48,16 @@ export default function LoginPage() {
       router.push('/')
       
     } catch (err: any) {
-      console.error("Error en login:", err)
-      setError("Error al iniciar sesión. Intenta de nuevo.")
+      console.error("[Auth] Error en login:", err)
+      
+      // Detectar tipos específicos de errores
+      if (err.code === 'auth/popup-blocked') {
+        setError("El popup de Google fue bloqueado. Por favor, permite popups e intenta de nuevo.")
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setError("Cancelaste el login. Por favor, intenta de nuevo.")
+      } else {
+        setError("Error al iniciar sesión. Intenta de nuevo.")
+      }
       setIsLoading(false)
     }
   }
@@ -81,9 +89,17 @@ export default function LoginPage() {
             </div>
           )}
 
+          <div className="flex items-start gap-3 text-sm text-blue-200 bg-blue-900/30 p-4 rounded-lg border border-blue-800">
+            <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="font-medium">¿Ya estás logueado en Aura?</p>
+              <p>Si ya iniciaste sesión en Aura (con Google, Microsoft o Email), puedes acceder desde allí haciendo clic en el botón "Portal Admin".</p>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <Button 
-              className="w-full h-14 text-lg font-medium bg-white text-slate-900 hover:bg-slate-100 transition-all hover:scale-[1.02]" 
+              className="w-full h-14 text-lg font-medium bg-white text-slate-900 hover:bg-slate-100 transition-all hover:scale-[1.02] disabled:opacity-50" 
               onClick={handleLogin}
               disabled={isLoading}
             >
@@ -98,6 +114,26 @@ export default function LoginPage() {
                   Iniciar Sesión con Google
                 </>
               )}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-700"></span>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-slate-900/50 text-slate-400">o</span>
+              </div>
+            </div>
+
+            <Button 
+              variant="outline" 
+              className="w-full h-12 border-slate-700 hover:bg-slate-800 text-slate-100"
+              asChild
+            >
+              <a href="https://aura.visionarieshub.com" target="_blank" rel="noopener noreferrer">
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Ir a Aura
+              </a>
             </Button>
           </div>
         </CardContent>
