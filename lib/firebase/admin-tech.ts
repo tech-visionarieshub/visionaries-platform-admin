@@ -8,16 +8,12 @@ let auraApp: admin.app.App | null = null;
 let auraAuth: admin.auth.Auth | null = null;
 
 export function getAuraApp(): admin.app.App {
-  console.log('[Admin Tech] getAuraApp() llamado');
   if (!auraApp) {
-    console.log('[Admin Tech] auraApp no existe, buscando app existente...');
     // Buscar si ya existe
     const existingApp = admin.apps.find(app => app?.name === 'aura');
     if (existingApp) {
-      console.log('[Admin Tech] App existente encontrada, reutilizando');
       auraApp = existingApp as admin.app.App;
     } else {
-      console.log('[Admin Tech] Inicializando nueva app...');
       // Inicializar con service account de visionaries-tech
       const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH;
       
@@ -30,33 +26,23 @@ export function getAuraApp(): admin.app.App {
         throw error;
       }
 
-      console.log('[Admin Tech] Service account encontrado, parseando...');
       let credential;
       try {
         // Intentar parsear como JSON string
         const serviceAccountJson = JSON.parse(serviceAccount);
         credential = admin.credential.cert(serviceAccountJson);
-        console.log('[Admin Tech] Service account parseado correctamente');
-      } catch (parseError) {
-        console.error('[Admin Tech] Error parseando service account:', parseError);
+      } catch {
         // Si falla, asumir que es path a archivo
         credential = admin.credential.cert(serviceAccount);
       }
 
-      console.log('[Admin Tech] Inicializando Firebase Admin App...');
-      try {
-        auraApp = admin.initializeApp(
-          {
-            credential,
-            projectId: 'visionaries-tech',
-          },
-          'aura'
-        );
-        console.log('[Admin Tech] Firebase Admin App inicializada exitosamente');
-      } catch (initError) {
-        console.error('[Admin Tech] Error inicializando Firebase Admin App:', initError);
-        throw initError;
-      }
+      auraApp = admin.initializeApp(
+        {
+          credential,
+          projectId: 'visionaries-tech',
+        },
+        'aura'
+      );
     }
   }
   return auraApp;
@@ -78,21 +64,8 @@ export function getAuraAuth(): admin.auth.Auth {
  * Retorna el decoded token con los custom claims
  */
 export async function verifyIdToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
-  console.log('[Admin Tech] verifyIdToken() llamado, token length:', idToken.length);
-  try {
-    const auth = getAuraAuth();
-    console.log('[Admin Tech] Auth obtenido, verificando token...');
-    const decoded = await auth.verifyIdToken(idToken);
-    console.log('[Admin Tech] Token verificado exitosamente, uid:', decoded.uid);
-    return decoded;
-  } catch (error: any) {
-    console.error('[Admin Tech] Error verificando token:', {
-      message: error.message,
-      code: error.code,
-      name: error.name
-    });
-    throw error;
-  }
+  const auth = getAuraAuth();
+  return await auth.verifyIdToken(idToken);
 }
 
 /**
