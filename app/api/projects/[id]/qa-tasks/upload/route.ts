@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 /**
  * API para upload bulk de tareas QA desde CSV/Excel
- * POST /api/projects/[projectId]/qa-tasks/upload
+ * POST /api/projects/[id]/qa-tasks/upload
  * 
  * Body: FormData con:
  * - file: Archivo CSV/Excel
@@ -28,7 +28,7 @@ const uploadSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     // Verificar autenticación
@@ -179,7 +179,7 @@ export async function POST(
           estado: 'Pendiente' as QATaskStatus,
           imagenes: [],
           createdBy: decoded.email || decoded.uid || 'unknown',
-          projectId: params.projectId,
+          projectId: params.id,
         };
 
         // Mapear cada columna a su campo correspondiente
@@ -264,7 +264,7 @@ export async function POST(
       }
 
       // Crear tareas en batch
-      const createdTasks = await qaTasksRepository.createBatch(params.projectId, tasksToCreate);
+      const createdTasks = await qaTasksRepository.createBatch(params.id, tasksToCreate);
 
       return NextResponse.json({
         success: true,

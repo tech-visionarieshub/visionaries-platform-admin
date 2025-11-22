@@ -7,9 +7,9 @@ import { z } from 'zod';
 
 /**
  * API CRUD para una tarea QA específica
- * GET /api/projects/[projectId]/qa-tasks/[taskId] - Obtener tarea
- * PUT /api/projects/[projectId]/qa-tasks/[taskId] - Actualizar tarea
- * DELETE /api/projects/[projectId]/qa-tasks/[taskId] - Eliminar tarea
+ * GET /api/projects/[id]/qa-tasks/[taskId] - Obtener tarea
+ * PUT /api/projects/[id]/qa-tasks/[taskId] - Actualizar tarea
+ * DELETE /api/projects/[id]/qa-tasks/[taskId] - Eliminar tarea
  */
 
 const updateTaskSchema = z.object({
@@ -29,7 +29,7 @@ const updateTaskSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string; taskId: string } }
+  { params }: { params: { id: string; taskId: string } }
 ) {
   try {
     // Verificar autenticación
@@ -53,7 +53,7 @@ export async function GET(
     }
 
     // Obtener tarea
-    const task = await qaTasksRepository.getById(params.projectId, params.taskId);
+    const task = await qaTasksRepository.getById(params.id, params.taskId);
 
     if (!task) {
       return NextResponse.json(
@@ -77,7 +77,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { projectId: string; taskId: string } }
+  { params }: { params: { id: string; taskId: string } }
 ) {
   try {
     // Verificar autenticación
@@ -105,7 +105,7 @@ export async function PUT(
     const validatedData = updateTaskSchema.parse(body);
 
     // Verificar que la tarea existe
-    const existingTask = await qaTasksRepository.getById(params.projectId, params.taskId);
+    const existingTask = await qaTasksRepository.getById(params.id, params.taskId);
     if (!existingTask) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
@@ -126,7 +126,7 @@ export async function PUT(
 
     // Actualizar tarea
     const updatedTask = await qaTasksRepository.update(
-      params.projectId,
+      params.id,
       params.taskId,
       updateData
     );
@@ -154,7 +154,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { projectId: string; taskId: string } }
+  { params }: { params: { id: string; taskId: string } }
 ) {
   try {
     // Verificar autenticación
@@ -178,7 +178,7 @@ export async function DELETE(
     }
 
     // Verificar que la tarea existe
-    const existingTask = await qaTasksRepository.getById(params.projectId, params.taskId);
+    const existingTask = await qaTasksRepository.getById(params.id, params.taskId);
     if (!existingTask) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
@@ -187,7 +187,7 @@ export async function DELETE(
     }
 
     // Eliminar tarea
-    await qaTasksRepository.delete(params.projectId, params.taskId);
+    await qaTasksRepository.delete(params.id, params.taskId);
 
     return NextResponse.json({
       success: true,

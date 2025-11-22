@@ -32,18 +32,13 @@ export default function ProjectsPage() {
         setError(null)
         console.log('[Projects Page] Iniciando carga de proyectos...')
         
-        // Timeout de 15 segundos (más corto para detectar problemas más rápido)
+        // Timeout de 30 segundos
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            console.error('[Projects Page] Timeout después de 15 segundos');
-            reject(new Error('Timeout: La carga de proyectos tardó demasiado (15s)'))
-          }, 15000)
+          setTimeout(() => reject(new Error('Timeout: La carga de proyectos tardó demasiado')), 30000)
         })
         
-        console.log('[Projects Page] Iniciando Promise.race con timeout de 15s');
         const dataPromise = getProjects()
         const data = await Promise.race([dataPromise, timeoutPromise]) as Project[]
-        console.log('[Projects Page] Promise.race completado, datos recibidos')
         
         if (cancelled) return
         

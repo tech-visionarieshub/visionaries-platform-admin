@@ -7,8 +7,8 @@ import { z } from 'zod';
 
 /**
  * API CRUD para tareas QA
- * GET /api/projects/[projectId]/qa-tasks - Listar todas las tareas
- * POST /api/projects/[projectId]/qa-tasks - Crear nueva tarea
+ * GET /api/projects/[id]/qa-tasks - Listar todas las tareas
+ * POST /api/projects/[id]/qa-tasks - Crear nueva tarea
  */
 
 const createTaskSchema = z.object({
@@ -28,7 +28,7 @@ const createTaskSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     // Verificar autenticación
@@ -59,11 +59,11 @@ export async function GET(
     let tasks: QATask[];
 
     if (category) {
-      tasks = await qaTasksRepository.getByCategory(params.projectId, category);
+      tasks = await qaTasksRepository.getByCategory(params.id, category);
     } else if (status) {
-      tasks = await qaTasksRepository.getByStatus(params.projectId, status);
+      tasks = await qaTasksRepository.getByStatus(params.id, status);
     } else {
-      tasks = await qaTasksRepository.getAll(params.projectId);
+      tasks = await qaTasksRepository.getAll(params.id);
     }
 
     return NextResponse.json({
@@ -82,7 +82,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     // Verificar autenticación
@@ -110,14 +110,14 @@ export async function POST(
     const validatedData = createTaskSchema.parse(body);
 
     // Crear tarea
-    const newTask = await qaTasksRepository.create(params.projectId, {
+    const newTask = await qaTasksRepository.create(params.id, {
       ...validatedData,
       imagenes: validatedData.imagenes?.map(img => ({
         ...img,
         uploadedAt: typeof img.uploadedAt === 'string' ? new Date(img.uploadedAt) : img.uploadedAt,
       })) || [],
       createdBy: decoded.email || decoded.uid || 'unknown',
-      projectId: params.projectId,
+      projectId: params.id,
     });
 
     return NextResponse.json({

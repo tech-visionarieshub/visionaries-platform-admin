@@ -8,7 +8,7 @@ import type { AnalyzeFileResponse } from '@/types/qa';
 
 /**
  * API para analizar headers de archivos CSV/Excel con OpenAI
- * POST /api/projects/[projectId]/qa-tasks/analyze
+ * POST /api/projects/[id]/qa-tasks/analyze
  * 
  * Body: FormData con archivo (file)
  * 
@@ -16,7 +16,7 @@ import type { AnalyzeFileResponse } from '@/types/qa';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     // Verificar autenticación

@@ -3,9 +3,6 @@ import { withAuth } from '@/lib/api/middleware';
 import { projectsRepository } from '@/lib/repositories/projects-repository';
 import type { Project } from '@/lib/mock-data/projects';
 
-// Configurar timeout máximo para Vercel (60 segundos)
-export const maxDuration = 60;
-
 export async function GET(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {

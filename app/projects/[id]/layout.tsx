@@ -62,49 +62,17 @@ export default function ProjectLayout({
   const { toast } = useToast()
 
   useEffect(() => {
-    let cancelled = false
-    
     async function loadProject() {
       try {
-        setLoading(true)
-        console.log('[Project Layout] Iniciando carga de proyecto:', params.id)
-        
-        // Timeout de 15 segundos
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            console.error('[Project Layout] Timeout después de 15 segundos');
-            reject(new Error('Timeout: La carga del proyecto tardó demasiado (15s)'))
-          }, 15000)
-        })
-        
-        const dataPromise = getProjectById(params.id)
-        const data = await Promise.race([dataPromise, timeoutPromise]) as Project
-        
-        if (cancelled) return
-        
-        console.log('[Project Layout] Proyecto cargado exitosamente')
+        const data = await getProjectById(params.id)
         setProject(data)
-      } catch (err: any) {
-        if (cancelled) return
-        
-        console.error('[Project Layout] Error loading project:', {
-          error: err,
-          message: err.message,
-          stack: err.stack,
-        })
+      } catch (err) {
+        console.error('Error loading project:', err)
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-          console.log('[Project Layout] Carga finalizada')
-        }
+        setLoading(false)
       }
     }
-    
     loadProject()
-    
-    return () => {
-      cancelled = true
-    }
   }, [params.id])
 
   const handleEditClick = () => {

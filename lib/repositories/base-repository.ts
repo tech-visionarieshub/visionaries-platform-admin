@@ -98,24 +98,14 @@ export class BaseRepository<T extends BaseEntity> {
    */
   async getById(id: string): Promise<T | null> {
     try {
-      console.log(`[BaseRepository] Obteniendo documento ${id} de ${this.collectionName}...`);
       const doc = await this.getDoc(id).get();
-      console.log(`[BaseRepository] Documento obtenido, existe: ${doc.exists}`);
       
       if (!doc.exists) {
-        console.log(`[BaseRepository] Documento ${id} no existe en ${this.collectionName}`);
         return null;
       }
 
-      const result = this.fromFirestore(doc);
-      console.log(`[BaseRepository] Documento ${id} procesado exitosamente`);
-      return result;
+      return this.fromFirestore(doc);
     } catch (error: any) {
-      console.error(`[BaseRepository] Error obteniendo documento ${id} de ${this.collectionName}:`, {
-        message: error.message,
-        code: error.code,
-        stack: error.stack,
-      });
       throw new Error(`Error getting document ${id} from ${this.collectionName}: ${error.message}`);
     }
   }
@@ -125,18 +115,9 @@ export class BaseRepository<T extends BaseEntity> {
    */
   async getAll(): Promise<T[]> {
     try {
-      console.log(`[BaseRepository] Obteniendo todos los documentos de ${this.collectionName}...`);
       const snapshot = await this.getCollection().get();
-      console.log(`[BaseRepository] Snapshot obtenido, ${snapshot.docs.length} documentos encontrados`);
-      const results = snapshot.docs.map(doc => this.fromFirestore(doc));
-      console.log(`[BaseRepository] Documentos procesados: ${results.length}`);
-      return results;
+      return snapshot.docs.map(doc => this.fromFirestore(doc));
     } catch (error: any) {
-      console.error(`[BaseRepository] Error obteniendo documentos de ${this.collectionName}:`, {
-        message: error.message,
-        code: error.code,
-        stack: error.stack,
-      });
       throw new Error(`Error getting all documents from ${this.collectionName}: ${error.message}`);
     }
   }

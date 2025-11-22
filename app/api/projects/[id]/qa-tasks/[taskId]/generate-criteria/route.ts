@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 /**
  * API para generar criterios de aceptación con OpenAI
- * POST /api/projects/[projectId]/qa-tasks/[taskId]/generate-criteria
+ * POST /api/projects/[id]/qa-tasks/[taskId]/generate-criteria
  * 
  * Body opcional: { force: boolean } - Si force=true, regenera incluso si ya existen criterios
  * 
@@ -20,7 +20,7 @@ const generateCriteriaSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string; taskId: string } }
+  { params }: { params: { id: string; taskId: string } }
 ) {
   try {
     // Verificar autenticación
@@ -44,7 +44,7 @@ export async function POST(
     }
 
     // Verificar que la tarea existe
-    const task = await qaTasksRepository.getById(params.projectId, params.taskId);
+    const task = await qaTasksRepository.getById(params.id, params.taskId);
     if (!task) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
