@@ -88,19 +88,44 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
             }
             
             // Guardar información del usuario en el store
-            // Forzar refresh del token para obtener displayName actualizado
+            // Cuando vienes desde Aura con token en URL, puede que no haya currentUser
+            // Usar los datos del token validado
             const currentUser = getCurrentUser()
             if (currentUser) {
-              // Obtener displayName actualizado del token
-              const tokenResult = await currentUser.getIdTokenResult(true)
-              const updatedDisplayName = currentUser.displayName || tokenResult.claims.name || currentUser.email?.split('@')[0] || 'Usuario'
-              
+              // Si hay currentUser, obtener datos actualizados del token
+              try {
+                const tokenResult = await currentUser.getIdTokenResult(true)
+                const updatedDisplayName = currentUser.displayName || tokenResult.claims.name || currentUser.email?.split('@')[0] || 'Usuario'
+                
+                setUser({
+                  id: currentUser.uid,
+                  name: updatedDisplayName,
+                  email: currentUser.email || data.user.email || '',
+                  role: (data.user.role as any) || 'admin',
+                  avatar: currentUser.photoURL || undefined,
+                  superadmin: data.user.superadmin || false,
+                })
+              } catch (error) {
+                console.warn('[Auth] Error obteniendo token result, usando datos del token validado:', error)
+                // Fallback: usar datos del token validado
+                setUser({
+                  id: data.user.uid,
+                  name: data.user.email?.split('@')[0] || 'Usuario',
+                  email: data.user.email || '',
+                  role: (data.user.role as any) || 'admin',
+                  avatar: undefined,
+                  superadmin: data.user.superadmin || false,
+                })
+              }
+            } else {
+              // No hay currentUser (viene desde Aura), usar datos del token validado
+              console.log('[Auth] No hay currentUser, usando datos del token validado')
               setUser({
-                id: currentUser.uid,
-                name: updatedDisplayName,
-                email: currentUser.email || data.user.email || '',
+                id: data.user.uid,
+                name: data.user.email?.split('@')[0] || 'Usuario',
+                email: data.user.email || '',
                 role: (data.user.role as any) || 'admin',
-                avatar: currentUser.photoURL || undefined,
+                avatar: undefined,
                 superadmin: data.user.superadmin || false,
               })
             }
@@ -109,6 +134,7 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
             const targetPath = pathname === '/login' ? '/' : pathname
             router.replace(targetPath)
             setIsAuthorized(true)
+            setIsValidating(false)
           } else {
             console.log('[Auth] Token inválido o sin acceso interno:', data.error)
             setIsAuthorized(false)
