@@ -1,65 +1,112 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, ArrowLeft, Shield, Mail } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Shield, AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
+import { signInWithGoogle, getAuthInstance } from "@/lib/firebase/visionaries-tech"
+import { useToast } from "@/hooks/use-toast"
 
-export default function UnauthorizedPage() {
-  const handleGoToAura = () => {
-    window.location.href = "https://aura.visionarieshub.com"
+export default function LoginPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam === 'unauthorized') {
+      setError("Tu cuenta no tiene permisos para acceder a esta plataforma.")
+    }
+  }, [searchParams])
+
+  const handleLogin = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      console.log("Iniciando login con Google...")
+      const result = await signInWithGoogle()
+      console.log("Login exitoso:", result.user.email)
+      
+      // Verificar claims preliminarmente
+      const tokenResult = await result.user.getIdTokenResult()
+      if (!tokenResult.claims.internal && !tokenResult.claims.superadmin && result.user.email !== 'adminplatform@visionarieshub.com') {
+         setError("Cuenta autenticada, pero sin permisos de acceso interno.")
+         await getAuthInstance().signOut()
+         setIsLoading(false)
+         return
+      }
+
+      toast({
+        title: "Bienvenido",
+        description: "Sesión iniciada correctamente",
+      })
+      
+      // Redirigir al dashboard
+      router.push('/')
+      
+    } catch (err: any) {
+      console.error("Error en login:", err)
+      setError("Error al iniciar sesión. Intenta de nuevo.")
+      setIsLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
-              <Shield className="h-8 w-8 text-white" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <Card className="w-full max-w-md shadow-2xl border-slate-700 bg-slate-900/50 backdrop-blur text-slate-100">
+        <CardHeader className="space-y-4 text-center pb-8">
+          <div className="flex justify-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Shield className="h-10 w-10 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Acceso No Autorizado</CardTitle>
-          <CardDescription>
-            No tienes permiso para acceder a esta plataforma
-          </CardDescription>
+          <div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              Admin Portal
+            </CardTitle>
+            <CardDescription className="text-slate-400 mt-2 text-lg">
+              Visionaries Tech
+            </CardDescription>
+          </div>
         </CardHeader>
+        
         <CardContent className="space-y-6">
-          <div className="flex items-start gap-3 text-sm text-muted-foreground bg-amber-50 p-4 rounded-lg border border-amber-200">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div className="space-y-2">
-              <p>
-                El Portal Admin solo está disponible para usuarios autorizados con acceso interno.
-              </p>
-              <p>
-                Si necesitas acceso a esta plataforma, por favor contacta al administrador.
-              </p>
+          {error && (
+            <div className="flex items-start gap-3 text-sm text-red-200 bg-red-900/30 p-4 rounded-lg border border-red-800 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <p>{error}</p>
             </div>
-          </div>
+          )}
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Button 
-              className="w-full" 
-              onClick={handleGoToAura}
-              size="lg"
+              className="w-full h-14 text-lg font-medium bg-white text-slate-900 hover:bg-slate-100 transition-all hover:scale-[1.02]" 
+              onClick={handleLogin}
+              disabled={isLoading}
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver a Aura
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Verificando...
+                </>
+              ) : (
+                <>
+                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 mr-3" />
+                  Iniciar Sesión con Google
+                </>
+              )}
             </Button>
-
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">
-                ¿Necesitas acceso?
-              </p>
-              <a 
-                href="mailto:adminplatform@visionarieshub.com?subject=Solicitud de acceso al Portal Admin"
-                className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
-              >
-                <Mail className="h-4 w-4" />
-                Contactar al administrador
-              </a>
-            </div>
           </div>
         </CardContent>
+
+        <CardFooter className="flex justify-center border-t border-slate-800 pt-6">
+          <p className="text-xs text-slate-500">
+            Acceso restringido a personal autorizado
+          </p>
+        </CardFooter>
       </Card>
     </div>
   )

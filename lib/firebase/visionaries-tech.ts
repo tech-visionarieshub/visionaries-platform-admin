@@ -58,7 +58,6 @@ export function getAuthInstance(): Auth {
 /**
  * Obtiene el idToken del usuario actual
  * Este token se envía al backend para validación
- * Si no hay usuario autenticado, intenta usar el token guardado en sessionStorage
  */
 export async function getIdToken(forceRefresh = false): Promise<string | null> {
   const auth = getAuthInstance();
@@ -69,14 +68,6 @@ export async function getIdToken(forceRefresh = false): Promise<string | null> {
       return await user.getIdToken(forceRefresh);
     } catch (error) {
       console.error('[Firebase Auth] Error obteniendo idToken:', error);
-    }
-  }
-  
-  // Si no hay usuario pero hay token guardado, intentar usarlo
-  if (typeof window !== 'undefined') {
-    const savedToken = sessionStorage.getItem('portalAuthToken');
-    if (savedToken) {
-      return savedToken;
     }
   }
   
@@ -123,4 +114,3 @@ export function getCurrentUser(): User | null {
   const auth = getAuthInstance();
   return auth.currentUser;
 }
-
