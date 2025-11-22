@@ -117,6 +117,47 @@ return {
 }
 ```
 
+## 🔑 hasPortalAdminAccess vs Custom Claims
+
+**IMPORTANTE:** `hasPortalAdminAccess` es un campo diferente a los custom claims:
+
+- **Custom Claims** (`internal`, `role`, `superadmin`): Se almacenan en Firebase Authentication y se validan en el admin-platform
+- **hasPortalAdminAccess**: Se almacena en Firestore (`visionaries-platform-admin/users/{userId}`) y se lee desde Aura
+
+### ¿Por qué dos sistemas?
+
+1. **Custom Claims** controlan el acceso inicial al admin-platform
+2. **hasPortalAdminAccess** controla si el usuario puede ver el botón "Portal Admin" en Aura
+
+### Configuración Automática
+
+Cuando agregas un usuario desde Settings → Gestión de Usuarios → Agregar Usuario:
+- ✅ Se asignan custom claims automáticamente
+- ✅ Se establece `hasPortalAdminAccess: true` en Firestore automáticamente
+
+### Configuración Manual
+
+Si necesitas establecer `hasPortalAdminAccess` manualmente:
+
+**Opción 1: Desde Settings (Recomendado)**
+1. Ir a Settings → Gestión de Usuarios
+2. Click "Agregar Usuario"
+3. Ingresar email y configurar
+4. El sistema establece ambos automáticamente
+
+**Opción 2: API Directa**
+```bash
+POST /api/users/set-portal-access
+Authorization: Bearer {token}
+Body: { email: "usuario@example.com", hasAccess: true }
+```
+
+**Opción 3: Firebase Console**
+1. Ir a: https://console.firebase.google.com/project/visionaries-platform-admin/firestore
+2. Navegar a colección `users`
+3. Buscar o crear documento con email del usuario
+4. Agregar campo: `hasPortalAdminAccess: true`
+
 ## 🔐 Configuración de Credenciales
 
 ### Variables de Entorno Requeridas

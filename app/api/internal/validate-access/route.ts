@@ -7,6 +7,9 @@ import { verifyIdToken, hasInternalAccess } from '@/lib/firebase/admin-tech';
  * POST /api/internal/validate-access
  * Headers: Authorization: Bearer <idToken>
  */
+// Configurar timeout para la función (Vercel tiene límite de 10s en Hobby, 60s en Pro)
+export const maxDuration = 30; // segundos
+
 export async function POST(request: NextRequest) {
   console.log('[Validate Access API] ===== INICIO VALIDACIÓN =====')
   console.log('[Validate Access API] Timestamp:', new Date().toISOString())
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
         allowedRoutes: decoded.allowedRoutes || [],
       }
     }
-    console.log('[Validate Access API] Paso 5.1: Respuesta preparada:', responseData)
+    console.log('[Validate Access API] Paso 5.1: Respuesta preparada')
     console.log('[Validate Access API] ===== FIN VALIDACIÓN (ÉXITO) =====')
     
     return NextResponse.json(responseData);
