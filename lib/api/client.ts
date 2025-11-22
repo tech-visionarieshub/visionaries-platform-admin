@@ -66,6 +66,9 @@ export async function apiRequest<T>(
       }
     }
 
+    console.log(`[API Client] Iniciando fetch a ${endpoint}`);
+    const startTime = Date.now();
+    
     const response = await fetch(endpoint, {
       ...options,
       headers: {
@@ -74,6 +77,9 @@ export async function apiRequest<T>(
         ...options.headers,
       },
     });
+    
+    const duration = Date.now() - startTime;
+    console.log(`[API Client] Fetch completado en ${duration}ms, status: ${response.status}`);
 
     if (!response.ok && response.status !== 401) {
       // Log error antes de parsear JSON para debugging
