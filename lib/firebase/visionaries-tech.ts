@@ -12,14 +12,21 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 
+// Función helper para limpiar variables de entorno
+const cleanEnv = (value: string | undefined) => {
+  if (!value) return undefined;
+  // Eliminar comillas, espacios y saltos de línea al inicio y final
+  return value.replace(/^['"\s]+|['"\s]+$/g, '').trim();
+};
+
 // Configuración de visionaries-tech (NO del proyecto interno)
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  authDomain: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  appId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
 let app: FirebaseApp | null = null;
@@ -35,6 +42,13 @@ export function getFirebaseApp(): FirebaseApp {
     if (existingApps.length === 0) {
       if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
         throw new Error('Firebase config de visionaries-tech no está configurada. Verifica las variables de entorno.');
+      }
+      // Imprimir config en consola (ocultando apiKey) para debug si hay problemas
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log('[Firebase Config] Inicializando con:', {
+          ...firebaseConfig,
+          apiKey: '***'
+        });
       }
       app = initializeApp(firebaseConfig, 'visionaries-tech');
     } else {
