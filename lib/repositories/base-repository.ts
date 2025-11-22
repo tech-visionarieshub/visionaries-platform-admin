@@ -98,14 +98,24 @@ export class BaseRepository<T extends BaseEntity> {
    */
   async getById(id: string): Promise<T | null> {
     try {
+      console.log(`[BaseRepository] Obteniendo documento ${id} de ${this.collectionName}...`);
       const doc = await this.getDoc(id).get();
+      console.log(`[BaseRepository] Documento obtenido, existe: ${doc.exists}`);
       
       if (!doc.exists) {
+        console.log(`[BaseRepository] Documento ${id} no existe en ${this.collectionName}`);
         return null;
       }
 
-      return this.fromFirestore(doc);
+      const result = this.fromFirestore(doc);
+      console.log(`[BaseRepository] Documento ${id} procesado exitosamente`);
+      return result;
     } catch (error: any) {
+      console.error(`[BaseRepository] Error obteniendo documento ${id} de ${this.collectionName}:`, {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
       throw new Error(`Error getting document ${id} from ${this.collectionName}: ${error.message}`);
     }
   }

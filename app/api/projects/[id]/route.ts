@@ -2,24 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/middleware';
 import { projectsRepository } from '@/lib/repositories/projects-repository';
 
+// Configurar timeout máximo para Vercel (60 segundos)
+export const maxDuration = 60;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   return withAuth(request, async (user) => {
     try {
+      console.log('[Projects API] GET request iniciada para proyecto:', params.id);
       const project = await projectsRepository.getById(params.id);
+      console.log('[Projects API] Proyecto obtenido:', project ? 'encontrado' : 'no encontrado');
 
       if (!project) {
+        console.log('[Projects API] Proyecto no encontrado:', params.id);
         return NextResponse.json(
           { error: 'Project not found' },
           { status: 404 }
         );
       }
 
+      console.log('[Projects API] Retornando proyecto exitosamente');
       return NextResponse.json({ success: true, data: project });
     } catch (error: any) {
-      console.error('[Projects API] Error:', error);
+      console.error('[Projects API] Error:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        projectId: params.id,
+      });
       return NextResponse.json(
         { error: 'Error fetching project', message: error.message },
         { status: 500 }
