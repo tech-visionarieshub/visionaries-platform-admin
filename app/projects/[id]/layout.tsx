@@ -8,8 +8,27 @@ import { Card } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
-import { getProjectById } from "@/lib/api/projects-api"
+import { getProjectById, updateProject } from "@/lib/api/projects-api"
 import type { Project } from "@/lib/mock-data/projects"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 const navItems = [
   { href: "", label: "Resumen" },
@@ -37,6 +56,10 @@ export default function ProjectLayout({
 }) {
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editingProject, setEditingProject] = useState<Partial<Project>>({})
+  const [saving, setSaving] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     async function loadProject() {
@@ -51,6 +74,45 @@ export default function ProjectLayout({
     }
     loadProject()
   }, [params.id])
+
+  const handleEditClick = () => {
+    if (project) {
+      setEditingProject({
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        client: project.client,
+        budget: project.budget,
+        endDate: project.endDate,
+        progress: project.progress,
+      })
+      setShowEditDialog(true)
+    }
+  }
+
+  const handleSaveProject = async () => {
+    if (!project) return
+
+    setSaving(true)
+    try {
+      const updated = await updateProject(project.id, editingProject)
+      setProject(updated)
+      setShowEditDialog(false)
+      toast({
+        title: "Proyecto actualizado",
+        description: "Los cambios se han guardado correctamente.",
+      })
+    } catch (error: any) {
+      console.error('Error updating project:', error)
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el proyecto",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (loading || !project) {
     return (
@@ -80,7 +142,12 @@ export default function ProjectLayout({
             </div>
             <p className="text-muted-foreground">{project.description}</p>
           </div>
-          <Button className="bg-[#4514F9] hover:bg-[#3810C7]">Editar Proyecto</Button>
+          <Button 
+            className="bg-[#4514F9] hover:bg-[#3810C7]"
+            onClick={handleEditClick}
+          >
+            Editar Proyecto
+          </Button>
         </div>
 
         {/* Quick Stats */}
@@ -144,6 +211,113 @@ export default function ProjectLayout({
 
       {/* Page Content */}
       {children}
+
+      {/* Dialog de Edición */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Proyecto</DialogTitle>
+            <DialogDescription>
+              Modifica la información del proyecto. Los cambios se guardarán inmediatamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre del Proyecto</Label>
+              <Input
+                id="name"
+                value={editingProject.name || ''}
+                onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                placeholder="Nombre del proyecto"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Descripción</Label>
+              <Textarea
+                id="description"
+                value={editingProject.description || ''}
+                onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
+                placeholder="Descripción del proyecto"
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="client">Cliente</Label>
+                <Input
+                  id="client"
+                  value={editingProject.client || ''}
+                  onChange={(e) => setEditingProject({ ...editingProject, client: e.target.value })}
+                  placeholder="Nombre del cliente"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Estado</Label>
+                <Select
+                  value={editingProject.status || ''}
+                  onValueChange={(value) => setEditingProject({ ...editingProject, status: value })}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Seleccionar estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planning">Planificación</SelectItem>
+                    <SelectItem value="in-progress">En Progreso</SelectItem>
+                    <SelectItem value="review">En Revisión</SelectItem>
+                    <SelectItem value="completed">Completado</SelectItem>
+                    <SelectItem value="on-hold">En Pausa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="budget">Presupuesto</Label>
+                <Input
+                  id="budget"
+                  type="number"
+                  value={editingProject.budget || 0}
+                  onChange={(e) => setEditingProject({ ...editingProject, budget: Number(e.target.value) })}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">Fecha de Entrega</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={editingProject.endDate ? new Date(editingProject.endDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) => setEditingProject({ ...editingProject, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="progress">Progreso (%)</Label>
+              <Input
+                id="progress"
+                type="number"
+                min="0"
+                max="100"
+                value={editingProject.progress || 0}
+                onChange={(e) => setEditingProject({ ...editingProject, progress: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSaveProject} 
+              disabled={saving}
+              className="bg-[#4514F9] hover:bg-[#3810C7]"
+            >
+              {saving ? "Guardando..." : "Guardar Cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
