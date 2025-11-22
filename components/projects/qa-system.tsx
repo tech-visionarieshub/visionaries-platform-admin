@@ -8,9 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle2, XCircle, Clock, Bug, TestTube, Search, Filter, GitBranch, User, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Bug, TestTube, Search, Filter, GitBranch, User, Loader2, Upload } from "lucide-react"
 import type { QATask, QATaskStatus, QATaskCategory } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
+import { QAFileUploader } from "./qa-file-uploader"
 
 const statusConfig: Record<QATaskStatus, { label: string; color: string; icon: typeof Clock }> = {
   "Pendiente": { label: "Pendiente", color: "bg-gray-100 text-gray-700", icon: Clock },
@@ -31,37 +32,39 @@ export function QASystem({ projectId }: QASystemProps) {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [selectedTask, setSelectedTask] = useState<QATask | null>(null)
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
+
+  // Función para cargar tareas
+  const loadTasks = async () => {
+    try {
+      setLoading(true)
+      const token = await getIdToken()
+      if (!token) {
+        console.error('No hay token disponible')
+        return
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/qa-tasks`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al cargar tareas QA')
+      }
+
+      const data = await response.json()
+      setTasks(data.tasks || [])
+    } catch (error) {
+      console.error('Error cargando tareas QA:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Cargar tareas QA desde la API
   useEffect(() => {
-    async function loadTasks() {
-      try {
-        setLoading(true)
-        const token = await getIdToken()
-        if (!token) {
-          console.error('No hay token disponible')
-          return
-        }
-
-        const response = await fetch(`/api/projects/${projectId}/qa-tasks`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error('Error al cargar tareas QA')
-        }
-
-        const data = await response.json()
-        setTasks(data.tasks || [])
-      } catch (error) {
-        console.error('Error cargando tareas QA:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     if (projectId) {
       loadTasks()
     }
@@ -137,6 +140,13 @@ export function QASystem({ projectId }: QASystemProps) {
           </TabsList>
 
           <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => setShowUploadDialog(true)}
+              className="bg-[#4514F9] hover:bg-[#3810C7]"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Subir Archivo
+            </Button>
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -330,6 +340,14 @@ export function QASystem({ projectId }: QASystemProps) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Dialog para subir archivo */}
+      <QAFileUploader
+        projectId={projectId}
+        open={showUploadDialog}
+        onOpenChange={setShowUploadDialog}
+        onUploadComplete={loadTasks}
+      />
     </div>
   )
 }
