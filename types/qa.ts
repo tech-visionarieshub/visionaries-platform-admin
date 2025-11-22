@@ -20,15 +20,10 @@ export type QATaskType =
   | "QA"
   | "Bug"
 
-export type QATaskPriority = 
-  | "Alta"
-  | "Media"
-  | "Baja"
-
 export interface QAImage {
   url: string
   name: string
-  uploadedAt: Date | string
+  uploadedAt: Date
   size: number
 }
 
@@ -36,26 +31,36 @@ export interface QATask {
   id: string
   titulo: string
   categoria: QATaskCategory
-  tipo: QATaskType
+  tipo: string
   criterios_aceptacion: string
   comentarios: string
   imagenes: QAImage[]
   estado: QATaskStatus
-  prioridad?: QATaskPriority
-  createdAt: Date | string
-  updatedAt: Date | string
+  createdAt: Date
+  updatedAt: Date
   createdBy: string
   projectId: string
 }
 
 export interface CSVColumnMapping {
-  column: string
-  field: string | null
+  columnName: string
+  mappedField: keyof QATask | "comentarios" | null
   confidence?: number
 }
 
-export interface CSVAnalysisResult {
+export interface AnalyzeFileResponse {
   headers: string[]
   suggestedMappings: CSVColumnMapping[]
   sampleRows: Record<string, any>[]
+}
+
+export interface GenerateCriteriaRequest {
+  titulo: string
+  categoria?: QATaskCategory
+  tipo?: string
+  comentarios?: string
+}
+
+export interface GenerateCriteriaResponse {
+  criteria: string
 }
