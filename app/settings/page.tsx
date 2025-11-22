@@ -390,6 +390,19 @@ export default function SettingsPage() {
       return
     }
 
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newUserEmail.trim())) {
+      toast({
+        title: "Error",
+        description: "El formato del email no es válido",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAssigningAccess(true)
+
     try {
       let token = typeof window !== 'undefined' ? sessionStorage.getItem('portalAuthToken') : null
       if (!token) {
@@ -399,16 +412,16 @@ export default function SettingsPage() {
         throw new Error('No hay token disponible')
       }
 
-      const response = await fetch('/api/admin/assign-internal-access', {
+      const response = await fetch('/api/users/assign-access', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: newUserEmail,
+          email: newUserEmail.trim(),
           role: newUserRole,
-          allowedRoutes: newUserRoutes,
+          superadmin: newUserSuperadmin,
         }),
       })
 
@@ -416,13 +429,14 @@ export default function SettingsPage() {
 
       if (data.success) {
         toast({
-          title: "Usuario agregado",
-          description: data.message,
+          title: "✅ Acceso asignado",
+          description: data.message + (data.note ? ` ${data.note}` : ''),
         })
+        setShowAddUserDialog(false)
         setNewUserEmail("")
         setNewUserRole("admin")
+        setNewUserSuperadmin(false)
         setNewUserRoutes([])
-        setShowAddUserDialog(false)
         loadInternalUsers()
       } else {
         throw new Error(data.error || 'Error al agregar usuario')
