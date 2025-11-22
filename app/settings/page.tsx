@@ -428,6 +428,31 @@ export default function SettingsPage() {
       const data = await response.json()
 
       if (data.success) {
+        // También establecer hasPortalAdminAccess en Firestore
+        try {
+          const portalAccessResponse = await fetch('/api/users/set-portal-access', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: newUserEmail.trim(),
+              hasAccess: true,
+            }),
+          })
+
+          const portalAccessData = await portalAccessResponse.json()
+          
+          if (!portalAccessData.success) {
+            console.warn('[Settings] No se pudo establecer hasPortalAdminAccess:', portalAccessData.error)
+            // No fallar, solo mostrar advertencia
+          }
+        } catch (error) {
+          console.warn('[Settings] Error al establecer hasPortalAdminAccess:', error)
+          // No fallar, solo loguear
+        }
+
         toast({
           title: "✅ Acceso asignado",
           description: data.message + (data.note ? ` ${data.note}` : ''),
