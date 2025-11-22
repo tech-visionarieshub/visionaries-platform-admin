@@ -8,9 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle2, XCircle, Clock, Bug, TestTube, Search, Filter, GitBranch, User, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Bug, TestTube, Search, Filter, GitBranch, User, Loader2, Edit } from "lucide-react"
 import type { QATask, QATaskStatus, QATaskCategory } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
+import { QATaskEditor } from "./qa-task-editor"
 
 const statusConfig: Record<QATaskStatus, { label: string; color: string; icon: typeof Clock }> = {
   "Pendiente": { label: "Pendiente", color: "bg-gray-100 text-gray-700", icon: Clock },
@@ -248,88 +249,37 @@ export function QASystem({ projectId }: QASystemProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog para ver detalles de la tarea */}
-      {selectedTask && (
-        <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <span className="font-mono text-sm text-muted-foreground">{selectedTask.id}</span>
-                <span>{selectedTask.titulo}</span>
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Estado</label>
-                  <div className="mt-1">
-                    <Badge className={statusConfig[selectedTask.estado].color}>
-                      {statusConfig[selectedTask.estado].label}
-                    </Badge>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Categoría</label>
-                  <div className="mt-1">
-                    <Badge variant="outline">{selectedTask.categoria}</Badge>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Tipo</label>
-                  <div className="mt-1">
-                    <Badge variant="outline">{selectedTask.tipo}</Badge>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Fecha de creación</label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {new Date(selectedTask.createdAt).toLocaleDateString("es-ES", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-              </div>
-              
-              {selectedTask.criterios_aceptacion && (
-                <div>
-                  <label className="text-sm font-medium">Criterios de Aceptación</label>
-                  <div className="mt-2 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm whitespace-pre-wrap">{selectedTask.criterios_aceptacion}</p>
-                  </div>
-                </div>
-              )}
-              
-              {selectedTask.comentarios && (
-                <div>
-                  <label className="text-sm font-medium">Comentarios</label>
-                  <div className="mt-2 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm whitespace-pre-wrap">{selectedTask.comentarios}</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedTask.imagenes && selectedTask.imagenes.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium">Imágenes ({selectedTask.imagenes.length})</label>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {selectedTask.imagenes.map((img, idx) => (
-                      <div key={idx} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                        <img 
-                          src={img.url} 
-                          alt={img.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Editor de tarea QA */}
+      <QATaskEditor
+        task={selectedTask}
+        projectId={projectId}
+        open={!!selectedTask}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedTask(null)
+          }
+        }}
+        onSave={async () => {
+          // Recargar tareas después de guardar
+          const token = await getIdToken()
+          if (token) {
+            try {
+              const response = await fetch(`/api/projects/${projectId}/qa-tasks`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              })
+              if (response.ok) {
+                const data = await response.json()
+                setTasks(data.tasks || [])
+              }
+            } catch (error) {
+              console.error('Error recargando tareas:', error)
+            }
+          }
+          setSelectedTask(null)
+        }}
+      />
     </div>
   )
 }

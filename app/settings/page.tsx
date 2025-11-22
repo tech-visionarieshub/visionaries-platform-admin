@@ -239,13 +239,85 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveApiKey = (key: keyof typeof apiKeys, value: string) => {
-    setApiKeys({ ...apiKeys, [key]: value })
-    toast({
-      title: "API Key guardada",
-      description: `La clave de ${key} se ha actualizado (simulado)`,
-    })
+  const handleSaveApiKey = async (key: keyof typeof apiKeys, value: string) => {
+    // Si es OpenAI, usar la API real
+    if (key === "openai") {
+      try {
+        const token = await getIdToken()
+        if (!token) {
+          toast({
+            title: "Error",
+            description: "No hay token disponible",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const response = await fetch("/api/config/openai", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ apiKey: value }),
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || "Error al guardar la API key")
+        }
+
+        toast({
+          title: "API Key guardada",
+          description: "La clave de OpenAI se ha guardado correctamente.",
+        })
+
+        // Recargar la configuración para mostrar el valor enmascarado
+        loadOpenAIConfig()
+      } catch (error: any) {
+        console.error("Error guardando API key de OpenAI:", error)
+        toast({
+          title: "Error",
+          description: error.message || "No se pudo guardar la API key",
+          variant: "destructive",
+        })
+      }
+    } else {
+      // Para otras keys, mantener comportamiento simulado por ahora
+      setApiKeys({ ...apiKeys, [key]: value })
+      toast({
+        title: "API Key guardada",
+        description: `La clave de ${key} se ha actualizado (simulado)`,
+      })
+    }
   }
+
+  // Cargar configuración de OpenAI al inicializar
+  const loadOpenAIConfig = async () => {
+    try {
+      const token = await getIdToken()
+      if (!token) return
+
+      const response = await fetch("/api/config/openai", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.configured && data.apiKey) {
+          setApiKeys(prev => ({ ...prev, openai: data.apiKey }))
+        }
+      }
+    } catch (error) {
+      console.error("Error cargando configuración de OpenAI:", error)
+    }
+  }
+
+  useEffect(() => {
+    loadOpenAIConfig()
+  }, [])
 
   // handleUserRoleChange removido - ahora se maneja desde visionaries-tech
 
@@ -1048,7 +1120,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>OpenAI API</CardTitle>
-              <CardDescription>Genera tasks, reportes y documentación con IA (Simulado)</CardDescription>
+              <CardDescription>Configura la API key de OpenAI para análisis de archivos CSV/Excel y generación de criterios de aceptación en el sistema QA</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
