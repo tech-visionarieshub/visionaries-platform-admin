@@ -1,24 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle2, XCircle, Clock, Bug, TestTube, Search, Filter, GitBranch, User, Loader2, Edit } from "lucide-react"
-import type { QATask, QATaskStatus, QATaskCategory } from "@/types/qa"
+import { Loader2, Search, Filter, Upload as UploadIcon, RefreshCw, CheckCircle2, XCircle, Clock, TestTube } from "lucide-react"
+import type { QATask, QATaskStatus } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
 import { QATaskEditor } from "./qa-task-editor"
+import { QAFileUploader } from "./qa-file-uploader"
 
 const statusConfig: Record<QATaskStatus, { label: string; color: string; icon: typeof Clock }> = {
-  "Pendiente": { label: "Pendiente", color: "bg-gray-100 text-gray-700", icon: Clock },
+  Pendiente: { label: "Pendiente", color: "bg-gray-100 text-gray-700", icon: Clock },
   "En Progreso": { label: "En Progreso", color: "bg-blue-100 text-blue-700", icon: TestTube },
-  "Completado": { label: "Completado", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
-  "Bloqueado": { label: "Bloqueado", color: "bg-red-100 text-red-700", icon: XCircle },
-  "Cancelado": { label: "Cancelado", color: "bg-gray-100 text-gray-700", icon: XCircle },
+  Completado: { label: "Completado", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
+  Bloqueado: { label: "Bloqueado", color: "bg-red-100 text-red-700", icon: XCircle },
+  Cancelado: { label: "Cancelado", color: "bg-gray-100 text-gray-700", icon: XCircle },
 }
 
 interface QASystemProps {
@@ -29,56 +29,64 @@ export function QASystem({ projectId }: QASystemProps) {
   const [tasks, setTasks] = useState<QATask[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [categoryFilter, setCategoryFilter] = useState("all")
   const [selectedTask, setSelectedTask] = useState<QATask | null>(null)
+  const [uploaderOpen, setUploaderOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Cargar tareas QA desde la API
-  useEffect(() => {
-    async function loadTasks() {
-      try {
-        setLoading(true)
-        const token = await getIdToken()
-        if (!token) {
-          console.error('No hay token disponible')
-          return
-        }
-
-        const response = await fetch(`/api/projects/${projectId}/qa-tasks`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error('Error al cargar tareas QA')
-        }
-
-        const data = await response.json()
-        setTasks(data.tasks || [])
-      } catch (error) {
-        console.error('Error cargando tareas QA:', error)
-      } finally {
-        setLoading(false)
+  const loadTasks = useCallback(async () => {
+    try {
+      setLoading(true)
+      const token = await getIdToken()
+      if (!token) {
+        console.error("[QA System] No token available")
+        return
       }
-    }
 
-    if (projectId) {
-      loadTasks()
+      const response = await fetch(`/api/projects/${projectId}/qa-tasks`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("No se pudieron cargar las tareas")
+      }
+
+      const data = await response.json()
+      setTasks(data.tasks || [])
+    } catch (error) {
+      console.error("[QA System] Error loading tasks", error)
+    } finally {
+      setLoading(false)
     }
   }, [projectId])
 
+  useEffect(() => {
+    if (projectId) {
+      loadTasks()
+    }
+  }, [projectId, loadTasks])
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await loadTasks()
+    setRefreshing(false)
+  }, [loadTasks])
+
   const filteredTasks = tasks.filter((task) => {
+    const comentarios = task.comentarios || ""
     const matchesSearch =
       task.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       task.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.comentarios.toLowerCase().includes(searchTerm.toLowerCase())
+      comentarios.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || task.estado === statusFilter
     const matchesCategory = categoryFilter === "all" || task.categoria === categoryFilter
     return matchesSearch && matchesStatus && matchesCategory
   })
 
-  const getQAMetrics = () => {
+  const metrics = (() => {
     const total = tasks.length
     const completados = tasks.filter((t) => t.estado === "Completado").length
     const enProgreso = tasks.filter((t) => t.estado === "En Progreso").length
@@ -86,11 +94,29 @@ export function QASystem({ projectId }: QASystemProps) {
     const bloqueados = tasks.filter((t) => t.estado === "Bloqueado").length
     const cancelados = tasks.filter((t) => t.estado === "Cancelado").length
     const completionRate = total > 0 ? Math.round((completados / total) * 100) : 0
-
     return { total, completados, enProgreso, pendientes, bloqueados, cancelados, completionRate }
-  }
+  })()
 
-  const metrics = getQAMetrics()
+  const formatDate = (dateValue: QATask["createdAt"]) => {
+    if (!dateValue) return "—"
+    try {
+      if (typeof dateValue === "string") {
+        return new Date(dateValue).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })
+      }
+      if (dateValue instanceof Date) {
+        return dateValue.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })
+      }
+      // Firestore Timestamp
+      // @ts-ignore
+      if (dateValue?.toDate) {
+        // @ts-ignore
+        return dateValue.toDate().toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })
+      }
+      return "—"
+    } catch {
+      return "—"
+    }
+  }
 
   if (loading) {
     return (
@@ -103,7 +129,6 @@ export function QASystem({ projectId }: QASystemProps) {
 
   return (
     <div className="space-y-4">
-      {/* Métricas QA */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Card className="p-3">
           <div className="text-xs text-muted-foreground mb-1">Total Tareas</div>
@@ -136,8 +161,7 @@ export function QASystem({ projectId }: QASystemProps) {
           <TabsList>
             <TabsTrigger value="tasks">Tareas QA ({tasks.length})</TabsTrigger>
           </TabsList>
-
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -154,11 +178,11 @@ export function QASystem({ projectId }: QASystemProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="Pendiente">Pendiente</SelectItem>
-                <SelectItem value="En Progreso">En Progreso</SelectItem>
-                <SelectItem value="Completado">Completado</SelectItem>
-                <SelectItem value="Bloqueado">Bloqueado</SelectItem>
-                <SelectItem value="Cancelado">Cancelado</SelectItem>
+                {Object.keys(statusConfig).map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -174,6 +198,20 @@ export function QASystem({ projectId }: QASystemProps) {
                 <SelectItem value="Otra">Otra</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="gap-2"
+            >
+              {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Actualizar
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => setUploaderOpen(true)}>
+              <UploadIcon className="h-4 w-4" />
+              Subir CSV/Excel
+            </Button>
           </div>
         </div>
 
@@ -181,14 +219,14 @@ export function QASystem({ projectId }: QASystemProps) {
           {filteredTasks.length === 0 ? (
             <Card className="p-8 text-center">
               <p className="text-muted-foreground">
-                {tasks.length === 0 
+                {tasks.length === 0
                   ? "No hay tareas QA aún. Sube un archivo CSV/Excel para comenzar."
                   : "No se encontraron tareas con los filtros seleccionados."}
               </p>
             </Card>
           ) : (
             filteredTasks.map((task) => {
-              const statusInfo = statusConfig[task.estado]
+              const statusInfo = statusConfig[task.estado] || statusConfig.Pendiente
               const StatusIcon = statusInfo.icon
               return (
                 <Card
@@ -203,9 +241,7 @@ export function QASystem({ projectId }: QASystemProps) {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs font-mono text-muted-foreground">{task.id}</span>
-                            <Badge
-                              className={`text-xs px-1.5 py-0 ${statusInfo.color}`}
-                            >
+                            <Badge className={`text-xs px-1.5 py-0 ${statusInfo.color}`}>
                               {statusInfo.label}
                             </Badge>
                             <Badge variant="outline" className="text-xs px-1.5 py-0">
@@ -213,7 +249,7 @@ export function QASystem({ projectId }: QASystemProps) {
                             </Badge>
                             {task.imagenes && task.imagenes.length > 0 && (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                {task.imagenes.length} imagen{task.imagenes.length !== 1 ? 'es' : ''}
+                                {task.imagenes.length} imagen{task.imagenes.length !== 1 ? "es" : ""}
                               </Badge>
                             )}
                           </div>
@@ -226,13 +262,7 @@ export function QASystem({ projectId }: QASystemProps) {
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          <span>
-                            {new Date(task.createdAt).toLocaleDateString("es-ES", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </span>
+                          <span>{formatDate(task.createdAt)}</span>
                         </div>
                         {task.tipo && (
                           <Badge variant="outline" className="text-xs px-1.5 py-0">
@@ -249,35 +279,25 @@ export function QASystem({ projectId }: QASystemProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Editor de tarea QA */}
       <QATaskEditor
         task={selectedTask}
         projectId={projectId}
         open={!!selectedTask}
         onOpenChange={(open) => {
-          if (!open) {
-            setSelectedTask(null)
-          }
+          if (!open) setSelectedTask(null)
         }}
         onSave={async () => {
-          // Recargar tareas después de guardar
-          const token = await getIdToken()
-          if (token) {
-            try {
-              const response = await fetch(`/api/projects/${projectId}/qa-tasks`, {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                },
-              })
-              if (response.ok) {
-                const data = await response.json()
-                setTasks(data.tasks || [])
-              }
-            } catch (error) {
-              console.error('Error recargando tareas:', error)
-            }
-          }
+          await loadTasks()
           setSelectedTask(null)
+        }}
+      />
+
+      <QAFileUploader
+        projectId={projectId}
+        open={uploaderOpen}
+        onOpenChange={setUploaderOpen}
+        onUploadComplete={async () => {
+          await loadTasks()
         }}
       />
     </div>
