@@ -2,13 +2,21 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Search, Bell, Settings, ChevronDown, Menu, ChevronRight } from "lucide-react"
+import { Search, Bell, Settings, ChevronDown, Menu, ChevronRight, LogOut } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/use-user"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useState } from "react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const navigation = [
   {
@@ -54,15 +62,12 @@ const navigation = [
 
 export function Header() {
   const pathname = usePathname()
-  const headerId = Math.random().toString(36).substring(7)
-  const { user } = useUser()
+  const { user, logout } = useUser()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedSections, setExpandedSections] = useState<string[]>(() => {
     const activeSection = navigation.find((item) => pathname.startsWith(item.href))
     return activeSection ? [activeSection.name] : []
   })
-
-  console.log("[v0] Header rendering, pathname:", pathname, "ID:", headerId)
 
   const toggleSection = (sectionName: string) => {
     setExpandedSections((prev) =>
@@ -71,7 +76,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-white" data-header-id={headerId}>
+    <header className="sticky top-0 z-30 border-b bg-white shadow-sm">
       <div className="flex h-16 md:h-20 items-center gap-2 md:gap-8 px-4 md:px-6">
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <SheetTrigger asChild className="lg:hidden">
@@ -174,7 +179,7 @@ export function Header() {
 
                 {/* Submenu */}
                 {item.submenu && (
-                  <div className="invisible absolute left-0 top-full mt-1 w-48 rounded-lg border bg-white py-2 shadow-lg opacity-0 transition-all group-hover:visible group-hover:opacity-100">
+                  <div className="invisible absolute left-0 top-full mt-1 w-48 rounded-lg border bg-white py-2 shadow-lg opacity-0 transition-all group-hover:visible group-hover:opacity-100 z-50">
                     {item.submenu.map((subitem) => (
                       <Link
                         key={subitem.name}
@@ -213,15 +218,39 @@ export function Header() {
             </Link>
           </Button>
 
-          <div className="ml-2 flex items-center gap-2 rounded-lg border px-2 md:px-3 py-1.5">
-            <div className="flex h-7 w-7 md:h-8 md:w-8 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-500 text-xs md:text-sm font-semibold text-white shadow-sm">
-              {user?.avatar || "GP"}
-            </div>
-            <div className="hidden md:block text-sm">
-              <p className="font-medium leading-tight">{user?.name || user?.email?.split('@')[0] || "Usuario"}</p>
-              <p className="text-xs text-muted-foreground capitalize">{user?.role || "Admin"}</p>
-            </div>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="ml-2 flex items-center gap-2 rounded-lg border px-2 md:px-3 py-1.5 hover:bg-slate-50 transition-colors outline-none focus:ring-2 focus:ring-primary/20">
+                {user?.avatar ? (
+                   <img src={user.avatar} alt={user.name} className="h-7 w-7 md:h-8 md:w-8 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-7 w-7 md:h-8 md:w-8 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-500 text-xs md:text-sm font-semibold text-white shadow-sm">
+                    {user?.name?.charAt(0) || "U"}
+                  </div>
+                )}
+                <div className="hidden md:block text-sm text-left">
+                  <p className="font-medium leading-tight truncate max-w-[120px]">{user?.name || "Usuario"}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{user?.role || "Admin"}</p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground ml-1" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                 <Link href="/settings" className="cursor-pointer">
+                   <Settings className="mr-2 h-4 w-4" />
+                   <span>Configuración</span>
+                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout} className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Cerrar Sesión</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
