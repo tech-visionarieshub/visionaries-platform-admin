@@ -86,7 +86,9 @@ export default function SettingsPage() {
   const [showAddUserDialog, setShowAddUserDialog] = useState(false)
   const [newUserEmail, setNewUserEmail] = useState("")
   const [newUserRole, setNewUserRole] = useState<UserRole>("admin")
+  const [newUserSuperadmin, setNewUserSuperadmin] = useState(false)
   const [newUserRoutes, setNewUserRoutes] = useState<string[]>([])
+  const [assigningAccess, setAssigningAccess] = useState(false)
   const [editingUser, setEditingUser] = useState<InternalUser | null>(null)
   const [editingUserRoutes, setEditingUserRoutes] = useState<string[]>([])
 
@@ -1661,23 +1663,36 @@ export default function SettingsPage() {
                               <SelectItem value="pm">PM</SelectItem>
                               <SelectItem value="developer">Developer</SelectItem>
                               <SelectItem value="qa">QA</SelectItem>
-                              <SelectItem value="client">Client</SelectItem>
+                              <SelectItem value="user">User</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <RouteSelector
-                            selectedRoutes={newUserRoutes}
-                            onRoutesChange={setNewUserRoutes}
-                          />
-                        </div>
+                        {user?.superadmin && (
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="new-user-superadmin"
+                              checked={newUserSuperadmin}
+                              onCheckedChange={setNewUserSuperadmin}
+                            />
+                            <Label htmlFor="new-user-superadmin" className="cursor-pointer">
+                              Superadmin (acceso completo sin restricciones)
+                            </Label>
+                          </div>
+                        )}
+                        <Alert>
+                          <AlertDescription className="text-sm">
+                            <strong>Importante:</strong> El usuario debe existir en Firebase Auth (proyecto visionaries-tech).
+                            Si no existe, debe registrarse primero en Aura. Después de asignar acceso, el usuario debe
+                            cerrar sesión y volver a iniciar sesión para que los cambios surtan efecto.
+                          </AlertDescription>
+                        </Alert>
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
                           Cancelar
                         </Button>
-                        <Button onClick={handleAddInternalUser} disabled={!newUserEmail.trim()}>
-                          Agregar Usuario
+                        <Button onClick={handleAddInternalUser} disabled={!newUserEmail.trim() || assigningAccess}>
+                          {assigningAccess ? "Asignando..." : "Asignar Acceso"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
