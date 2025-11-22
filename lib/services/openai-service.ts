@@ -5,7 +5,7 @@
  */
 
 import { getInternalFirestore } from '@/lib/firebase/admin-platform'
-import type { CSVColumnMapping, CSVAnalysisResult, GenerateCriteriaRequest } from '@/types/qa'
+import type { CSVColumnMapping, AnalyzeFileResponse, GenerateCriteriaRequest } from '@/types/qa'
 
 interface OpenAIResponse {
   choices: Array<{
@@ -40,7 +40,7 @@ export class OpenAIService {
   /**
    * Analiza headers de CSV/Excel y sugiere mapeo a campos QA
    */
-  async analyzeCSVHeaders(headers: string[], sampleRows: Record<string, any>[]): Promise<CSVAnalysisResult> {
+  async analyzeCSVHeaders(headers: string[], sampleRows: Record<string, any>[]): Promise<AnalyzeFileResponse> {
     const apiKey = await this.getApiKey()
 
     // Construir prompt para OpenAI

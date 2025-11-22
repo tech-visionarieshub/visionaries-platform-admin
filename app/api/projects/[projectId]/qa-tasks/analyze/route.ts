@@ -4,7 +4,7 @@ import { verifyIdToken } from '@/lib/firebase/admin-tech';
 import { openAIService } from '@/lib/services/openai-service';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import type { CSVAnalysisResult } from '@/types/qa';
+import type { AnalyzeFileResponse } from '@/types/qa';
 
 /**
  * API para analizar headers de archivos CSV/Excel con OpenAI
@@ -152,10 +152,8 @@ export async function POST(
 
       return NextResponse.json({
         success: true,
-        headers,
-        suggestedMappings: analysisResult.suggestedMappings,
-        sampleRows: analysisResult.sampleRows,
-      } as CSVAnalysisResult);
+        ...analysisResult,
+      } as AnalyzeFileResponse & { success: boolean });
     } catch (error: any) {
       console.error('[Analyze] Error procesando archivo:', error);
       

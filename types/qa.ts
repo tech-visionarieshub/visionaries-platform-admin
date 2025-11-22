@@ -64,3 +64,10 @@ export interface GenerateCriteriaRequest {
 export interface GenerateCriteriaResponse {
   criteria: string
 }
+
+export interface CSVAnalysisResult {
+  success: boolean
+  headers: string[]
+  suggestedMappings: CSVColumnMapping[]
+  sampleRows: Record<string, any>[]
+}
