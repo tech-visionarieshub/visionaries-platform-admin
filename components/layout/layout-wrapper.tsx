@@ -48,15 +48,33 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
         
         try {
           console.log('[Auth] Paso 1: Preparando fetch a /api/internal/validate-access')
+          console.log('[Auth] Paso 1.1: URL completa:', window.location.origin + '/api/internal/validate-access')
+          console.log('[Auth] Paso 1.2: Token length:', tokenFromUrl.length)
+          
+          const fetchStartTime = Date.now()
+          console.log('[Auth] Paso 1.3: Iniciando fetch...', fetchStartTime)
           
           // Validar acceso interno con el backend usando el token de la URL
-          const response = await fetch('/api/internal/validate-access', {
+          const fetchPromise = fetch('/api/internal/validate-access', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${tokenFromUrl}`,
               'Content-Type': 'application/json',
             },
           })
+          
+          console.log('[Auth] Paso 1.4: Fetch iniciado, esperando respuesta...')
+          
+          // Agregar timeout para detectar si se cuelga
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+              reject(new Error('Fetch timeout después de 30 segundos'))
+            }, 30000)
+          })
+          
+          const response = await Promise.race([fetchPromise, timeoutPromise]) as Response
+          const fetchEndTime = Date.now()
+          console.log('[Auth] Paso 1.5: Fetch completado en', fetchEndTime - fetchStartTime, 'ms')
 
           console.log('[Auth] Paso 2: Respuesta recibida:', { 
             status: response.status, 
