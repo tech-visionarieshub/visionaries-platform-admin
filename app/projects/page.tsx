@@ -24,30 +24,72 @@ export default function ProjectsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+    
     async function loadProjects() {
       try {
         setLoading(true)
-        const data = await getProjects()
+        setError(null)
+        console.log('[Projects Page] Iniciando carga de proyectos...')
+        
+        // Timeout de 30 segundos
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout: La carga de proyectos tardó demasiado')), 30000)
+        })
+        
+        const dataPromise = getProjects()
+        const data = await Promise.race([dataPromise, timeoutPromise]) as Project[]
+        
+        if (cancelled) return
+        
+        console.log('[Projects Page] Proyectos cargados:', data?.length || 0)
+        
+        if (!data) {
+          throw new Error('No se recibieron datos de la API')
+        }
+        
+        if (!Array.isArray(data)) {
+          console.error('[Projects Page] Datos recibidos no son un array:', data)
+          throw new Error('Formato de datos inválido: se esperaba un array')
+        }
+        
         setProjects(data)
         setError(null)
       } catch (err: any) {
+        if (cancelled) return
+        
         // Si es error de autenticación, no mostrar error (ya redirige)
         if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          console.log('[Projects Page] Error de autenticación, redirigiendo...')
           return
         }
-        setError(err.message || 'Error cargando proyectos')
-        console.error('Error loading projects:', err)
+        const errorMessage = err.message || 'Error cargando proyectos'
+        console.error('[Projects Page] Error loading projects:', {
+          error: err,
+          message: errorMessage,
+          stack: err.stack
+        })
+        setError(errorMessage)
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          console.log('[Projects Page] Carga finalizada')
+        }
       }
     }
+    
     loadProjects()
+    
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center justify-center h-64 gap-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4514F9]"></div>
           <p className="text-muted-foreground">Cargando proyectos...</p>
         </div>
       </div>
@@ -57,8 +99,14 @@ export default function ProjectsPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-destructive">Error: {error}</p>
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
+          <p className="text-destructive font-medium">Error: {error}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            variant="outline"
+          >
+            Reintentar
+          </Button>
         </div>
       </div>
     )

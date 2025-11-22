@@ -267,3 +267,4 @@ visionaries-platform-admin/
 **Por:** Gabriel Apino + Asistente IA
 **Estado:** Guardado y listo para implementación futura
 
+

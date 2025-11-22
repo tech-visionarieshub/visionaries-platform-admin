@@ -74,3 +74,4 @@ echo "✅ Proceso completado exitosamente."
 echo ""
 echo "⚠️  IMPORTANTE: El usuario debe cerrar sesión y volver a entrar en Aura para que los cambios surtan efecto."
 
+

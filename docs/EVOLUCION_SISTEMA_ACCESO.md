@@ -260,3 +260,4 @@ const handleAddInternalUser = async () => {
 **Fecha de actualización:** 22 de Noviembre de 2025  
 **Versión:** 2.0 (Solución completa con ambas APIs)
 
+

@@ -522,3 +522,4 @@ const ENABLE_QA_SYSTEM = false // En .env.local
 **Por:** Gabriel Apino + Asistente IA  
 **Estado:** Listo para implementación paso a paso segura
 
+

@@ -75,7 +75,18 @@ export async function apiRequest<T>(
       },
     });
 
-    const data = await response.json();
+    if (!response.ok && response.status !== 401) {
+      // Log error antes de parsear JSON para debugging
+      console.error(`[API Client] HTTP ${response.status} error for ${endpoint}`);
+    }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      console.error(`[API Client] Error parsing JSON response from ${endpoint}:`, jsonError);
+      throw new Error(`Invalid JSON response from server: ${response.statusText}`);
+    }
 
     if (!response.ok) {
       // Si es error 401, redirigir al login
@@ -102,6 +113,10 @@ export async function apiRequest<T>(
  * GET request
  */
 export async function apiGet<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+  if (typeof window === 'undefined') {
+    throw new Error('apiGet can only be called from client-side code');
+  }
+
   const url = new URL(endpoint, window.location.origin);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -111,9 +126,16 @@ export async function apiGet<T>(endpoint: string, params?: Record<string, string
     });
   }
 
+  console.log(`[API Client] GET ${url.toString()}`);
+  
   const response = await apiRequest<T>(url.toString(), {
     method: 'GET',
   });
+
+  if (!response.data) {
+    console.warn(`[API Client] No data in response from ${url.toString()}:`, response);
+    throw new Error('API response does not contain data field');
+  }
 
   return response.data as T;
 }
