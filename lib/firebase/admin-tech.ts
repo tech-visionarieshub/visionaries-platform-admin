@@ -64,8 +64,21 @@ export function getAuraAuth(): admin.auth.Auth {
  * Retorna el decoded token con los custom claims
  */
 export async function verifyIdToken(idToken: string): Promise<admin.auth.DecodedIdToken> {
-  const auth = getAuraAuth();
-  return await auth.verifyIdToken(idToken);
+  try {
+    console.log('[Admin Tech] Iniciando verificación de token...');
+    const auth = getAuraAuth();
+    console.log('[Admin Tech] Auth obtenido, verificando token...');
+    const decoded = await auth.verifyIdToken(idToken);
+    console.log('[Admin Tech] Token verificado exitosamente, email:', decoded.email);
+    return decoded;
+  } catch (error: any) {
+    console.error('[Admin Tech] Error verificando token:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    throw error;
+  }
 }
 
 /**

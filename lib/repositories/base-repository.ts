@@ -115,9 +115,18 @@ export class BaseRepository<T extends BaseEntity> {
    */
   async getAll(): Promise<T[]> {
     try {
+      console.log(`[BaseRepository] Obteniendo todos los documentos de ${this.collectionName}...`);
       const snapshot = await this.getCollection().get();
-      return snapshot.docs.map(doc => this.fromFirestore(doc));
+      console.log(`[BaseRepository] Snapshot obtenido, ${snapshot.docs.length} documentos encontrados`);
+      const results = snapshot.docs.map(doc => this.fromFirestore(doc));
+      console.log(`[BaseRepository] Documentos procesados: ${results.length}`);
+      return results;
     } catch (error: any) {
+      console.error(`[BaseRepository] Error obteniendo documentos de ${this.collectionName}:`, {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
       throw new Error(`Error getting all documents from ${this.collectionName}: ${error.message}`);
     }
   }
