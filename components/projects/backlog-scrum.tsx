@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,176 +9,16 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, User, Plus, Search, GitBranch, MoreHorizontal, ExternalLink } from "lucide-react"
+import { Clock, User, Plus, Search, GitBranch, MoreHorizontal, ExternalLink, Loader2, Upload, TestTube, ChevronDown, ChevronRight, Play, Pause, Check, Sparkles } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-interface FlatTask {
-  id: string
-  type: "epic" | "story" | "task"
-  title: string
-  description: string
-  epicTitle?: string
-  storyTitle?: string
-  assignee: string
-  estimatedHours: number
-  actualHours: number
-  status: "backlog" | "todo" | "in-progress" | "review" | "done"
-  priority: "high" | "medium" | "low"
-  githubBranch?: string
-  commits?: number
-  storyPoints?: number
-  sprint?: string
-}
-
-const mockFlatBacklog: FlatTask[] = [
-  {
-    id: "task-1",
-    type: "task",
-    title: "Diseñar formulario de registro",
-    description: "Crear UI del formulario con validaciones",
-    epicTitle: "Sistema de Autenticación",
-    storyTitle: "Registro de usuarios",
-    assignee: "Juan Pérez",
-    estimatedHours: 4,
-    actualHours: 3.5,
-    status: "done",
-    priority: "high",
-    githubBranch: "feature/register-form",
-    commits: 8,
-    sprint: "Sprint 1",
-  },
-  {
-    id: "task-2",
-    type: "task",
-    title: "Implementar API de registro",
-    description: "Endpoint para crear nuevos usuarios en el backend",
-    epicTitle: "Sistema de Autenticación",
-    storyTitle: "Registro de usuarios",
-    assignee: "Juan Pérez",
-    estimatedHours: 6,
-    actualHours: 7,
-    status: "done",
-    priority: "high",
-    githubBranch: "feature/register-api",
-    commits: 12,
-    sprint: "Sprint 1",
-  },
-  {
-    id: "task-3",
-    type: "task",
-    title: "Implementar JWT authentication",
-    description: "Configurar JWT con access y refresh tokens",
-    epicTitle: "Sistema de Autenticación",
-    storyTitle: "Login y autenticación",
-    assignee: "María García",
-    estimatedHours: 8,
-    actualHours: 6,
-    status: "in-progress",
-    priority: "high",
-    githubBranch: "feature/jwt-auth",
-    commits: 15,
-    sprint: "Sprint 1",
-  },
-  {
-    id: "task-4",
-    type: "task",
-    title: "Crear página de login",
-    description: "UI de login con validaciones y manejo de errores",
-    epicTitle: "Sistema de Autenticación",
-    storyTitle: "Login y autenticación",
-    assignee: "María García",
-    estimatedHours: 4,
-    actualHours: 0,
-    status: "todo",
-    priority: "high",
-    sprint: "Sprint 1",
-  },
-  {
-    id: "task-5",
-    type: "task",
-    title: "Diseñar grid de productos",
-    description: "Layout responsive del catálogo con cards",
-    epicTitle: "Catálogo de Productos",
-    storyTitle: "Listado de productos",
-    assignee: "Ana López",
-    estimatedHours: 6,
-    actualHours: 5,
-    status: "done",
-    priority: "high",
-    githubBranch: "feature/product-grid",
-    commits: 10,
-    sprint: "Sprint 2",
-  },
-  {
-    id: "task-6",
-    type: "task",
-    title: "Implementar paginación",
-    description: "Sistema de paginación con infinite scroll",
-    epicTitle: "Catálogo de Productos",
-    storyTitle: "Listado de productos",
-    assignee: "Ana López",
-    estimatedHours: 4,
-    actualHours: 2,
-    status: "in-progress",
-    priority: "medium",
-    githubBranch: "feature/pagination",
-    commits: 5,
-    sprint: "Sprint 2",
-  },
-  {
-    id: "task-7",
-    type: "task",
-    title: "Crear filtros de búsqueda",
-    description: "Filtros por categoría, precio, marca",
-    epicTitle: "Catálogo de Productos",
-    storyTitle: "Búsqueda y filtros",
-    assignee: "Luis Torres",
-    estimatedHours: 8,
-    actualHours: 0,
-    status: "todo",
-    priority: "high",
-    sprint: "Sprint 2",
-  },
-  {
-    id: "task-8",
-    type: "task",
-    title: "Implementar búsqueda full-text",
-    description: "Búsqueda con Elasticsearch o similar",
-    epicTitle: "Catálogo de Productos",
-    storyTitle: "Búsqueda y filtros",
-    assignee: "Luis Torres",
-    estimatedHours: 12,
-    actualHours: 0,
-    status: "backlog",
-    priority: "medium",
-  },
-  {
-    id: "task-9",
-    type: "task",
-    title: "Diseñar componente de carrito",
-    description: "UI del carrito con resumen de compra",
-    epicTitle: "Carrito y Checkout",
-    storyTitle: "Carrito de compras",
-    assignee: "Sofia Ruiz",
-    estimatedHours: 6,
-    actualHours: 0,
-    status: "backlog",
-    priority: "medium",
-  },
-  {
-    id: "task-10",
-    type: "task",
-    title: "Implementar lógica de carrito",
-    description: "Agregar, editar, eliminar productos del carrito",
-    epicTitle: "Carrito y Checkout",
-    storyTitle: "Carrito de compras",
-    assignee: "Sofia Ruiz",
-    estimatedHours: 8,
-    actualHours: 0,
-    status: "backlog",
-    priority: "medium",
-  },
-]
+import { useToast } from "@/hooks/use-toast"
+import { getFeatures, updateFeature, moveFeatureToQA, type Feature } from "@/lib/api/features-api"
+import { trackFeatureTime } from "@/lib/api/time-tracking-api"
+import { getProjectTeam, type TeamMember } from "@/lib/api/project-team-api"
+import type { FeatureStatus, FeaturePriority } from "@/types/feature"
+import Link from "next/link"
+import { FeatureEditor } from "./feature-editor"
+import { FeatureFileUploader } from "./feature-file-uploader"
 
 const statusConfig = {
   backlog: { label: "Backlog", color: "bg-gray-500" },
@@ -185,32 +26,98 @@ const statusConfig = {
   "in-progress": { label: "In Progress", color: "bg-purple-500" },
   review: { label: "Review", color: "bg-amber-500" },
   done: { label: "Done", color: "bg-green-500" },
+  completed: { label: "Completed", color: "bg-green-600" },
 }
 
 export function BacklogScrum() {
-  const [tasks, setTasks] = useState(mockFlatBacklog)
-  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
+  const params = useParams()
+  const projectId = params.id as string
+  const { toast } = useToast()
+  
+  const [features, setFeatures] = useState<Feature[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedFeatures, setSelectedFeatures] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterPriority, setFilterPriority] = useState<string>("all")
+  const [filterEpic, setFilterEpic] = useState<string>("all")
   const [filterAssignee, setFilterAssignee] = useState<string>("all")
-  const [selectedTask, setSelectedTask] = useState<FlatTask | null>(null)
-  const [sortColumn, setSortColumn] = useState<string>("id")
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
+  const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set())
+  const [showFeatureEditor, setShowFeatureEditor] = useState(false)
+  const [showFileUploader, setShowFileUploader] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [reEstimating, setReEstimating] = useState(false)
 
-  const filteredTasks = tasks.filter((task) => {
+  // Cargar funcionalidades
+  const loadFeatures = useCallback(async () => {
+    try {
+      setLoading(true)
+      const data = await getFeatures(projectId)
+      setFeatures(data)
+    } catch (error: any) {
+      console.error('[BacklogScrum] Error loading features:', error)
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron cargar las funcionalidades",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [projectId, toast])
+
+  useEffect(() => {
+    if (projectId) {
+      loadFeatures()
+      loadTeamMembers()
+    }
+  }, [projectId, loadFeatures])
+
+  const loadTeamMembers = async () => {
+    try {
+      const members = await getProjectTeam(projectId)
+      setTeamMembers(members)
+    } catch (error: any) {
+      console.error('[BacklogScrum] Error loading team members:', error)
+    }
+  }
+
+  // Obtener lista de epics únicos
+  const epics = Array.from(new Set(features.map(f => f.epicTitle))).sort()
+  
+  // Obtener lista de assignees únicos
+  const assignees = Array.from(new Set(features.map(f => f.assignee).filter(Boolean))).sort()
+
+  // Agrupar features por epic
+  const featuresByEpic = epics.reduce((acc, epic) => {
+    acc[epic] = features.filter(f => f.epicTitle === epic)
+    return acc
+  }, {} as Record<string, Feature[]>)
+
+  const filteredFeatures = features.filter((feature) => {
     const matchesSearch =
       searchQuery === "" ||
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.id.toLowerCase().includes(searchQuery.toLowerCase())
+      feature.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      feature.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      feature.id.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesStatus = filterStatus === "all" || task.status === filterStatus
-    const matchesPriority = filterPriority === "all" || task.priority === filterPriority
-    const matchesAssignee = filterAssignee === "all" || task.assignee === filterAssignee
+    const matchesStatus = filterStatus === "all" || feature.status === filterStatus
+    const matchesPriority = filterPriority === "all" || feature.priority === filterPriority
+    const matchesEpic = filterEpic === "all" || feature.epicTitle === filterEpic
+    const matchesAssignee = filterAssignee === "all" || feature.assignee === filterAssignee
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesAssignee
+    return matchesSearch && matchesStatus && matchesPriority && matchesEpic && matchesAssignee
   })
+
+  // Agrupar features filtradas por epic
+  const filteredFeaturesByEpic = epics.reduce((acc, epic) => {
+    const epicFeatures = filteredFeatures.filter(f => f.epicTitle === epic)
+    if (epicFeatures.length > 0) {
+      acc[epic] = epicFeatures
+    }
+    return acc
+  }, {} as Record<string, Feature[]>)
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -225,40 +132,196 @@ export function BacklogScrum() {
     }
   }
 
-  const toggleTaskSelection = (taskId: string) => {
-    const newSelected = new Set(selectedTasks)
-    if (newSelected.has(taskId)) {
-      newSelected.delete(taskId)
+  const toggleFeatureSelection = (featureId: string) => {
+    const newSelected = new Set(selectedFeatures)
+    if (newSelected.has(featureId)) {
+      newSelected.delete(featureId)
     } else {
-      newSelected.add(taskId)
+      newSelected.add(featureId)
     }
-    setSelectedTasks(newSelected)
+    setSelectedFeatures(newSelected)
   }
 
-  const toggleAllTasks = () => {
-    if (selectedTasks.size === filteredTasks.length) {
-      setSelectedTasks(new Set())
+  const toggleAllFeatures = () => {
+    if (selectedFeatures.size === filteredFeatures.length) {
+      setSelectedFeatures(new Set())
     } else {
-      setSelectedTasks(new Set(filteredTasks.map((t) => t.id)))
+      setSelectedFeatures(new Set(filteredFeatures.map((f) => f.id)))
     }
+  }
+
+  const toggleEpic = (epic: string) => {
+    const newExpanded = new Set(expandedEpics)
+    if (newExpanded.has(epic)) {
+      newExpanded.delete(epic)
+    } else {
+      newExpanded.add(epic)
+    }
+    setExpandedEpics(newExpanded)
+  }
+
+  const handleMoveToQA = async (feature: Feature) => {
+    try {
+      await moveFeatureToQA(projectId, feature.id)
+      toast({
+        title: "✅ Tarea QA creada",
+        description: `La funcionalidad "${feature.title}" se ha movido a QA`,
+      })
+      loadFeatures() // Recargar para ver el qaTaskId
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo mover la funcionalidad a QA",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleStatusChange = async (featureId: string, newStatus: FeatureStatus) => {
+    try {
+      await updateFeature(projectId, featureId, { status: newStatus })
+      toast({
+        title: "Estado actualizado",
+        description: "La funcionalidad se ha actualizado correctamente",
+      })
+      loadFeatures() // Recargar para ver cambios (puede haber creado QA automáticamente)
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el estado",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleTimeTracking = async (feature: Feature, action: 'start' | 'pause' | 'complete') => {
+    try {
+      const result = await trackFeatureTime(projectId, feature.id, action)
+      toast({
+        title: action === 'start' ? 'Timer iniciado' : action === 'pause' ? 'Timer pausado' : 'Tarea completada',
+        description: result.message,
+      })
+      loadFeatures() // Recargar para ver cambios
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo ejecutar la acción",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleReEstimate = async () => {
+    try {
+      setReEstimating(true)
+      const token = await import('@/lib/firebase/visionaries-tech').then(m => m.getIdToken())
+      if (!token) {
+        throw new Error('No hay token disponible')
+      }
+
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+      const response = await fetch(`${API_BASE}/api/projects/${projectId}/features/re-estimate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Error desconocido' }))
+        throw new Error(error.error || 'Error al re-estimar funcionalidades')
+      }
+
+      const data = await response.json()
+      toast({
+        title: "✅ Re-estimación completada",
+        description: data.message || `Se estimaron ${data.updatedCount} funcionalidades`,
+      })
+      loadFeatures() // Recargar para ver los cambios
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo re-estimar las funcionalidades",
+        variant: "destructive",
+      })
+    } finally {
+      setReEstimating(false)
+    }
+  }
+
+  const handleAssigneeChange = async (featureId: string, newAssignee: string) => {
+    try {
+      // Convertir "unassigned" a undefined para guardar sin asignación
+      const assigneeValue = newAssignee === "unassigned" ? undefined : newAssignee
+      await updateFeature(projectId, featureId, { assignee: assigneeValue })
+      toast({
+        title: "Responsable actualizado",
+        description: "El responsable se ha actualizado correctamente",
+      })
+      loadFeatures() // Recargar para ver cambios
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el responsable",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#4514F9]" />
+      </div>
+    )
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-[#0E0734]">Backlog del Proyecto</h2>
-          <p className="text-xs text-muted-foreground">{filteredTasks.length} tasks</p>
+          <h2 className="text-lg font-bold text-[#0E0734]">Funcionalidades del Proyecto</h2>
+          <p className="text-xs text-muted-foreground">{filteredFeatures.length} funcionalidades</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedTasks.size > 0 && (
+          {selectedFeatures.size > 0 && (
             <Badge variant="secondary" className="text-xs">
-              {selectedTasks.size} seleccionadas
+              {selectedFeatures.size} seleccionadas
             </Badge>
           )}
-          <Button className="bg-[#4514F9] hover:bg-[#3810C7] h-8 text-xs">
+          <Button 
+            variant="outline" 
+            className="h-8 text-xs"
+            onClick={handleReEstimate}
+            disabled={reEstimating || features.length === 0}
+          >
+            {reEstimating ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                Estimando...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                Re-estimar con IA
+              </>
+            )}
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-8 text-xs"
+            onClick={() => setShowFileUploader(true)}
+          >
+            <Upload className="h-3.5 w-3.5 mr-1" />
+            Subir CSV/Excel
+          </Button>
+          <Button 
+            className="bg-[#4514F9] hover:bg-[#3810C7] h-8 text-xs"
+            onClick={() => setShowFeatureEditor(true)}
+          >
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Nueva Task
+            Nueva Funcionalidad
           </Button>
         </div>
       </div>
@@ -276,6 +339,19 @@ export function BacklogScrum() {
               />
             </div>
           </div>
+          <Select value={filterEpic} onValueChange={setFilterEpic}>
+            <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectValue placeholder="Epic" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los Epics</SelectItem>
+              {epics.map(epic => (
+                <SelectItem key={epic} value={epic}>
+                  {epic} ({featuresByEpic[epic]?.length || 0})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-28 h-8 text-xs">
               <SelectValue placeholder="Estado" />
@@ -287,6 +363,7 @@ export function BacklogScrum() {
               <SelectItem value="in-progress">In Progress</SelectItem>
               <SelectItem value="review">Review</SelectItem>
               <SelectItem value="done">Done</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterPriority} onValueChange={setFilterPriority}>
@@ -306,168 +383,352 @@ export function BacklogScrum() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="Juan Pérez">Juan Pérez</SelectItem>
-              <SelectItem value="María García">María García</SelectItem>
-              <SelectItem value="Ana López">Ana López</SelectItem>
-              <SelectItem value="Luis Torres">Luis Torres</SelectItem>
-              <SelectItem value="Sofia Ruiz">Sofia Ruiz</SelectItem>
+              {assignees.map(assignee => (
+                <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </Card>
 
       <Card className="overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent border-b">
-              <TableHead className="w-10 p-2">
-                <Checkbox
-                  checked={selectedTasks.size === filteredTasks.length && filteredTasks.length > 0}
-                  onCheckedChange={toggleAllTasks}
-                />
-              </TableHead>
-              <TableHead className="w-24 p-2 text-xs font-semibold">ID</TableHead>
-              <TableHead className="p-2 text-xs font-semibold">Título</TableHead>
-              <TableHead className="w-40 p-2 text-xs font-semibold">Epic / Story</TableHead>
-              <TableHead className="w-32 p-2 text-xs font-semibold">Responsable</TableHead>
-              <TableHead className="w-24 p-2 text-xs font-semibold text-center">Horas</TableHead>
-              <TableHead className="w-28 p-2 text-xs font-semibold">Estado</TableHead>
-              <TableHead className="w-20 p-2 text-xs font-semibold">Prioridad</TableHead>
-              <TableHead className="w-10 p-2"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTasks.map((task) => (
-              <TableRow
-                key={task.id}
-                className="hover:bg-muted/50 cursor-pointer border-b"
-                onClick={() => setSelectedTask(task)}
-              >
-                <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
-                  <Checkbox checked={selectedTasks.has(task.id)} onCheckedChange={() => toggleTaskSelection(task.id)} />
-                </TableCell>
-                <TableCell className="p-2">
-                  <code className="text-xs font-mono text-muted-foreground">{task.id}</code>
-                </TableCell>
-                <TableCell className="p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-[#0E0734] truncate max-w-md">{task.title}</span>
-                    {task.githubBranch && (
-                      <div className="flex items-center gap-1 text-[#4514F9]">
-                        <GitBranch className="h-3 w-3" />
-                        <span className="text-xs">{task.commits}</span>
-                      </div>
+        {Object.keys(filteredFeaturesByEpic).length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">
+            <p>No hay funcionalidades que coincidan con los filtros</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {Object.entries(filteredFeaturesByEpic).map(([epic, epicFeatures]) => (
+              <div key={epic} className="border-b last:border-0">
+                {/* Header del Epic */}
+                <div 
+                  className="flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 cursor-pointer"
+                  onClick={() => toggleEpic(epic)}
+                >
+                  <div className="flex items-center gap-2 flex-1">
+                    {expandedEpics.has(epic) ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     )}
+                    <span className="font-semibold text-sm text-[#4514F9]">{epic}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {epicFeatures.length} funcionalidades
+                    </Badge>
                   </div>
-                </TableCell>
-                <TableCell className="p-2">
-                  <div className="text-xs space-y-0.5">
-                    <div className="font-medium text-[#4514F9] truncate">{task.epicTitle}</div>
-                    <div className="text-muted-foreground truncate">{task.storyTitle}</div>
-                  </div>
-                </TableCell>
-                <TableCell className="p-2">
-                  <div className="flex items-center gap-1.5">
-                    <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="text-xs truncate">{task.assignee}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="p-2">
-                  <div className="text-center">
-                    <div
-                      className={`text-xs font-medium ${
-                        task.actualHours > task.estimatedHours ? "text-[#E02814]" : "text-muted-foreground"
-                      }`}
-                    >
-                      {task.actualHours}h / {task.estimatedHours}h
-                    </div>
-                    {task.actualHours > task.estimatedHours && (
-                      <div className="text-xs text-[#E02814]">
-                        +{(task.actualHours - task.estimatedHours).toFixed(1)}h
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="p-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className={`w-2 h-2 rounded-full ${statusConfig[task.status].color}`} />
-                    <span className="text-xs">{statusConfig[task.status].label}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="p-2">
-                  <Badge className={`${getPriorityColor(task.priority)} text-xs px-1.5 py-0`} variant="outline">
-                    {task.priority}
-                  </Badge>
-                </TableCell>
-                <TableCell className="p-2">
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
-                </TableCell>
-              </TableRow>
+                </div>
+
+                {/* Features del Epic */}
+                {expandedEpics.has(epic) && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent border-b">
+                        <TableHead className="w-10 p-2">
+                          <Checkbox
+                            checked={epicFeatures.every(f => selectedFeatures.has(f.id)) && epicFeatures.length > 0}
+                            onCheckedChange={() => {
+                              const allSelected = epicFeatures.every(f => selectedFeatures.has(f.id))
+                              const newSelected = new Set(selectedFeatures)
+                              if (allSelected) {
+                                epicFeatures.forEach(f => newSelected.delete(f.id))
+                              } else {
+                                epicFeatures.forEach(f => newSelected.add(f.id))
+                              }
+                              setSelectedFeatures(newSelected)
+                            }}
+                          />
+                        </TableHead>
+                        <TableHead className="w-24 p-2 text-xs font-semibold">ID</TableHead>
+                        <TableHead className="p-2 text-xs font-semibold">Título</TableHead>
+                        <TableHead className="w-32 p-2 text-xs font-semibold">Responsable</TableHead>
+                        <TableHead className="w-24 p-2 text-xs font-semibold text-center">Horas</TableHead>
+                        <TableHead className="w-28 p-2 text-xs font-semibold">Estado</TableHead>
+                        <TableHead className="w-20 p-2 text-xs font-semibold">Prioridad</TableHead>
+                        <TableHead className="w-24 p-2 text-xs font-semibold text-center">Timer</TableHead>
+                        <TableHead className="w-32 p-2 text-xs font-semibold">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {epicFeatures.map((feature) => (
+                        <TableRow
+                          key={feature.id}
+                          className="hover:bg-muted/50 border-b"
+                        >
+                          <TableCell className="p-2">
+                            <Checkbox 
+                              checked={selectedFeatures.has(feature.id)} 
+                              onCheckedChange={() => toggleFeatureSelection(feature.id)} 
+                            />
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <code className="text-xs font-mono text-muted-foreground">{feature.id.substring(0, 8)}</code>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <div className="flex items-center gap-2">
+                              <span 
+                                className="text-xs font-medium text-[#0E0734] truncate max-w-md cursor-pointer"
+                                onClick={() => setSelectedFeature(feature)}
+                              >
+                                {feature.title}
+                              </span>
+                              {feature.githubBranch && (
+                                <div className="flex items-center gap-1 text-[#4514F9]">
+                                  <GitBranch className="h-3 w-3" />
+                                  <span className="text-xs">{feature.commits || 0}</span>
+                                </div>
+                              )}
+                              {feature.qaTaskId && (
+                                <Link href={`/projects/${projectId}/qa`}>
+                                  <Badge variant="outline" className="text-xs cursor-pointer">
+                                    <TestTube className="h-3 w-3 mr-1" />
+                                    QA
+                                  </Badge>
+                                </Link>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Select
+                              value={feature.assignee || 'unassigned'}
+                              onValueChange={(value) => handleAssigneeChange(feature.id, value)}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-32">
+                                <SelectValue placeholder="Sin asignar">
+                                  <div className="flex items-center gap-1.5">
+                                    <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                    <span className="text-xs truncate">
+                                      {feature.assignee 
+                                        ? teamMembers.find(m => m.email === feature.assignee)?.displayName || feature.assignee
+                                        : 'Sin asignar'}
+                                    </span>
+                                  </div>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Sin asignar</SelectItem>
+                                {teamMembers.map((member) => (
+                                  <SelectItem key={member.email} value={member.email}>
+                                    {member.displayName} ({member.email})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <div className="text-center">
+                              <div className="text-xs text-muted-foreground mb-0.5">
+                                Est: {feature.estimatedHours || 0}h
+                              </div>
+                              <div
+                                className={`text-xs font-medium ${
+                                  (feature.actualHours || 0) > (feature.estimatedHours || 0) ? "text-[#E02814]" : "text-foreground"
+                                }`}
+                              >
+                                Real: {feature.actualHours?.toFixed(1) || 0}h
+                              </div>
+                              {(feature.actualHours || 0) > (feature.estimatedHours || 0) && (
+                                <div className="text-xs text-[#E02814]">
+                                  +{((feature.actualHours || 0) - (feature.estimatedHours || 0)).toFixed(1)}h
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Select
+                              value={feature.status}
+                              onValueChange={(value) => handleStatusChange(feature.id, value as FeatureStatus)}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-28">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="backlog">Backlog</SelectItem>
+                                <SelectItem value="todo">To Do</SelectItem>
+                                <SelectItem value="in-progress">In Progress</SelectItem>
+                                <SelectItem value="review">Review</SelectItem>
+                                <SelectItem value="done">Done</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Badge className={`${getPriorityColor(feature.priority)} text-xs px-1.5 py-0`} variant="outline">
+                              {feature.priority}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <div className="flex items-center justify-center gap-1">
+                              {feature.startedAt ? (
+                                <>
+                                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse mr-1" />
+                                    Corriendo
+                                  </Badge>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleTimeTracking(feature, 'pause')
+                                    }}
+                                    title="Pausar"
+                                  >
+                                    <Pause className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleTimeTracking(feature, 'start')
+                                  }}
+                                  title="Iniciar timer"
+                                >
+                                  <Play className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {!feature.startedAt && (feature.status !== 'done' && feature.status !== 'completed') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleTimeTracking(feature, 'complete')
+                                  }}
+                                  title="Completar tarea"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <div className="flex items-center gap-1">
+                              {(feature.status === 'done' || feature.status === 'completed') && !feature.qaTaskId && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleMoveToQA(feature)
+                                  }}
+                                >
+                                  <TestTube className="h-3 w-3 mr-1" />
+                                  Enviar a QA
+                                </Button>
+                              )}
+                              {feature.qaTaskId && (
+                                <Link href={`/projects/${projectId}/qa`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-xs"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Ver QA
+                                  </Button>
+                                </Link>
+                              )}
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedFeature(feature)
+                                }}
+                              >
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        )}
       </Card>
 
-      <Dialog open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
+      <Dialog open={!!selectedFeature} onOpenChange={() => setSelectedFeature(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <code className="text-sm font-mono text-muted-foreground">{selectedTask?.id}</code>
-              <span>{selectedTask?.title}</span>
+              <code className="text-sm font-mono text-muted-foreground">{selectedFeature?.id.substring(0, 8)}</code>
+              <span>{selectedFeature?.title}</span>
             </DialogTitle>
-            <DialogDescription>{selectedTask?.description}</DialogDescription>
+            <DialogDescription>{selectedFeature?.description}</DialogDescription>
           </DialogHeader>
-          {selectedTask && (
+          {selectedFeature && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Epic</div>
-                  <div className="text-sm font-medium text-[#4514F9]">{selectedTask.epicTitle}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-muted-foreground mb-1">Story</div>
-                  <div className="text-sm">{selectedTask.storyTitle}</div>
+                  <div className="text-sm font-medium text-[#4514F9]">{selectedFeature.epicTitle}</div>
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Responsable</div>
                   <div className="text-sm flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5" />
-                    {selectedTask.assignee}
+                    {selectedFeature.assignee || 'Sin asignar'}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Estado</div>
                   <div className="flex items-center gap-1.5">
-                    <div className={`w-2 h-2 rounded-full ${statusConfig[selectedTask.status].color}`} />
-                    <span className="text-sm">{statusConfig[selectedTask.status].label}</span>
+                    <div className={`w-2 h-2 rounded-full ${statusConfig[selectedFeature.status]?.color || 'bg-gray-500'}`} />
+                    <span className="text-sm">{statusConfig[selectedFeature.status]?.label || selectedFeature.status}</span>
                   </div>
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Prioridad</div>
-                  <Badge className={`${getPriorityColor(selectedTask.priority)} text-xs`} variant="outline">
-                    {selectedTask.priority}
+                  <Badge className={`${getPriorityColor(selectedFeature.priority)} text-xs`} variant="outline">
+                    {selectedFeature.priority}
                   </Badge>
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Horas</div>
                   <div className="text-sm flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5" />
-                    <span className={selectedTask.actualHours > selectedTask.estimatedHours ? "text-[#E02814]" : ""}>
-                      {selectedTask.actualHours}h / {selectedTask.estimatedHours}h
-                    </span>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Est: {selectedFeature.estimatedHours || 0}h</div>
+                      <div className={`text-xs font-medium ${(selectedFeature.actualHours || 0) > (selectedFeature.estimatedHours || 0) ? "text-[#E02814]" : ""}`}>
+                        Real: {selectedFeature.actualHours?.toFixed(1) || 0}h
+                      </div>
+                    </div>
                   </div>
                 </div>
+                {selectedFeature.qaTaskId && (
+                  <div>
+                    <div className="text-xs font-semibold text-muted-foreground mb-1">Tarea QA</div>
+                    <Link href={`/projects/${projectId}/qa`}>
+                      <Badge variant="outline" className="text-xs cursor-pointer">
+                        <TestTube className="h-3 w-3 mr-1" />
+                        Ver Tarea QA
+                      </Badge>
+                    </Link>
+                  </div>
+                )}
               </div>
-              {selectedTask.githubBranch && (
+              {selectedFeature.githubBranch && (
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">GitHub</div>
                   <div className="flex items-center gap-2 text-sm">
                     <GitBranch className="h-4 w-4 text-[#4514F9]" />
-                    <code className="text-xs bg-muted px-2 py-1 rounded">{selectedTask.githubBranch}</code>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">{selectedFeature.githubBranch}</code>
                     <span className="text-muted-foreground">•</span>
-                    <span className="text-muted-foreground">{selectedTask.commits} commits</span>
+                    <span className="text-muted-foreground">{selectedFeature.commits || 0} commits</span>
                     <Button variant="ghost" size="sm" className="h-6 ml-auto">
                       <ExternalLink className="h-3 w-3 mr-1" />
                       Ver en GitHub
@@ -475,18 +736,89 @@ export function BacklogScrum() {
                   </div>
                 </div>
               )}
-              {selectedTask.sprint && (
+              {selectedFeature.sprint && (
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Sprint</div>
                   <Badge variant="outline" className="text-[#4514F9]">
-                    {selectedTask.sprint}
+                    {selectedFeature.sprint}
                   </Badge>
                 </div>
               )}
+              <div className="pt-4 border-t space-y-2">
+                <div className="flex items-center gap-2">
+                  {selectedFeature.startedAt ? (
+                    <>
+                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse mr-1" />
+                        Timer corriendo
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTimeTracking(selectedFeature, 'pause')}
+                      >
+                        <Pause className="h-3 w-3 mr-1" />
+                        Pausar
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTimeTracking(selectedFeature, 'start')}
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Iniciar Timer
+                    </Button>
+                  )}
+                  {!selectedFeature.startedAt && (selectedFeature.status !== 'done' && selectedFeature.status !== 'completed') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        handleTimeTracking(selectedFeature, 'complete')
+                        setSelectedFeature(null)
+                      }}
+                    >
+                      <Check className="h-3 w-3 mr-1" />
+                      Completar
+                    </Button>
+                  )}
+                </div>
+                {(selectedFeature.status === 'done' || selectedFeature.status === 'completed') && !selectedFeature.qaTaskId && (
+                  <Button
+                    onClick={() => {
+                      handleMoveToQA(selectedFeature)
+                      setSelectedFeature(null)
+                    }}
+                    className="w-full"
+                  >
+                    <TestTube className="h-4 w-4 mr-2" />
+                    Enviar a QA
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Feature Editor */}
+      <FeatureEditor
+        open={showFeatureEditor}
+        onOpenChange={setShowFeatureEditor}
+        projectId={projectId}
+        feature={selectedFeature}
+        onSuccess={loadFeatures}
+      />
+
+      {/* Feature File Uploader */}
+      <FeatureFileUploader
+        open={showFileUploader}
+        onOpenChange={setShowFileUploader}
+        projectId={projectId}
+        onUploadComplete={loadFeatures}
+      />
     </div>
   )
 }
