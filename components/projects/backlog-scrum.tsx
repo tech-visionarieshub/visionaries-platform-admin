@@ -214,6 +214,13 @@ export function BacklogScrum() {
   const handleReEstimate = async () => {
     try {
       setReEstimating(true)
+      
+      console.log('[BacklogScrum] Iniciando re-estimación con IA...')
+      toast({
+        title: "🤖 Estimando con IA",
+        description: "Analizando funcionalidades... Esto puede tomar unos minutos.",
+      })
+      
       const token = await import('@/lib/firebase/visionaries-tech').then(m => m.getIdToken())
       if (!token) {
         throw new Error('No hay token disponible')
@@ -234,12 +241,15 @@ export function BacklogScrum() {
       }
 
       const data = await response.json()
+      console.log('[BacklogScrum] Re-estimación completada:', data)
+      
       toast({
         title: "✅ Re-estimación completada",
-        description: data.message || `Se estimaron ${data.updatedCount} funcionalidades`,
+        description: data.message || `Se estimaron ${data.updatedCount} funcionalidades${data.skippedCount > 0 ? ` (${data.skippedCount} ya tenían estimación)` : ''}`,
       })
       loadFeatures() // Recargar para ver los cambios
     } catch (error: any) {
+      console.error('[BacklogScrum] Error en re-estimación:', error)
       toast({
         title: "Error",
         description: error.message || "No se pudo re-estimar las funcionalidades",

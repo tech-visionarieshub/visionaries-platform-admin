@@ -41,16 +41,31 @@ export async function POST(
     }
 
     // Obtener todas las features del proyecto
-    const features = await featuresRepository.getAll(projectId)
+    const allFeatures = await featuresRepository.getAll(projectId)
     
-    if (features.length === 0) {
+    if (allFeatures.length === 0) {
       return NextResponse.json(
         { error: 'No hay funcionalidades para estimar' },
         { status: 400 }
       )
     }
 
-    console.log(`[Re-estimate] Estimando ${features.length} features con IA...`)
+    // Filtrar solo las que NO tienen estimación completa
+    const features = allFeatures.filter(f => 
+      !f.estimatedHours || !f.priority
+    )
+
+    if (features.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'Todas las funcionalidades ya tienen estimaciones',
+        updatedCount: 0,
+        totalCount: allFeatures.length,
+        skippedCount: allFeatures.length,
+      })
+    }
+
+    console.log(`[Re-estimate] Estimando ${features.length} de ${allFeatures.length} features (${allFeatures.length - features.length} ya tienen estimación)`)
 
     // Estimar en lotes de 10
     const batchSize = 10
@@ -59,6 +74,8 @@ export async function POST(
 
     for (let i = 0; i < features.length; i += batchSize) {
       const batch = features.slice(i, i + batchSize)
+      
+      console.log(`[Re-estimate] Procesando lote ${Math.floor(i / batchSize) + 1} de ${Math.ceil(features.length / batchSize)} (features ${i + 1}-${Math.min(i + batchSize, features.length)})`)
       
       try {
         const estimations = await openAIService.estimateFeatureDetails(
@@ -82,6 +99,7 @@ export async function POST(
                 priority: estimation.priority,
               })
               updatedCount++
+              console.log(`[Re-estimate] ✓ ${feature.title}: ${estimation.estimatedHours}h, prioridad: ${estimation.priority}`)
             } catch (error: any) {
               console.error(`[Re-estimate] Error actualizando feature ${feature.id}:`, error)
               errors.push(`Error actualizando ${feature.title}: ${error.message}`)
@@ -96,9 +114,10 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Se estimaron ${updatedCount} de ${features.length} funcionalidades`,
+      message: `Se estimaron ${updatedCount} de ${allFeatures.length} funcionalidades (${allFeatures.length - features.length} ya tenían estimación)`,
       updatedCount,
-      totalCount: features.length,
+      totalCount: allFeatures.length,
+      skippedCount: allFeatures.length - features.length,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error: any) {

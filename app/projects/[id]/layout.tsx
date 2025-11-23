@@ -2,14 +2,16 @@
 
 import type React from "react"
 import { useState, useEffect, use } from "react"
-import { ArrowLeft, Calendar, User, DollarSign, Clock } from "lucide-react"
+import { ArrowLeft, Calendar, User, DollarSign, Clock, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { getProjectById, updateProject } from "@/lib/api/projects-api"
+import { getFeatures } from "@/lib/api/features-api"
 import type { Project } from "@/lib/mock-data/projects"
+import type { Feature } from "@/types/feature"
 import {
   Dialog,
   DialogContent,
@@ -152,7 +154,7 @@ export default function ProjectLayout({
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <User className="h-4 w-4" />
@@ -179,6 +181,13 @@ export default function ProjectLayout({
               Presupuesto
             </div>
             <p className="font-semibold text-[#0E0734]">${project.budget.toLocaleString()}</p>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Zap className="h-4 w-4" />
+              Horas Estimadas (IA)
+            </div>
+            <p className="font-semibold text-[#4514F9]">{totalEstimatedHours.toFixed(1)}h</p>
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
