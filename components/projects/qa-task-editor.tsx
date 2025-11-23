@@ -73,9 +73,9 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
     try {
       const token = await getIdToken()
       if (!token) throw new Error("No hay token disponible")
-      const response = await fetch(\`/api/projects/\${projectId}/qa-tasks/\${task.id}\`, {
+      const response = await fetch(`/api/projects/\${projectId}/qa-tasks/\${task.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: \`Bearer \${token}\` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer \${token}` },
         body: JSON.stringify({
           titulo: formData.titulo,
           categoria: formData.categoria,
@@ -107,9 +107,9 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
     try {
       const token = await getIdToken()
       if (!token) throw new Error("No hay token disponible")
-      const response = await fetch(\`/api/projects/\${projectId}/qa-tasks/\${task.id}/generate-criteria\`, {
+      const response = await fetch(`/api/projects/\${projectId}/qa-tasks/\${task.id}/generate-criteria`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: \`Bearer \${token}\` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer \${token}` },
         body: JSON.stringify({
           titulo: formData.titulo,
           categoria: formData.categoria,
@@ -137,9 +137,9 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
     try {
       const token = await getIdToken()
       if (!token) throw new Error("No hay token disponible")
-      const response = await fetch(\`/api/projects/\${projectId}/qa-tasks/\${task.id}/images?imageUrl=\${encodeURIComponent(imageUrl)}\`, {
+      const response = await fetch(`/api/projects/\${projectId}/qa-tasks/\${task.id}/images?imageUrl=\${encodeURIComponent(imageUrl)}`, {
         method: "DELETE",
-        headers: { Authorization: \`Bearer \${token}\` },
+        headers: { Authorization: `Bearer \${token}` },
       })
       if (!response.ok) {
         const error = await response.json()
