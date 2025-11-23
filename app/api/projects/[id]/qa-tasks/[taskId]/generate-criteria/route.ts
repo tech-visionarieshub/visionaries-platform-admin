@@ -5,6 +5,8 @@ import { openAIService } from '@/lib/services/openai-service';
 import { qaTasksRepository } from '@/lib/repositories/qa-tasks-repository';
 import { z } from 'zod';
 
+type TaskParamsContext = { params: Promise<{ id: string; taskId: string }> };
+
 /**
  * API para generar criterios de aceptación con OpenAI
  * POST /api/projects/[id]/qa-tasks/[taskId]/generate-criteria
@@ -20,8 +22,10 @@ const generateCriteriaSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  context: TaskParamsContext
 ) {
+  const { id, taskId } = await context.params;
+
   try {
     // Verificar autenticación
     const token = extractBearerToken(request);
@@ -44,7 +48,7 @@ export async function POST(
     }
 
     // Verificar que la tarea existe
-    const task = await qaTasksRepository.getById(params.id, params.taskId);
+    const task = await qaTasksRepository.getById(id, taskId);
     if (!task) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },

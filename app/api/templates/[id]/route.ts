@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/middleware';
 import { templatesRepository } from '@/lib/repositories/templates-repository';
 
+type IdParamsContext = { params: Promise<{ id: string }> };
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      const template = await templatesRepository.getById(params.id);
+      const template = await templatesRepository.getById(id);
 
       if (!template) {
         return NextResponse.json(
@@ -30,14 +34,16 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
       const body = await request.json();
       const { id, ...updates } = body;
 
-      const template = await templatesRepository.update(params.id, updates);
+      const template = await templatesRepository.update(id, updates);
 
       return NextResponse.json({ success: true, data: template });
     } catch (error: any) {
@@ -60,11 +66,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      await templatesRepository.delete(params.id);
+      await templatesRepository.delete(id);
 
       return NextResponse.json({ success: true });
     } catch (error: any) {

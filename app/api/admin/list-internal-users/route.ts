@@ -27,6 +27,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Verificar que la variable de entorno esté configurada
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH) {
+      console.error('[List Internal Users] FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH no está configurado');
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH no está configurado. Necesitas configurar esta variable de entorno para listar usuarios.' 
+        },
+        { status: 500 }
+      );
+    }
+
     const auth = getAuraAuth();
     
     // Listar todos los usuarios (Firebase Auth no tiene filtro directo por custom claims)
@@ -56,8 +68,17 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[List Internal Users] Error:', error);
+    
+    // Mensaje más descriptivo según el tipo de error
+    let errorMessage = error.message || 'Error listando usuarios';
+    if (error.message?.includes('FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH')) {
+      errorMessage = 'FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH no está configurado. Configura esta variable de entorno en .env.local para desarrollo local.';
+    } else if (error.message?.includes('credential') || error.message?.includes('service account')) {
+      errorMessage = 'Error al inicializar Firebase Admin SDK. Verifica que FIREBASE_SERVICE_ACCOUNT_VISIONARIES_TECH sea un JSON válido.';
+    }
+    
     return NextResponse.json(
-      { success: false, error: error.message || 'Error listando usuarios' },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

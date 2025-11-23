@@ -4,16 +4,38 @@ import { verifyIdToken } from '@/lib/firebase/admin-tech';
 import { openAIService } from '@/lib/services/openai-service';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import type { AnalyzeFileResponse } from '@/types/qa';
 
 /**
- * API para analizar headers de archivos CSV/Excel con OpenAI
- * POST /api/projects/[id]/qa-tasks/analyze
+ * API para analizar headers de archivos CSV/Excel con OpenAI para Features
+ * POST /api/projects/[id]/features/analyze
  * 
  * Body: FormData con archivo (file)
  * 
  * Retorna: {headers, suggestedMappings, sampleRows}
  */
+
+export interface FeatureColumnMapping {
+  columnName: string
+  mappedField: keyof {
+    epicTitle: string
+    title: string
+    description: string
+    priority: string
+    assignee: string
+    estimatedHours: number
+    actualHours: number
+    storyPoints: number
+    sprint: string
+  } | null
+  confidence?: number
+}
+
+export interface FeatureAnalyzeFileResponse {
+  headers: string[]
+  suggestedMappings: FeatureColumnMapping[]
+  sampleRows: Record<string, any>[]
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -146,8 +168,8 @@ export async function POST(
         );
       }
 
-      // Analizar headers con OpenAI (con timeout de 30s)
-      const analysisPromise = openAIService.analyzeCSVHeaders(headers, sampleRows);
+      // Analizar headers con OpenAI (adaptado para Features)
+      const analysisPromise = openAIService.analyzeCSVHeadersForFeatures(headers, sampleRows);
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Timeout: El análisis tardó más de 30 segundos')), 30000);
       });
@@ -157,9 +179,9 @@ export async function POST(
       return NextResponse.json({
         success: true,
         ...analysisResult,
-      } as AnalyzeFileResponse & { success: boolean });
+      } as FeatureAnalyzeFileResponse & { success: boolean });
     } catch (error: any) {
-      console.error('[Analyze] Error procesando archivo:', error);
+      console.error('[Features Analyze] Error procesando archivo:', error);
       
       if (error.message?.includes('Timeout')) {
         return NextResponse.json(
@@ -181,7 +203,7 @@ export async function POST(
       );
     }
   } catch (error: any) {
-    console.error('[Analyze] Error:', error);
+    console.error('[Features Analyze] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error desconocido al analizar archivo' },
       { status: 500 }

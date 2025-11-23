@@ -28,9 +28,16 @@ export function getInternalApp(): admin.app.App {
 
       let credential;
       try {
+        // Remover comillas simples o dobles del inicio y final si existen
+        let jsonString = serviceAccount.trim();
+        if ((jsonString.startsWith("'") && jsonString.endsWith("'")) || 
+            (jsonString.startsWith('"') && jsonString.endsWith('"'))) {
+          jsonString = jsonString.slice(1, -1);
+        }
+        
         // Intentar parsear como JSON string primero
         try {
-          const serviceAccountJson = JSON.parse(serviceAccount);
+          const serviceAccountJson = JSON.parse(jsonString);
           credential = admin.credential.cert(serviceAccountJson);
         } catch (jsonError) {
           // Si no es JSON válido, asumir que es path a archivo

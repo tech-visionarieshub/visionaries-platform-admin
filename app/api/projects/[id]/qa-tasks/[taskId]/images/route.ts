@@ -14,10 +14,14 @@ import type { QAImage } from '@/types/qa';
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
+type TaskImageParamsContext = { params: Promise<{ id: string; taskId: string }> };
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  context: TaskImageParamsContext
 ) {
+  const { id, taskId } = await context.params;
+
   try {
     // Verificar autenticación
     const token = extractBearerToken(request);
@@ -40,7 +44,7 @@ export async function POST(
     }
 
     // Verificar que la tarea existe
-    const task = await qaTasksRepository.getById(params.id, params.taskId);
+    const task = await qaTasksRepository.getById(id, taskId);
     if (!task) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
@@ -83,7 +87,7 @@ export async function POST(
       // Generar nombre único para el archivo
       const timestamp = Date.now();
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const fileName = `qa-tasks/${params.id}/${params.taskId}/${timestamp}_${sanitizedName}`;
+      const fileName = `qa-tasks/${id}/${taskId}/${timestamp}_${sanitizedName}`;
 
       // Subir a Firebase Storage
       const storage = getInternalStorage();
@@ -96,8 +100,8 @@ export async function POST(
           metadata: {
             uploadedAt: new Date().toISOString(),
             uploadedBy: decoded.email || decoded.uid || 'unknown',
-            projectId: params.id,
-            taskId: params.taskId,
+            projectId: id,
+            taskId: taskId,
           },
         },
       });
@@ -118,7 +122,7 @@ export async function POST(
 
       // Agregar imagen a la tarea
       const updatedImages = [...(task.imagenes || []), newImage];
-      await qaTasksRepository.update(params.id, params.taskId, {
+      await qaTasksRepository.update(id, taskId, {
         imagenes: updatedImages,
       });
 
@@ -144,8 +148,10 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  context: TaskImageParamsContext
 ) {
+  const { id, taskId } = await context.params;
+
   try {
     // Verificar autenticación
     const token = extractBearerToken(request);
@@ -168,7 +174,7 @@ export async function DELETE(
     }
 
     // Verificar que la tarea existe
-    const task = await qaTasksRepository.getById(params.id, params.taskId);
+    const task = await qaTasksRepository.getById(id, taskId);
     if (!task) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
@@ -208,7 +214,7 @@ export async function DELETE(
 
       // Eliminar imagen de la lista de la tarea
       const updatedImages = (task.imagenes || []).filter(img => img.url !== imageUrl);
-      await qaTasksRepository.update(params.id, params.taskId, {
+      await qaTasksRepository.update(id, taskId, {
         imagenes: updatedImages,
       });
 
@@ -222,7 +228,7 @@ export async function DELETE(
       // Si el archivo no existe en Storage, solo eliminarlo de la lista
       if (error.code === 404 || error.message?.includes('No such object')) {
         const updatedImages = (task.imagenes || []).filter(img => img.url !== imageUrl);
-        await qaTasksRepository.update(params.id, params.taskId, {
+        await qaTasksRepository.update(id, taskId, {
           imagenes: updatedImages,
         });
         

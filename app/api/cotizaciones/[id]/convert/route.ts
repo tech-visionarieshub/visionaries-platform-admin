@@ -3,13 +3,17 @@ import { withAuth } from '@/lib/api/middleware';
 import { cotizacionesRepository } from '@/lib/repositories/cotizaciones-repository';
 import { projectsRepository } from '@/lib/repositories/projects-repository';
 
+type IdParamsContext = { params: Promise<{ id: string }> };
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      const cotizacion = await cotizacionesRepository.getById(params.id);
+      const cotizacion = await cotizacionesRepository.getById(id);
 
       if (!cotizacion) {
         return NextResponse.json(
@@ -40,7 +44,7 @@ export async function POST(
       const project = await projectsRepository.create(projectData);
 
       // Actualizar cotización para marcarla como convertida y vincular proyecto
-      await cotizacionesRepository.update(params.id, {
+      await cotizacionesRepository.update(id, {
         estado: 'Convertida',
         proyectoId: project.id,
       });

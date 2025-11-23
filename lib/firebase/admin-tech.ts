@@ -28,12 +28,30 @@ export function getAuraApp(): admin.app.App {
 
       let credential;
       try {
+        // Remover comillas simples o dobles del inicio y final si existen
+        let jsonString = serviceAccount.trim();
+        if ((jsonString.startsWith("'") && jsonString.endsWith("'")) || 
+            (jsonString.startsWith('"') && jsonString.endsWith('"'))) {
+          jsonString = jsonString.slice(1, -1);
+        }
+        
         // Intentar parsear como JSON string
-        const serviceAccountJson = JSON.parse(serviceAccount);
+        const serviceAccountJson = JSON.parse(jsonString);
         credential = admin.credential.cert(serviceAccountJson);
-      } catch {
-        // Si falla, asumir que es path a archivo
-        credential = admin.credential.cert(serviceAccount);
+      } catch (parseError: any) {
+        // Si falla el parseo, intentar como path a archivo
+        try {
+          credential = admin.credential.cert(serviceAccount);
+        } catch (fileError: any) {
+          const error = new Error(
+            `Error al inicializar Firebase Admin SDK para visionaries-tech. ` +
+            `No se pudo parsear como JSON ni usar como path a archivo. ` +
+            `Error de parseo: ${parseError.message}. ` +
+            `Error de archivo: ${fileError.message}`
+          );
+          console.error('[Admin Tech] Error de configuración:', error.message);
+          throw error;
+        }
       }
 
       auraApp = admin.initializeApp(

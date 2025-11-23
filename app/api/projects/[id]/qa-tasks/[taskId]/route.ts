@@ -1,20 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { extractBearerToken } from '@/lib/firebase/auth-helpers';
-import { verifyIdToken } from '@/lib/firebase/admin-tech';
-import { qaTasksRepository } from '@/lib/repositories/qa-tasks-repository';
-import type { QATask, QATaskCategory, QATaskStatus } from '@/types/qa';
-import { z } from 'zod';
-
-/**
- * API CRUD para una tarea QA específica
- * GET /api/projects/[id]/qa-tasks/[taskId] - Obtener tarea
- * PUT /api/projects/[id]/qa-tasks/[taskId] - Actualizar tarea
- * DELETE /api/projects/[id]/qa-tasks/[taskId] - Eliminar tarea
- */
+import { NextRequest, NextResponse } from 'next/server'
+import { extractBearerToken } from '@/lib/firebase/auth-helpers'
+import { verifyIdToken } from '@/lib/firebase/admin-tech'
+import { qaTasksRepository } from '@/lib/repositories/qa-tasks-repository'
+import type { QATask } from '@/types/qa'
+import { z } from 'zod'
 
 const updateTaskSchema = z.object({
   titulo: z.string().min(1).optional(),
-  categoria: z.enum(['Funcionalidades Nuevas', 'QA', 'Bugs Generales', 'Otra']).optional(),
+  categoria: z.enum(['Funcionalidad', 'QA', 'Bugs Generales', 'Otra']).optional(),
   tipo: z.string().optional(),
   criterios_aceptacion: z.string().optional(),
   comentarios: z.string().optional(),
@@ -25,181 +18,180 @@ const updateTaskSchema = z.object({
     uploadedAt: z.string().or(z.date()),
     size: z.number(),
   })).optional(),
-}).partial();
+  featureId: z.string().optional(),
+  featureTitle: z.string().optional(),
+  featureNote: z.string().optional(),
+}).partial()
+
+type TaskParamsContext = {
+  params: Promise<{ id: string; taskId: string }>
+}
+
+async function ensureAuth(request: NextRequest) {
+  const token = extractBearerToken(request)
+  if (!token) {
+    return { error: NextResponse.json({ error: 'No autorizado' }, { status: 401 }) }
+  }
+
+  const decoded = await verifyIdToken(token)
+  const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true
+  const hasInternalAccess = decoded.internal === true
+
+  if (!hasInternalAccess && !isSuperAdmin) {
+    return { error: NextResponse.json({ error: 'No tienes acceso a esta funcionalidad' }, { status: 403 }) }
+  }
+
+  return { decoded }
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  context: TaskParamsContext
 ) {
+  const { id, taskId } = await context.params
+
   try {
-    // Verificar autenticación
-    const token = extractBearerToken(request);
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
-    }
+    const auth = await ensureAuth(request)
+    if (auth.error) return auth.error
 
-    const decoded = await verifyIdToken(token);
-    const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true;
-    const hasInternalAccess = decoded.internal === true;
-
-    if (!hasInternalAccess && !isSuperAdmin) {
-      return NextResponse.json(
-        { error: 'No tienes acceso a esta funcionalidad' },
-        { status: 403 }
-      );
-    }
-
-    // Obtener tarea
-    const task = await qaTasksRepository.getById(params.id, params.taskId);
+    const task = await qaTasksRepository.getById(id, taskId)
 
     if (!task) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
         { status: 404 }
-      );
+      )
     }
 
     return NextResponse.json({
       success: true,
       task,
-    });
+    })
   } catch (error: any) {
-    console.error('[QA Task GET] Error:', error);
+    console.error('[QA Task GET] Error:', error)
     return NextResponse.json(
       { error: error.message || 'Error al obtener tarea QA' },
       { status: 500 }
-    );
+    )
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  context: TaskParamsContext
 ) {
+  const { id, taskId } = await context.params
+
   try {
-    // Verificar autenticación
-    const token = extractBearerToken(request);
-    if (!token) {
+    const auth = await ensureAuth(request)
+    if (auth.error) return auth.error
+
+    const body = await request.json()
+    const validatedData = updateTaskSchema.parse(body)
+
+    // Validar que solo uno de featureId o featureNote esté presente
+    if (validatedData.featureId && validatedData.featureNote) {
       return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
+        { error: 'No se puede especificar featureId y featureNote al mismo tiempo' },
+        { status: 400 }
+      )
     }
 
-    const decoded = await verifyIdToken(token);
-    const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true;
-    const hasInternalAccess = decoded.internal === true;
-
-    if (!hasInternalAccess && !isSuperAdmin) {
-      return NextResponse.json(
-        { error: 'No tienes acceso a esta funcionalidad' },
-        { status: 403 }
-      );
+    // Si se actualiza featureId, validar que la funcionalidad existe y obtener featureTitle
+    if (validatedData.featureId !== undefined) {
+      if (validatedData.featureId) {
+        const { featuresRepository } = await import('@/lib/repositories/features-repository')
+        const feature = await featuresRepository.getById(id, validatedData.featureId)
+        if (!feature) {
+          return NextResponse.json(
+            { error: 'La funcionalidad especificada no existe' },
+            { status: 400 }
+          )
+        }
+        // Si tiene featureId, agregar featureTitle automáticamente y limpiar featureNote
+        validatedData.featureTitle = feature.title
+        validatedData.featureNote = undefined
+      } else {
+        // Si featureId es null/empty, limpiar también featureTitle
+        validatedData.featureTitle = undefined
+      }
     }
 
-    // Validar y parsear body
-    const body = await request.json();
-    const validatedData = updateTaskSchema.parse(body);
+    // Si se actualiza featureNote, limpiar featureId y featureTitle
+    if (validatedData.featureNote !== undefined && validatedData.featureNote) {
+      validatedData.featureId = undefined
+      validatedData.featureTitle = undefined
+    }
 
-    // Verificar que la tarea existe
-    const existingTask = await qaTasksRepository.getById(params.id, params.taskId);
+    const existingTask = await qaTasksRepository.getById(id, taskId)
     if (!existingTask) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
         { status: 404 }
-      );
+      )
     }
 
-    // Preparar datos de actualización
-    const updateData: Partial<QATask> = { ...validatedData };
-    
-    // Convertir fechas de imágenes si existen
+    const updateData: Partial<QATask> = { ...validatedData }
+
     if (updateData.imagenes) {
-      updateData.imagenes = updateData.imagenes.map(img => ({
+      updateData.imagenes = updateData.imagenes.map((img) => ({
         ...img,
         uploadedAt: typeof img.uploadedAt === 'string' ? new Date(img.uploadedAt) : img.uploadedAt,
-      }));
+      }))
     }
 
-    // Actualizar tarea
-    const updatedTask = await qaTasksRepository.update(
-      params.id,
-      params.taskId,
-      updateData
-    );
+    const updatedTask = await qaTasksRepository.update(id, taskId, updateData)
 
     return NextResponse.json({
       success: true,
       task: updatedTask,
-    });
+    })
   } catch (error: any) {
-    console.error('[QA Task PUT] Error:', error);
-    
+    console.error('[QA Task PUT] Error:', error)
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Datos inválidos', details: error.errors },
         { status: 400 }
-      );
+      )
     }
 
     return NextResponse.json(
       { error: error.message || 'Error al actualizar tarea QA' },
       { status: 500 }
-    );
+    )
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  context: TaskParamsContext
 ) {
+  const { id, taskId } = await context.params
+
   try {
-    // Verificar autenticación
-    const token = extractBearerToken(request);
-    if (!token) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
-    }
+    const auth = await ensureAuth(request)
+    if (auth.error) return auth.error
 
-    const decoded = await verifyIdToken(token);
-    const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true;
-    const hasInternalAccess = decoded.internal === true;
-
-    if (!hasInternalAccess && !isSuperAdmin) {
-      return NextResponse.json(
-        { error: 'No tienes acceso a esta funcionalidad' },
-        { status: 403 }
-      );
-    }
-
-    // Verificar que la tarea existe
-    const existingTask = await qaTasksRepository.getById(params.id, params.taskId);
+    const existingTask = await qaTasksRepository.getById(id, taskId)
     if (!existingTask) {
       return NextResponse.json(
         { error: 'Tarea no encontrada' },
         { status: 404 }
-      );
+      )
     }
 
-    // Eliminar tarea
-    await qaTasksRepository.delete(params.id, params.taskId);
+    await qaTasksRepository.delete(id, taskId)
 
     return NextResponse.json({
       success: true,
       message: 'Tarea eliminada correctamente',
-    });
+    })
   } catch (error: any) {
-    console.error('[QA Task DELETE] Error:', error);
+    console.error('[QA Task DELETE] Error:', error)
     return NextResponse.json(
       { error: error.message || 'Error al eliminar tarea QA' },
       { status: 500 }
-    );
+    )
   }
 }
-
-

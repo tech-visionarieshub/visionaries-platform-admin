@@ -7,6 +7,8 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { z } from 'zod';
 
+type ProjectParamsContext = { params: Promise<{ id: string }> };
+
 /**
  * API para upload bulk de tareas QA desde CSV/Excel
  * POST /api/projects/[id]/qa-tasks/upload
@@ -28,8 +30,10 @@ const uploadSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: ProjectParamsContext
 ) {
+  const { id } = await context.params;
+
   try {
     // Verificar autenticación
     const token = extractBearerToken(request);
@@ -179,7 +183,7 @@ export async function POST(
           estado: 'Pendiente' as QATaskStatus,
           imagenes: [],
           createdBy: decoded.email || decoded.uid || 'unknown',
-          projectId: params.id,
+          projectId: id,
         };
 
         // Mapear cada columna a su campo correspondiente
@@ -264,7 +268,7 @@ export async function POST(
       }
 
       // Crear tareas en batch
-      const createdTasks = await qaTasksRepository.createBatch(params.id, tasksToCreate);
+      const createdTasks = await qaTasksRepository.createBatch(id, tasksToCreate);
 
       return NextResponse.json({
         success: true,

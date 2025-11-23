@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractBearerToken } from '@/lib/firebase/auth-helpers';
-import { verifyIdToken } from '@/lib/firebase/admin-tech';
-import { getInternalFirestore } from '@/lib/firebase/admin-platform';
 
-/**
- * API para gestionar la configuración de OpenAI
- * GET: Obtener API key (enmascarada)
- * POST: Guardar API key (solo superadmin)
- */
+// Importaciones dinámicas para evitar fallos al cargar el módulo si faltan variables de entorno
+async function getDeps() {
+  const { extractBearerToken } = await import('@/lib/firebase/auth-helpers');
+  const { verifyIdToken } = await import('@/lib/firebase/admin-tech');
+  const { getInternalFirestore } = await import('@/lib/firebase/admin-platform');
+  return { extractBearerToken, verifyIdToken, getInternalFirestore };
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const { extractBearerToken, verifyIdToken, getInternalFirestore } = await getDeps();
+
     // Verificar autenticación
     const token = extractBearerToken(request);
     if (!token) {
@@ -22,10 +23,12 @@ export async function GET(request: NextRequest) {
 
     const decoded = await verifyIdToken(token);
     const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true;
+    const hasInternalAccess = decoded.internal === true;
 
-    if (!isSuperAdmin) {
+    // Permitir a superadmins o usuarios con acceso interno
+    if (!isSuperAdmin && !hasInternalAccess) {
       return NextResponse.json(
-        { error: 'Solo superadmins pueden acceder a esta configuración' },
+        { error: 'Solo superadmins o usuarios con acceso interno pueden acceder a esta configuración' },
         { status: 403 }
       );
     }
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
       apiKey: maskedKey,
     });
   } catch (error: any) {
-    console.error('[OpenAI Config] Error:', error);
+    console.error('[OpenAI Config GET] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al obtener configuración' },
       { status: 500 }
@@ -64,6 +67,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Cargar dependencias dinámicamente
+    let deps;
+    try {
+      deps = await getDeps();
+    } catch (e: any) {
+      console.error('[OpenAI Config POST] Error cargando dependencias:', e);
+      return NextResponse.json(
+        { error: 'Error interno: Fallo al cargar dependencias de Firebase. ' + e.message },
+        { status: 500 }
+      );
+    }
+    const { extractBearerToken, verifyIdToken, getInternalFirestore } = deps;
+    
     // Verificar autenticación
     const token = extractBearerToken(request);
     if (!token) {
@@ -73,12 +89,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const decoded = await verifyIdToken(token);
-    const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true;
-
-    if (!isSuperAdmin) {
+    let decoded;
+    try {
+      decoded = await verifyIdToken(token);
+    } catch (e: any) {
+      console.error('[OpenAI Config POST] Error verificando token:', e);
       return NextResponse.json(
-        { error: 'Solo superadmins pueden configurar OpenAI' },
+        { error: 'Token inválido o expirado. ' + e.message },
+        { status: 401 }
+      );
+    }
+    
+    const isSuperAdmin = decoded.email === 'adminplatform@visionarieshub.com' || decoded.superadmin === true;
+    const hasInternalAccess = decoded.internal === true;
+
+    // Permitir a superadmins o usuarios con acceso interno
+    if (!isSuperAdmin && !hasInternalAccess) {
+      console.error('[OpenAI Config POST] Usuario sin permisos:', {
+        email: decoded.email,
+        superadmin: decoded.superadmin,
+        internal: decoded.internal,
+        isSuperAdmin,
+        hasInternalAccess,
+      });
+      return NextResponse.json(
+        { 
+          error: 'Solo superadmins o usuarios con acceso interno pueden configurar OpenAI',
+          details: `Email: ${decoded.email}, Superadmin: ${decoded.superadmin}, Internal: ${decoded.internal}`
+        },
         { status: 403 }
       );
     }
@@ -103,7 +141,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Guardar en Firestore
-    const db = getInternalFirestore();
+    let db;
+    try {
+        db = getInternalFirestore();
+    } catch (e: any) {
+        console.error('[OpenAI Config POST] Error obteniendo Firestore:', e);
+        return NextResponse.json(
+            { error: 'Error de configuración de base de datos: ' + e.message },
+            { status: 500 }
+        );
+    }
+
     await db.collection('config').doc('openai').set({
       apiKey,
       updatedAt: new Date(),
@@ -115,12 +163,10 @@ export async function POST(request: NextRequest) {
       message: 'API key de OpenAI guardada exitosamente',
     });
   } catch (error: any) {
-    console.error('[OpenAI Config] Error:', error);
+    console.error('[OpenAI Config POST] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al guardar configuración' },
       { status: 500 }
     );
   }
 }
-
-

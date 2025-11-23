@@ -8,11 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Save, Sparkles, Upload, Download, Trash2, Image as ImageIcon } from "lucide-react"
+import { Loader2, Save, Sparkles, Upload, Download, Trash2, Image as ImageIcon, Link as LinkIcon, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { QATask, QATaskCategory, QATaskStatus, QATaskType, QAImage } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
 import { QAImageUploader } from "./qa-image-uploader"
+import { getFeatures } from "@/lib/api/features-api"
+import type { Feature } from "@/types/feature"
+import Link from "next/link"
 
 interface QATaskEditorProps {
   task: QATask | null
@@ -22,7 +25,7 @@ interface QATaskEditorProps {
   onSave: () => void
 }
 
-const CATEGORIES: QATaskCategory[] = ["Funcionalidades Nuevas", "QA", "Bugs Generales", "Otra"]
+const CATEGORIES: QATaskCategory[] = ["Funcionalidad", "QA", "Bugs Generales", "Otra"]
 const STATUSES: QATaskStatus[] = ["Pendiente", "En Progreso", "Completado", "Bloqueado", "Cancelado"]
 const TYPES: QATaskType[] = ["Funcionalidad", "QA", "Bug"]
 
@@ -32,6 +35,8 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
   const [loading, setLoading] = useState(false)
   const [generatingCriteria, setGeneratingCriteria] = useState(false)
   const [showImageUploader, setShowImageUploader] = useState(false)
+  const [features, setFeatures] = useState<Feature[]>([])
+  const [loadingFeatures, setLoadingFeatures] = useState(false)
 
   const defaultState = useMemo(() => ({
     titulo: "",
@@ -54,11 +59,33 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
         comentarios: task.comentarios,
         estado: task.estado,
         imagenes: task.imagenes || [],
+        featureId: task.featureId,
+        featureTitle: task.featureTitle,
+        featureNote: task.featureNote,
       })
     } else {
       setFormData(defaultState)
     }
   }, [task, defaultState])
+
+  // Cargar funcionalidades cuando se abre el editor
+  useEffect(() => {
+    if (open && projectId) {
+      loadFeatures()
+    }
+  }, [open, projectId])
+
+  const loadFeatures = async () => {
+    try {
+      setLoadingFeatures(true)
+      const data = await getFeatures(projectId)
+      setFeatures(data)
+    } catch (error) {
+      console.error('[QATaskEditor] Error loading features:', error)
+    } finally {
+      setLoadingFeatures(false)
+    }
+  }
 
   const handleSave = async () => {
     if (!task?.id) {
@@ -73,6 +100,16 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
     try {
       const token = await getIdToken()
       if (!token) throw new Error("No hay token disponible")
+      // Validar que solo uno de featureId o featureNote esté presente
+      if (formData.featureId && formData.featureNote) {
+        toast({ 
+          title: "Error", 
+          description: "No se puede especificar funcionalidad y anotación al mismo tiempo", 
+          variant: "destructive" 
+        })
+        return
+      }
+
       const response = await fetch(`/api/projects/${projectId}/qa-tasks/${task.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -84,6 +121,8 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
           comentarios: formData.comentarios,
           estado: formData.estado,
           imagenes: formData.imagenes || [],
+          featureId: formData.featureId || undefined,
+          featureNote: formData.featureNote || undefined,
         }),
       })
       if (!response.ok) {
@@ -289,6 +328,90 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
               value={formData.comentarios || ""}
               onChange={(e) => setFormData(prev => ({ ...prev, comentarios: e.target.value }))}
             />
+          </div>
+
+          {/* Sección de Funcionalidad de Origen */}
+          <div className="space-y-2 border-t pt-4">
+            <Label>Funcionalidad de Origen</Label>
+            {formData.featureId ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                  <div className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4 text-[#4514F9]" />
+                    <span className="text-sm font-medium">{formData.featureTitle || 'Funcionalidad vinculada'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/projects/${projectId}/backlog`} target="_blank">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                        Ver Funcionalidad
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => {
+                        setFormData(prev => ({ ...prev, featureId: undefined, featureTitle: undefined }))
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="feature-select">Vincular Funcionalidad</Label>
+                  <Select
+                    value={formData.featureId || ""}
+                    onValueChange={(value) => {
+                      const selectedFeature = features.find(f => f.id === value)
+                      setFormData(prev => ({
+                        ...prev,
+                        featureId: value || undefined,
+                        featureTitle: selectedFeature?.title,
+                        featureNote: undefined, // Limpiar anotación si se selecciona funcionalidad
+                      }))
+                    }}
+                    disabled={loadingFeatures}
+                  >
+                    <SelectTrigger id="feature-select">
+                      <SelectValue placeholder={loadingFeatures ? "Cargando..." : "Seleccionar funcionalidad"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin funcionalidad</SelectItem>
+                      {features.map(feature => (
+                        <SelectItem key={feature.id} value={feature.id}>
+                          {feature.epicTitle} - {feature.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="text-xs text-muted-foreground text-center">o</div>
+                <div className="space-y-2">
+                  <Label htmlFor="feature-note">Anotación de Origen</Label>
+                  <Textarea
+                    id="feature-note"
+                    rows={2}
+                    placeholder="Anotación cuando no hay funcionalidad asociada..."
+                    value={formData.featureNote || ""}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        featureNote: e.target.value || undefined,
+                        featureId: undefined, // Limpiar featureId si se agrega anotación
+                        featureTitle: undefined,
+                      }))
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Usa este campo si la tarea QA no proviene de una funcionalidad específica
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

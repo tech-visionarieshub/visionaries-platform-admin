@@ -32,11 +32,11 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
     // Esto detecta la sesión automáticamente si vienes de Aura (mismo dominio/proyecto)
     const unsubscribe = onAuthStateChange(async (user) => {
       try {
-        if (!user) {
+      if (!user) {
           console.log('[Auth] No hay usuario autenticado')
           setIsAuthorized(false)
           router.replace('/login')
-          return
+                return
         }
 
         // 3. Validación de Claims (Local, sin llamar API externa)
@@ -63,9 +63,9 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
           role: (claims.role as any) || 'admin',
           avatar: user.photoURL || undefined,
           superadmin: isSuperAdmin,
-        })
-
-        setIsAuthorized(true)
+            })
+          
+          setIsAuthorized(true)
       } catch (error) {
         console.error('[Auth] Error validando sesión:', error)
         setIsAuthorized(false)

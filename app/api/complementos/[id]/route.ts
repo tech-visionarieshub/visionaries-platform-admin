@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/middleware';
 import { complementosRepository } from '@/lib/repositories/complementos-repository';
 
+type IdParamsContext = { params: Promise<{ id: string }> };
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      const complemento = await complementosRepository.getById(params.id);
+      const complemento = await complementosRepository.getById(id);
 
       if (!complemento) {
         return NextResponse.json(
@@ -30,14 +34,16 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
       const body = await request.json();
       const { id, ...updates } = body;
 
-      const complemento = await complementosRepository.update(params.id, updates);
+      const complemento = await complementosRepository.update(id, updates);
 
       return NextResponse.json({ success: true, data: complemento });
     } catch (error: any) {
@@ -60,11 +66,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      await complementosRepository.delete(params.id);
+      await complementosRepository.delete(id);
 
       return NextResponse.json({ success: true });
     } catch (error: any) {

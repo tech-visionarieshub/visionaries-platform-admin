@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/middleware';
 import { nominaRepository } from '@/lib/repositories/nomina-repository';
 
+type IdParamsContext = { params: Promise<{ id: string }> };
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      const member = await nominaRepository.getById(params.id);
+      const member = await nominaRepository.getById(id);
 
       if (!member) {
         return NextResponse.json(
@@ -30,14 +34,16 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
       const body = await request.json();
       const { id, ...updates } = body;
 
-      const member = await nominaRepository.update(params.id, updates);
+      const member = await nominaRepository.update(id, updates);
 
       return NextResponse.json({ success: true, data: member });
     } catch (error: any) {
@@ -60,11 +66,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      await nominaRepository.delete(params.id);
+      await nominaRepository.delete(id);
 
       return NextResponse.json({ success: true });
     } catch (error: any) {

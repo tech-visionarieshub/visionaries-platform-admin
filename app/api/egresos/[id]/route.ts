@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/middleware';
 import { egresosRepository } from '@/lib/repositories/egresos-repository';
 
+type IdParamsContext = { params: Promise<{ id: string }> };
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      const egreso = await egresosRepository.getById(params.id);
+      const egreso = await egresosRepository.getById(id);
 
       if (!egreso) {
         return NextResponse.json(
@@ -30,14 +34,16 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
       const body = await request.json();
       const { id, ...updates } = body;
 
-      const egreso = await egresosRepository.update(params.id, updates);
+      const egreso = await egresosRepository.update(id, updates);
 
       return NextResponse.json({ success: true, data: egreso });
     } catch (error: any) {
@@ -60,11 +66,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: IdParamsContext
 ) {
+  const { id } = await context.params;
+
   return withAuth(request, async (user) => {
     try {
-      await egresosRepository.delete(params.id);
+      await egresosRepository.delete(id);
 
       return NextResponse.json({ success: true });
     } catch (error: any) {

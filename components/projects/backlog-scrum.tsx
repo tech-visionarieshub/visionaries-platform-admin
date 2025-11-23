@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, User, Plus, Search, GitBranch, MoreHorizontal, ExternalLink, Loader2, Upload, TestTube, ChevronDown, ChevronRight, Play, Pause, Check, Sparkles } from "lucide-react"
+import { Clock, User, Plus, Search, GitBranch, MoreHorizontal, ExternalLink, Loader2, Upload, TestTube, ChevronDown, ChevronRight, Play, Pause, Check, Sparkles, Edit, Trash2, Trash } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { getFeatures, updateFeature, moveFeatureToQA, type Feature } from "@/lib/api/features-api"
+import { getFeatures, updateFeature, moveFeatureToQA, deleteFeature, type Feature } from "@/lib/api/features-api"
 import { trackFeatureTime } from "@/lib/api/time-tracking-api"
 import { getProjectTeam, type TeamMember } from "@/lib/api/project-team-api"
 import type { FeatureStatus, FeaturePriority } from "@/types/feature"
@@ -279,6 +279,109 @@ export function BacklogScrum() {
     }
   }
 
+  const handleEditFeature = (feature: Feature) => {
+    if (feature.status === 'done' || feature.status === 'completed') {
+      toast({
+        title: "No se puede editar",
+        description: "No se pueden editar funcionalidades que están en estado 'done' o 'completed'",
+        variant: "destructive",
+      })
+      return
+    }
+    setSelectedFeature(feature)
+    setShowFeatureEditor(true)
+  }
+
+  const handleDeleteFeature = async (feature: Feature) => {
+    if (feature.status === 'done' || feature.status === 'completed') {
+      toast({
+        title: "No se puede eliminar",
+        description: "No se pueden eliminar funcionalidades que están en estado 'done' o 'completed'",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!confirm(`¿Estás seguro de que quieres eliminar "${feature.title}"? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      await deleteFeature(projectId, feature.id)
+      toast({
+        title: "Funcionalidad eliminada",
+        description: "La funcionalidad se ha eliminado correctamente",
+      })
+      loadFeatures() // Recargar para ver cambios
+      setSelectedFeature(null) // Cerrar el diálogo si estaba abierto
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la funcionalidad",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedFeatures.size === 0) {
+      toast({
+        title: "No hay selección",
+        description: "Selecciona al menos una funcionalidad para eliminar",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Filtrar solo las que se pueden eliminar (no done/completed)
+    const featuresToDelete = features.filter(
+      f => selectedFeatures.has(f.id) && f.status !== 'done' && f.status !== 'completed'
+    )
+
+    const cannotDelete = features.filter(
+      f => selectedFeatures.has(f.id) && (f.status === 'done' || f.status === 'completed')
+    )
+
+    if (featuresToDelete.length === 0) {
+      toast({
+        title: "No se pueden eliminar",
+        description: "Las funcionalidades seleccionadas están en estado 'done' o 'completed' y no se pueden eliminar",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const message = cannotDelete.length > 0
+      ? `Se eliminarán ${featuresToDelete.length} funcionalidades. ${cannotDelete.length} no se pueden eliminar porque están en estado 'done' o 'completed'.`
+      : `¿Estás seguro de que quieres eliminar ${featuresToDelete.length} funcionalidad${featuresToDelete.length > 1 ? 'es' : ''}? Esta acción no se puede deshacer.`
+
+    if (!confirm(message)) {
+      return
+    }
+
+    try {
+      // Eliminar en paralelo
+      await Promise.all(
+        featuresToDelete.map(f => deleteFeature(projectId, f.id))
+      )
+
+      toast({
+        title: "Funcionalidades eliminadas",
+        description: `Se eliminaron ${featuresToDelete.length} funcionalidad${featuresToDelete.length > 1 ? 'es' : ''} correctamente`,
+      })
+      
+      setSelectedFeatures(new Set()) // Limpiar selección
+      loadFeatures() // Recargar para ver cambios
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron eliminar algunas funcionalidades",
+        variant: "destructive",
+      })
+      loadFeatures() // Recargar para ver el estado actual
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -296,9 +399,19 @@ export function BacklogScrum() {
         </div>
         <div className="flex items-center gap-2">
           {selectedFeatures.size > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {selectedFeatures.size} seleccionadas
-            </Badge>
+            <>
+              <Badge variant="secondary" className="text-xs">
+                {selectedFeatures.size} seleccionadas
+              </Badge>
+              <Button 
+                variant="destructive" 
+                className="h-8 text-xs"
+                onClick={handleBulkDelete}
+              >
+                <Trash className="h-3.5 w-3.5 mr-1" />
+                Eliminar ({selectedFeatures.size})
+              </Button>
+            </>
           )}
           <Button 
             variant="outline" 
@@ -647,6 +760,34 @@ export function BacklogScrum() {
                                   </Button>
                                 </Link>
                               )}
+                              {(feature.status !== 'done' && feature.status !== 'completed') && (
+                                <>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-6 w-6 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleEditFeature(feature)
+                                    }}
+                                    title="Editar funcionalidad"
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDeleteFeature(feature)
+                                    }}
+                                    title="Eliminar funcionalidad"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -655,6 +796,7 @@ export function BacklogScrum() {
                                   e.stopPropagation()
                                   setSelectedFeature(feature)
                                 }}
+                                title="Ver detalles"
                               >
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                               </Button>
@@ -806,6 +948,30 @@ export function BacklogScrum() {
                     <TestTube className="h-4 w-4 mr-2" />
                     Enviar a QA
                   </Button>
+                )}
+                {(selectedFeature.status !== 'done' && selectedFeature.status !== 'completed') && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        handleEditFeature(selectedFeature)
+                      }}
+                      className="flex-1"
+                    >
+                      <Edit className="h-3.5 w-3.5 mr-2" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        handleDeleteFeature(selectedFeature)
+                      }}
+                      className="flex-1"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                      Eliminar
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

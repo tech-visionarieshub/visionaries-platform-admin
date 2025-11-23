@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Search, Filter, Upload as UploadIcon, RefreshCw, CheckCircle2, XCircle, Clock, TestTube } from "lucide-react"
+import { Loader2, Search, Filter, Upload as UploadIcon, RefreshCw, CheckCircle2, XCircle, Clock, TestTube, Link as LinkIcon } from "lucide-react"
 import type { QATask, QATaskStatus } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
 import { QATaskEditor } from "./qa-task-editor"
 import { QAFileUploader } from "./qa-file-uploader"
+import { getFeatures } from "@/lib/api/features-api"
+import type { Feature } from "@/types/feature"
+import Link from "next/link"
 
 const statusConfig: Record<QATaskStatus, { label: string; color: string; icon: typeof Clock }> = {
   Pendiente: { label: "Pendiente", color: "bg-gray-100 text-gray-700", icon: Clock },
@@ -27,10 +30,12 @@ interface QASystemProps {
 
 export function QASystem({ projectId }: QASystemProps) {
   const [tasks, setTasks] = useState<QATask[]>([])
+  const [features, setFeatures] = useState<Feature[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [featureFilter, setFeatureFilter] = useState("all")
   const [selectedTask, setSelectedTask] = useState<QATask | null>(null)
   const [uploaderOpen, setUploaderOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -44,18 +49,22 @@ export function QASystem({ projectId }: QASystemProps) {
         return
       }
 
-      const response = await fetch(`/api/projects/${projectId}/qa-tasks`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const [tasksResponse, featuresData] = await Promise.all([
+        fetch(`/api/projects/${projectId}/qa-tasks`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        getFeatures(projectId).catch(() => []) // Si falla, usar array vacío
+      ])
 
-      if (!response.ok) {
+      if (!tasksResponse.ok) {
         throw new Error("No se pudieron cargar las tareas")
       }
 
-      const data = await response.json()
-      setTasks(data.tasks || [])
+      const tasksData = await tasksResponse.json()
+      setTasks(tasksData.tasks || [])
+      setFeatures(featuresData || [])
     } catch (error) {
       console.error("[QA System] Error loading tasks", error)
     } finally {
@@ -80,10 +89,15 @@ export function QASystem({ projectId }: QASystemProps) {
     const matchesSearch =
       task.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       task.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      comentarios.toLowerCase().includes(searchTerm.toLowerCase())
+      comentarios.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (task.featureTitle && task.featureTitle.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesStatus = statusFilter === "all" || task.estado === statusFilter
     const matchesCategory = categoryFilter === "all" || task.categoria === categoryFilter
-    return matchesSearch && matchesStatus && matchesCategory
+    const matchesFeature = featureFilter === "all" || 
+      (featureFilter === "with-feature" && task.featureId) ||
+      (featureFilter === "without-feature" && !task.featureId) ||
+      (featureFilter !== "all" && featureFilter !== "with-feature" && featureFilter !== "without-feature" && task.featureId === featureFilter)
+    return matchesSearch && matchesStatus && matchesCategory && matchesFeature
   })
 
   const metrics = (() => {
@@ -93,9 +107,14 @@ export function QASystem({ projectId }: QASystemProps) {
     const pendientes = tasks.filter((t) => t.estado === "Pendiente").length
     const bloqueados = tasks.filter((t) => t.estado === "Bloqueado").length
     const cancelados = tasks.filter((t) => t.estado === "Cancelado").length
+    const withFeature = tasks.filter((t) => t.featureId).length
+    const withoutFeature = tasks.filter((t) => !t.featureId).length
     const completionRate = total > 0 ? Math.round((completados / total) * 100) : 0
-    return { total, completados, enProgreso, pendientes, bloqueados, cancelados, completionRate }
+    return { total, completados, enProgreso, pendientes, bloqueados, cancelados, withFeature, withoutFeature, completionRate }
   })()
+
+  // Obtener funcionalidades que tienen tareas QA
+  const featuresWithQA = features.filter(f => f.qaTaskId)
 
   const formatDate = (dateValue: QATask["createdAt"]) => {
     if (!dateValue) return "—"
@@ -129,7 +148,7 @@ export function QASystem({ projectId }: QASystemProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-8 gap-3">
         <Card className="p-3">
           <div className="text-xs text-muted-foreground mb-1">Total Tareas</div>
           <div className="text-2xl font-bold text-[#0E0734]">{metrics.total}</div>
@@ -145,6 +164,14 @@ export function QASystem({ projectId }: QASystemProps) {
         <Card className="p-3">
           <div className="text-xs text-muted-foreground mb-1">Pendientes</div>
           <div className="text-2xl font-bold text-gray-500">{metrics.pendientes}</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-xs text-muted-foreground mb-1">Con Funcionalidad</div>
+          <div className="text-2xl font-bold text-[#4514F9]">{metrics.withFeature}</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-xs text-muted-foreground mb-1">Sin Funcionalidad</div>
+          <div className="text-2xl font-bold text-gray-500">{metrics.withoutFeature}</div>
         </Card>
         <Card className="p-3">
           <div className="text-xs text-muted-foreground mb-1">Bloqueados</div>
@@ -192,10 +219,26 @@ export function QASystem({ projectId }: QASystemProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
-                <SelectItem value="Funcionalidades Nuevas">Funcionalidades Nuevas</SelectItem>
+                <SelectItem value="Funcionalidad">Funcionalidad</SelectItem>
                 <SelectItem value="QA">QA</SelectItem>
                 <SelectItem value="Bugs Generales">Bugs Generales</SelectItem>
                 <SelectItem value="Otra">Otra</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={featureFilter} onValueChange={setFeatureFilter}>
+              <SelectTrigger className="w-48 h-9 text-sm">
+                <Filter className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Funcionalidad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="with-feature">Con Funcionalidad</SelectItem>
+                <SelectItem value="without-feature">Sin Funcionalidad</SelectItem>
+                {featuresWithQA.map(feature => (
+                  <SelectItem key={feature.id} value={feature.id}>
+                    {feature.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Button
@@ -239,14 +282,22 @@ export function QASystem({ projectId }: QASystemProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono text-muted-foreground">{task.id}</span>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-xs font-mono text-muted-foreground">{task.id.substring(0, 8)}</span>
                             <Badge className={`text-xs px-1.5 py-0 ${statusInfo.color}`}>
                               {statusInfo.label}
                             </Badge>
                             <Badge variant="outline" className="text-xs px-1.5 py-0">
                               {task.categoria}
                             </Badge>
+                            {task.featureId && (
+                              <Link href={`/projects/${projectId}/backlog`} onClick={(e) => e.stopPropagation()}>
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0 cursor-pointer hover:bg-secondary/80">
+                                  <LinkIcon className="h-3 w-3 mr-1" />
+                                  De Funcionalidad
+                                </Badge>
+                              </Link>
+                            )}
                             {task.imagenes && task.imagenes.length > 0 && (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0">
                                 {task.imagenes.length} imagen{task.imagenes.length !== 1 ? "es" : ""}
@@ -254,6 +305,11 @@ export function QASystem({ projectId }: QASystemProps) {
                             )}
                           </div>
                           <h4 className="text-sm font-medium text-[#0E0734] truncate">{task.titulo}</h4>
+                          {task.featureTitle && (
+                            <p className="text-xs text-[#4514F9] font-medium mt-1">
+                              Funcionalidad: {task.featureTitle}
+                            </p>
+                          )}
                           {task.comentarios && (
                             <p className="text-xs text-muted-foreground truncate mt-1">{task.comentarios}</p>
                           )}

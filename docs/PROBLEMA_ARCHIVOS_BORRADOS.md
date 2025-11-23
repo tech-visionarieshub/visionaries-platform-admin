@@ -85,3 +85,4 @@ lsof +D components/projects | grep qa
 - ⚠️ Causa raíz aún no identificada
 - 🔍 Monitoreo continuo recomendado
 
+

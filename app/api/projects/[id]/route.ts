@@ -1,79 +1,104 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/api/middleware';
-import { projectsRepository } from '@/lib/repositories/projects-repository';
+import { NextRequest, NextResponse } from 'next/server'
+import { withAuth } from '@/lib/api/middleware'
+import { projectsRepository } from '@/lib/repositories/projects-repository'
+
+type ProjectParamsContext = {
+  params: Promise<{ id: string }>
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: ProjectParamsContext
 ) {
+  const { id } = await context.params
+
   return withAuth(request, async (user) => {
     try {
-      const project = await projectsRepository.getById(params.id);
+      const project = await projectsRepository.getById(id)
 
       if (!project) {
         return NextResponse.json(
           { error: 'Project not found' },
           { status: 404 }
-        );
+        )
       }
 
-      return NextResponse.json({ success: true, data: project });
+      // Verificar acceso: superadmins pueden ver todo, otros solo si están en el equipo
+      const isSuperAdmin = user.superadmin === true || user.email === 'adminplatform@visionarieshub.com'
+      
+      if (!isSuperAdmin && user.email) {
+        const teamMembers = (project as any).teamMembers || []
+        const hasAccess = teamMembers.includes(user.email)
+        
+        if (!hasAccess) {
+          console.log(`[Projects API] Acceso denegado: usuario ${user.email} no está en el equipo del proyecto ${id}`)
+          return NextResponse.json(
+            { error: 'No tienes acceso a este proyecto. Debes estar en el equipo del proyecto para verlo.' },
+            { status: 403 }
+          )
+        }
+      }
+
+      return NextResponse.json({ success: true, data: project })
     } catch (error: any) {
-      console.error('[Projects API] Error:', error);
+      console.error('[Projects API] Error:', error)
       return NextResponse.json(
         { error: 'Error fetching project', message: error.message },
         { status: 500 }
-      );
+      )
     }
-  });
+  })
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: ProjectParamsContext
 ) {
+  const { id } = await context.params
+
   return withAuth(request, async (user) => {
     try {
-      const body = await request.json();
-      const { id, ...updates } = body;
+      const body = await request.json()
+      const { id: _bodyId, ...updates } = body
 
-      const project = await projectsRepository.update(params.id, updates);
+      const project = await projectsRepository.update(id, updates)
 
-      return NextResponse.json({ success: true, data: project });
+      return NextResponse.json({ success: true, data: project })
     } catch (error: any) {
-      console.error('[Projects API] Error:', error);
-      
+      console.error('[Projects API] Error:', error)
+
       if (error.message?.includes('does not exist')) {
         return NextResponse.json(
           { error: 'Project not found' },
           { status: 404 }
-        );
+        )
       }
 
       return NextResponse.json(
         { error: 'Error updating project', message: error.message },
         { status: 500 }
-      );
+      )
     }
-  });
+  })
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: ProjectParamsContext
 ) {
+  const { id } = await context.params
+
   return withAuth(request, async (user) => {
     try {
-      await projectsRepository.delete(params.id);
+      await projectsRepository.delete(id)
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true })
     } catch (error: any) {
-      console.error('[Projects API] Error:', error);
+      console.error('[Projects API] Error:', error)
       return NextResponse.json(
         { error: 'Error deleting project', message: error.message },
         { status: 500 }
-      );
+      )
     }
-  });
+  })
 }
-

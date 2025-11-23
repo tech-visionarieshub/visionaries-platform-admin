@@ -8,32 +8,49 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Upload, File, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import type { CSVColumnMapping, AnalyzeFileResponse } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
 
-interface QAFileUploaderProps {
+interface FeatureFileUploaderProps {
   projectId: string
   onUploadComplete?: () => void
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-const QA_FIELDS = [
-  { value: "id", label: "ID" },
-  { value: "titulo", label: "Título" },
-  { value: "categoria", label: "Categoría" },
-  { value: "tipo", label: "Tipo" },
-  { value: "criterios_aceptacion", label: "Criterios de Aceptación" },
-  { value: "estado", label: "Estado" },
+interface FeatureColumnMapping {
+  columnName: string
+  mappedField: string | null
+  confidence?: number
+}
+
+interface FeatureAnalyzeFileResponse {
+  headers: string[]
+  suggestedMappings: FeatureColumnMapping[]
+  sampleRows: Record<string, any>[]
+}
+
+const FEATURE_FIELDS = [
+  { value: "epicTitle", label: "Epic (Requerido)" },
+  { value: "title", label: "Título (Requerido)" },
+  { value: "description", label: "Descripción" },
+  { value: "criteriosAceptacion", label: "Criterios de Aceptación" },
   { value: "comentarios", label: "Comentarios" },
+  { value: "tipo", label: "Tipo (Funcionalidad/QA/Bug)" },
+  { value: "categoria", label: "Categoría" },
+  { value: "priority", label: "Prioridad" },
+  { value: "assignee", label: "Responsable" },
+  { value: "estimatedHours", label: "Horas Estimadas" },
+  { value: "actualHours", label: "Horas Reales" },
+  { value: "storyPoints", label: "Story Points" },
+  { value: "sprint", label: "Sprint" },
 ] as const
 
-export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange }: QAFileUploaderProps) {
+export function FeatureFileUploader({ projectId, onUploadComplete, open, onOpenChange }: FeatureFileUploaderProps) {
   const [file, setFile] = useState<File | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState<AnalyzeFileResponse | null>(null)
-  const [mappings, setMappings] = useState<CSVColumnMapping[]>([])
+  const [analysisResult, setAnalysisResult] = useState<FeatureAnalyzeFileResponse | null>(null)
+  const [mappings, setMappings] = useState<FeatureColumnMapping[]>([])
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -80,7 +97,7 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch(`/api/projects/${projectId}/qa-tasks/analyze`, {
+      const response = await fetch(`/api/projects/${projectId}/features/analyze`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -93,7 +110,7 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
         throw new Error(errorData.error || errorData.message || 'Error al analizar archivo')
       }
 
-      const data: AnalyzeFileResponse = await response.json()
+      const data: FeatureAnalyzeFileResponse = await response.json()
       setAnalysisResult(data)
       setMappings(data.suggestedMappings || [])
     } catch (err: any) {
@@ -112,13 +129,37 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
   const handleMappingChange = (columnName: string, mappedField: string | null) => {
     setMappings(prev => prev.map(m => 
       m.columnName === columnName 
-        ? { ...m, mappedField: mappedField as any }
+        ? { ...m, mappedField }
         : m
     ))
   }
 
   const handleUpload = async () => {
     if (!file || mappings.length === 0) return
+
+    // Validar que epicTitle y title estén mapeados
+    const hasEpicTitle = mappings.some(m => m.mappedField === 'epicTitle')
+    const hasTitle = mappings.some(m => m.mappedField === 'title')
+
+    if (!hasEpicTitle) {
+      setError('Debes mapear al menos una columna a "Epic (Requerido)"')
+      toast({
+        title: "Error",
+        description: 'El campo Epic es requerido',
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!hasTitle) {
+      setError('Debes mapear al menos una columna a "Título (Requerido)"')
+      toast({
+        title: "Error",
+        description: 'El campo Título es requerido',
+        variant: "destructive",
+      })
+      return
+    }
 
     setUploading(true)
     setError(null)
@@ -133,7 +174,7 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
       formData.append('file', file)
       formData.append('mappings', JSON.stringify(mappings))
 
-      const response = await fetch(`/api/projects/${projectId}/qa-tasks/upload`, {
+      const response = await fetch(`/api/projects/${projectId}/features/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,14 +184,14 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || errorData.message || 'Error al subir tareas')
+        throw new Error(errorData.error || errorData.message || 'Error al subir funcionalidades')
       }
 
       const data = await response.json()
       
       toast({
-        title: "✅ Tareas creadas",
-        description: `Se crearon ${data.count || 0} tareas QA exitosamente`,
+        title: "✅ Funcionalidades creadas",
+        description: `Se crearon ${data.count || 0} funcionalidades exitosamente`,
       })
 
       // Resetear estado
@@ -167,11 +208,11 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
         onUploadComplete()
       }
     } catch (err: any) {
-      console.error('Error subiendo tareas:', err)
-      setError(err.message || 'Error al subir las tareas')
+      console.error('Error subiendo funcionalidades:', err)
+      setError(err.message || 'Error al subir las funcionalidades')
       toast({
         title: "Error",
-        description: err.message || 'Error al subir las tareas',
+        description: err.message || 'Error al subir las funcionalidades',
         variant: "destructive",
       })
     } finally {
@@ -196,9 +237,9 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-[98vw] w-[98vw] max-h-[95vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle>Subir Tareas QA desde Archivo</DialogTitle>
+          <DialogTitle>Subir Funcionalidades desde Archivo</DialogTitle>
           <DialogDescription>
-            Sube un archivo CSV o Excel con las tareas QA. El sistema analizará automáticamente las columnas y sugerirá cómo mapearlas a los campos estándar.
+            Sube un archivo CSV o Excel con las funcionalidades. El sistema analizará automáticamente las columnas y sugerirá cómo mapearlas a los campos estándar.
           </DialogDescription>
         </DialogHeader>
 
@@ -213,9 +254,9 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
                 accept=".csv,.xlsx,.xls"
                 onChange={handleFileSelect}
                 className="hidden"
-                id="qa-file-input"
+                id="feature-file-input"
               />
-              <label htmlFor="qa-file-input">
+              <label htmlFor="feature-file-input">
                 <Button variant="outline" asChild>
                   <span>
                     <Upload className="mr-2 h-4 w-4" />
@@ -281,7 +322,7 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold">Mapeo de Columnas</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Selecciona a qué campo corresponde cada columna de tu archivo
+                    Selecciona a qué campo corresponde cada columna de tu archivo. Epic y Título son requeridos.
                   </p>
                 </div>
                 <div className="text-sm text-muted-foreground whitespace-nowrap">
@@ -310,9 +351,9 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
                         </SelectTrigger>
                         <SelectContent className="w-full max-w-[450px]">
                           <SelectItem value="none" className="whitespace-normal">
-                            No mapear (ir a comentarios)
+                            No mapear (ir a descripción)
                           </SelectItem>
-                          {QA_FIELDS.map((field) => (
+                          {FEATURE_FIELDS.map((field) => (
                             <SelectItem key={field.value} value={field.value} className="whitespace-normal">
                               {field.label}
                             </SelectItem>
@@ -371,7 +412,7 @@ export function QAFileUploader({ projectId, onUploadComplete, open, onOpenChange
                   ) : (
                     <>
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Crear Tareas
+                      Crear Funcionalidades
                     </>
                   )}
                 </Button>

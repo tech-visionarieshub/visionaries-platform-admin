@@ -243,11 +243,41 @@ export default function SettingsPage() {
     // Si es OpenAI, usar la API real
     if (key === "openai") {
       try {
+        // Validar que el campo no esté vacío
+        if (!value || value.trim() === "") {
+          toast({
+            title: "Error",
+            description: "Por favor ingresa una API key válida",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Si el valor es el enmascarado, rechazar
+        if (value.includes("...") && value.startsWith("sk-...")) {
+          toast({
+            title: "Error",
+            description: "Por favor ingresa la API key completa. El valor mostrado está enmascarado.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Validar formato básico de OpenAI API key
+        if (!value.startsWith("sk-")) {
+          toast({
+            title: "Error",
+            description: "La API key de OpenAI debe comenzar con 'sk-'",
+            variant: "destructive",
+          })
+          return
+        }
+
         const token = await getIdToken()
         if (!token) {
           toast({
             title: "Error",
-            description: "No hay token disponible",
+            description: "No hay token disponible. Por favor inicia sesión nuevamente.",
             variant: "destructive",
           })
           return
@@ -263,13 +293,27 @@ export default function SettingsPage() {
         })
 
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || "Error al guardar la API key")
+          const errorData = await response.json().catch(() => ({ error: "Error desconocido" }))
+          
+          // Mensajes más descriptivos según el código de error
+          let errorMessage = errorData.error || "Error al guardar la API key"
+          
+          if (response.status === 403) {
+            errorMessage = "No tienes permisos para guardar la API key. Solo los superadmins o usuarios internos pueden configurar OpenAI."
+          } else if (response.status === 400) {
+            errorMessage = errorData.error || "La API key no tiene un formato válido. Debe comenzar con 'sk-' y tener al menos 20 caracteres."
+          } else if (response.status === 401) {
+            errorMessage = "No estás autenticado. Por favor inicia sesión nuevamente."
+          }
+          
+          throw new Error(errorMessage)
         }
 
+        const data = await response.json()
+
         toast({
-          title: "API Key guardada",
-          description: "La clave de OpenAI se ha guardado correctamente.",
+          title: "✅ API Key guardada",
+          description: data.message || "La clave de OpenAI se ha guardado correctamente.",
         })
 
         // Recargar la configuración para mostrar el valor enmascarado
@@ -278,7 +322,7 @@ export default function SettingsPage() {
         console.error("Error guardando API key de OpenAI:", error)
         toast({
           title: "Error",
-          description: error.message || "No se pudo guardar la API key",
+          description: error.message || "No se pudo guardar la API key. Verifica que tengas permisos de superadmin o interno.",
           variant: "destructive",
         })
       }
@@ -442,11 +486,9 @@ export default function SettingsPage() {
       setInternalUsers(data.users || [])
     } catch (error) {
       console.error('Error cargando usuarios:', error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los usuarios. Asegúrate de estar autenticado.",
-        variant: "destructive",
-      })
+      // No mostrar toast para este error, solo loguearlo
+      // Es un error no crítico que no afecta otras funcionalidades
+      setInternalUsers([])
     } finally {
       setLoadingUsers(false)
     }
@@ -1129,9 +1171,24 @@ export default function SettingsPage() {
                   <Input
                     id="openai-key"
                     type={showKeys.openai ? "text" : "password"}
-                    value={apiKeys.openai}
-                    onChange={(e) => setApiKeys({ ...apiKeys, openai: e.target.value })}
-                    placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+                    value={apiKeys.openai || ""}
+                    onChange={(e) => {
+                      const newValue = e.target.value
+                      // Si el usuario está escribiendo sobre el valor enmascarado, limpiarlo
+                      if (apiKeys.openai?.includes("...") && newValue.length > 0 && !newValue.includes("...")) {
+                        setApiKeys({ ...apiKeys, openai: newValue })
+                      } else {
+                        setApiKeys({ ...apiKeys, openai: newValue })
+                      }
+                    }}
+                    placeholder={apiKeys.openai?.includes("...") ? "Ingresa la API key completa" : "sk-xxxxxxxxxxxxxxxxxxxxxxxx"}
+                    onFocus={(e) => {
+                      // Si el campo tiene el valor enmascarado, limpiarlo al enfocar
+                      if (apiKeys.openai?.includes("...")) {
+                        setApiKeys({ ...apiKeys, openai: "" })
+                        e.target.value = ""
+                      }
+                    }}
                   />
                   <Button
                     variant="outline"

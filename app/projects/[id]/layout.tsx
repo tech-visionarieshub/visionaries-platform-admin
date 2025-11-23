@@ -58,6 +58,7 @@ export default function ProjectLayout({
 }) {
   const resolvedParams = use(params)
   const [project, setProject] = useState<Project | null>(null)
+  const [features, setFeatures] = useState<Feature[]>([])
   const [loading, setLoading] = useState(true)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editingProject, setEditingProject] = useState<Partial<Project>>({})
@@ -75,8 +76,22 @@ export default function ProjectLayout({
         setLoading(false)
       }
     }
+    
+    async function loadFeatures() {
+      try {
+        const featuresData = await getFeatures(resolvedParams.id)
+        setFeatures(featuresData)
+      } catch (err) {
+        console.error('Error loading features:', err)
+      }
+    }
+    
     loadProject()
+    loadFeatures()
   }, [resolvedParams.id])
+  
+  // Calcular suma de horas estimadas
+  const totalEstimatedHours = features.reduce((sum, feature) => sum + (feature.estimatedHours || 0), 0)
 
   const handleEditClick = () => {
     if (project) {

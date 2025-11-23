@@ -26,8 +26,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env.local
 .env*.local
-.env
 
 # vercel
 .vercel
@@ -43,11 +43,11 @@ next-env.d.ts
 *.swo
 *~
 
+# Scripts with secrets
+scripts/update-env.js
+
 # OS
 .DS_Store
 Thumbs.db
 
 
-
-
-.env.local

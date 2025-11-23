@@ -3,7 +3,7 @@
  */
 
 export type QATaskCategory = 
-  | "Funcionalidades Nuevas"
+  | "Funcionalidad"
   | "QA"
   | "Bugs Generales"
   | "Otra"
@@ -40,6 +40,9 @@ export interface QATask {
   updatedAt: Date
   createdBy: string
   projectId: string
+  featureId?: string       // ID de la funcionalidad de origen
+  featureTitle?: string    // Título de la funcionalidad (para mostrar)
+  featureNote?: string     // Anotación cuando no hay funcionalidad
 }
 
 export interface CSVColumnMapping {

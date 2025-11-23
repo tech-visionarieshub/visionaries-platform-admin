@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
       const status = searchParams.get('status') as Project['status'] | null;
 
       console.log('[Projects API] Parámetros:', { clientId, status });
+      console.log('[Projects API] Usuario:', { email: user.email, superadmin: user.superadmin });
+
+      const isSuperAdmin = user.superadmin === true || user.email === 'adminplatform@visionarieshub.com';
 
       let projects;
       if (clientId) {
@@ -23,6 +26,20 @@ export async function GET(request: NextRequest) {
       } else {
         console.log('[Projects API] Obteniendo todos los proyectos');
         projects = await projectsRepository.getAll();
+      }
+
+      // Filtrar proyectos por acceso del equipo (excepto superadmins)
+      if (!isSuperAdmin && user.email) {
+        const filteredProjects = projects.filter((project: any) => {
+          const teamMembers = project.teamMembers || [];
+          const hasAccess = teamMembers.includes(user.email);
+          console.log(`[Projects API] Proyecto ${project.id} (${project.name}): acceso=${hasAccess}, equipo=${teamMembers.length} miembros`);
+          return hasAccess;
+        });
+        console.log(`[Projects API] Filtrados ${filteredProjects.length} de ${projects.length} proyectos para usuario ${user.email}`);
+        projects = filteredProjects;
+      } else {
+        console.log(`[Projects API] Superadmin: mostrando todos los ${projects.length} proyectos`);
       }
 
       console.log('[Projects API] Proyectos obtenidos:', projects?.length || 0);
