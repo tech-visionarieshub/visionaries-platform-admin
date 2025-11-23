@@ -128,12 +128,37 @@ export class FeaturesRepository {
   }
 
   /**
-   * Obtiene todas las funcionalidades de un proyecto
+   * Extrae el número consecutivo del ID de una funcionalidad
+   * Formato esperado: SIGLAS-P{NUM}-{NUM_FUNCIONALIDAD}
+   * Ejemplo: SGAC-P1-5 -> retorna 5, SP-P7-97 -> retorna 97
+   */
+  private extractFeatureNumber(featureId: string): number {
+    // Buscar el último número después del último guión
+    const match = featureId.match(/-(\d+)$/)
+    if (match && match[1]) {
+      const num = parseInt(match[1], 10)
+      if (!isNaN(num)) {
+        return num
+      }
+    }
+    // Si no coincide el formato, retornar un número alto para que aparezcan al final
+    return 999999
+  }
+
+  /**
+   * Obtiene todas las funcionalidades de un proyecto, ordenadas por número consecutivo
    */
   async getAll(projectId: string): Promise<Feature[]> {
     try {
       const snapshot = await this.getFeaturesCollection(projectId).get()
-      return snapshot.docs.map(doc => this.fromFirestore(doc))
+      const features = snapshot.docs.map(doc => this.fromFirestore(doc))
+      
+      // Ordenar por número consecutivo del ID
+      return features.sort((a, b) => {
+        const numA = this.extractFeatureNumber(a.id)
+        const numB = this.extractFeatureNumber(b.id)
+        return numA - numB
+      })
     } catch (error: any) {
       console.error('[Features Repository] Error getting all features:', error)
       throw new Error(`Error obteniendo funcionalidades: ${error.message}`)

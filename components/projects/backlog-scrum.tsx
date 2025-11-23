@@ -49,12 +49,33 @@ export function BacklogScrum() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [reEstimating, setReEstimating] = useState(false)
 
+  // Función para extraer el número consecutivo del ID
+  // Formato esperado: SIGLAS-P{NUM}-{NUM_FUNCIONALIDAD} (ej: SP-P7-97, SGAC-P1-10)
+  const extractFeatureNumber = (featureId: string): number => {
+    // Buscar el último número después del último guión
+    const match = featureId.match(/-(\d+)$/)
+    if (match && match[1]) {
+      const num = parseInt(match[1], 10)
+      if (!isNaN(num)) {
+        return num
+      }
+    }
+    // Si no coincide el formato, retornar un número alto para que aparezcan al final
+    return 999999
+  }
+
   // Cargar funcionalidades
   const loadFeatures = useCallback(async () => {
     try {
       setLoading(true)
       const data = await getFeatures(projectId)
-      setFeatures(data)
+      // Ordenar por número consecutivo del ID
+      const sortedData = [...data].sort((a, b) => {
+        const numA = extractFeatureNumber(a.id)
+        const numB = extractFeatureNumber(b.id)
+        return numA - numB
+      })
+      setFeatures(sortedData)
     } catch (error: any) {
       console.error('[BacklogScrum] Error loading features:', error)
       toast({
@@ -84,16 +105,39 @@ export function BacklogScrum() {
   }
 
   // Obtener lista de epics únicos
-  const epics = Array.from(new Set(features.map(f => f.epicTitle))).sort()
+  const epicsSet = Array.from(new Set(features.map(f => f.epicTitle)))
   
   // Obtener lista de assignees únicos
   const assignees = Array.from(new Set(features.map(f => f.assignee).filter(Boolean))).sort()
 
-  // Agrupar features por epic
-  const featuresByEpic = epics.reduce((acc, epic) => {
-    acc[epic] = features.filter(f => f.epicTitle === epic)
+  // Agrupar features por epic y ordenar por número consecutivo global dentro de cada epic
+  const featuresByEpic = epicsSet.reduce((acc, epic) => {
+    const epicFeatures = features.filter(f => f.epicTitle === epic)
+    // Crear una copia del array y ordenar por número consecutivo global del ID
+    const sortedEpicFeatures = [...epicFeatures].sort((a, b) => {
+      const numA = extractFeatureNumber(a.id)
+      const numB = extractFeatureNumber(b.id)
+      return numA - numB
+    })
+    acc[epic] = sortedEpicFeatures
     return acc
   }, {} as Record<string, Feature[]>)
+
+  // Ordenar los epics por el número consecutivo más bajo de sus tareas
+  const epics = epicsSet.sort((epicA, epicB) => {
+    const featuresA = featuresByEpic[epicA] || []
+    const featuresB = featuresByEpic[epicB] || []
+    
+    if (featuresA.length === 0 && featuresB.length === 0) return 0
+    if (featuresA.length === 0) return 1
+    if (featuresB.length === 0) return -1
+    
+    // Obtener el número más bajo de cada epic
+    const minNumA = Math.min(...featuresA.map(f => extractFeatureNumber(f.id)))
+    const minNumB = Math.min(...featuresB.map(f => extractFeatureNumber(f.id)))
+    
+    return minNumA - minNumB
+  })
 
   const filteredFeatures = features.filter((feature) => {
     const matchesSearch =
@@ -110,14 +154,39 @@ export function BacklogScrum() {
     return matchesSearch && matchesStatus && matchesPriority && matchesEpic && matchesAssignee
   })
 
-  // Agrupar features filtradas por epic
-  const filteredFeaturesByEpic = epics.reduce((acc, epic) => {
+  // Agrupar features filtradas por epic y ordenar por número consecutivo global
+  // Primero obtener los epics de las features filtradas
+  const filteredEpicsSet = Array.from(new Set(filteredFeatures.map(f => f.epicTitle)))
+  
+  const filteredFeaturesByEpic = filteredEpicsSet.reduce((acc, epic) => {
     const epicFeatures = filteredFeatures.filter(f => f.epicTitle === epic)
     if (epicFeatures.length > 0) {
-      acc[epic] = epicFeatures
+      // Crear una copia del array y ordenar por número consecutivo global del ID
+      const sortedEpicFeatures = [...epicFeatures].sort((a, b) => {
+        const numA = extractFeatureNumber(a.id)
+        const numB = extractFeatureNumber(b.id)
+        return numA - numB
+      })
+      acc[epic] = sortedEpicFeatures
     }
     return acc
   }, {} as Record<string, Feature[]>)
+
+  // Ordenar los epics filtrados por el número consecutivo más bajo de sus tareas
+  const filteredEpics = filteredEpicsSet.sort((epicA, epicB) => {
+    const featuresA = filteredFeaturesByEpic[epicA] || []
+    const featuresB = filteredFeaturesByEpic[epicB] || []
+    
+    if (featuresA.length === 0 && featuresB.length === 0) return 0
+    if (featuresA.length === 0) return 1
+    if (featuresB.length === 0) return -1
+    
+    // Obtener el número más bajo de cada epic
+    const minNumA = Math.min(...featuresA.map(f => extractFeatureNumber(f.id)))
+    const minNumB = Math.min(...featuresB.map(f => extractFeatureNumber(f.id)))
+    
+    return minNumA - minNumB
+  })
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -515,13 +584,16 @@ export function BacklogScrum() {
       </Card>
 
       <Card className="overflow-hidden">
-        {Object.keys(filteredFeaturesByEpic).length === 0 ? (
+        {filteredEpics.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             <p>No hay funcionalidades que coincidan con los filtros</p>
           </div>
         ) : (
           <div className="divide-y">
-            {Object.entries(filteredFeaturesByEpic).map(([epic, epicFeatures]) => (
+            {filteredEpics.map((epic) => {
+              const epicFeatures = filteredFeaturesByEpic[epic]
+              if (!epicFeatures || epicFeatures.length === 0) return null
+              return (
               <div key={epic} className="border-b last:border-0">
                 {/* Header del Epic */}
                 <div 
@@ -808,7 +880,8 @@ export function BacklogScrum() {
                   </Table>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </Card>
