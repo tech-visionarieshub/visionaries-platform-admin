@@ -11,6 +11,7 @@ import { ArrowLeft, Upload, FileText, Loader2, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getIdToken } from "@/lib/firebase/visionaries-tech"
 
 export default function NewProjectFromDocumentPage() {
   const router = useRouter()
@@ -49,6 +50,12 @@ export default function NewProjectFromDocumentPage() {
     try {
       let documentContent = ""
 
+      // Obtener token de autenticación
+      const token = await getIdToken()
+      if (!token) {
+        throw new Error("No hay token de autenticación disponible. Por favor, inicia sesión nuevamente.")
+      }
+
       if (activeTab === "upload" && file) {
         // Leer el contenido del archivo
         const formDataFile = new FormData()
@@ -56,6 +63,9 @@ export default function NewProjectFromDocumentPage() {
         
         const response = await fetch("/api/projects/parse-document", {
           method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
           body: formDataFile,
         })
 
@@ -81,6 +91,7 @@ export default function NewProjectFromDocumentPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           documentContent,
