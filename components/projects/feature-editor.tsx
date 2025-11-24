@@ -220,6 +220,8 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
                 </SelectContent>
               </Select>
               <Input
+                id="epicTitleInput"
+                name="epicTitle"
                 placeholder="O escribir nuevo Epic"
                 value={formData.epicTitle}
                 onChange={(e) => setFormData({ ...formData, epicTitle: e.target.value })}
@@ -232,6 +234,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <Label htmlFor="title">Título *</Label>
             <Input
               id="title"
+              name="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Título de la funcionalidad"
@@ -243,6 +246,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <Label htmlFor="description">Descripción</Label>
             <Textarea
               id="description"
+              name="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Descripción detallada de la funcionalidad"
@@ -254,6 +258,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <Label htmlFor="criteriosAceptacion">Criterios de Aceptación</Label>
             <Textarea
               id="criteriosAceptacion"
+              name="criteriosAceptacion"
               value={formData.criteriosAceptacion}
               onChange={(e) => setFormData({ ...formData, criteriosAceptacion: e.target.value })}
               placeholder="Criterios de aceptación que se copiarán automáticamente a la tarea QA cuando se complete"
@@ -268,6 +273,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <Label htmlFor="comentarios">Comentarios</Label>
             <Textarea
               id="comentarios"
+              name="comentarios"
               value={formData.comentarios}
               onChange={(e) => setFormData({ ...formData, comentarios: e.target.value })}
               placeholder="Comentarios y notas que se copiarán automáticamente a la tarea QA"
@@ -282,10 +288,11 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo</Label>
               <Select
+                name="tipo"
                 value={formData.tipo || "Funcionalidad"}
                 onValueChange={(value) => setFormData({ ...formData, tipo: value as "Funcionalidad" | "QA" | "Bug" })}
               >
-                <SelectTrigger id="tipo">
+                <SelectTrigger id="tipo" name="tipo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -299,10 +306,11 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <div className="space-y-2">
               <Label htmlFor="categoria">Categoría</Label>
               <Select
+                name="categoria"
                 value={formData.categoria || "Funcionalidad"}
                 onValueChange={(value) => setFormData({ ...formData, categoria: value as "Funcionalidad" | "QA" | "Bugs Generales" | "Otra" })}
               >
-                <SelectTrigger id="categoria">
+                <SelectTrigger id="categoria" name="categoria">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -319,10 +327,11 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <div className="space-y-2">
               <Label htmlFor="status">Estado</Label>
               <Select
+                name="status"
                 value={formData.status}
                 onValueChange={(value) => setFormData({ ...formData, status: value as FeatureStatus })}
               >
-                <SelectTrigger id="status">
+                <SelectTrigger id="status" name="status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -339,10 +348,11 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <div className="space-y-2">
               <Label htmlFor="priority">Prioridad</Label>
               <Select
+                name="priority"
                 value={formData.priority}
                 onValueChange={(value) => setFormData({ ...formData, priority: value as FeaturePriority })}
               >
-                <SelectTrigger id="priority">
+                <SelectTrigger id="priority" name="priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -358,10 +368,11 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
             <div className="space-y-2">
               <Label htmlFor="assignee">Responsable</Label>
               <Select
+                name="assignee"
                 value={formData.assignee || 'unassigned'}
                 onValueChange={(value) => setFormData({ ...formData, assignee: value === 'unassigned' ? undefined : value })}
               >
-                <SelectTrigger id="assignee">
+                <SelectTrigger id="assignee" name="assignee">
                   <SelectValue placeholder="Selecciona un responsable" />
                 </SelectTrigger>
                 <SelectContent>
@@ -379,6 +390,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
               <Label htmlFor="sprint">Sprint</Label>
               <Input
                 id="sprint"
+                name="sprint"
                 value={formData.sprint}
                 onChange={(e) => setFormData({ ...formData, sprint: e.target.value })}
                 placeholder="Sprint 1"
@@ -391,6 +403,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
               <Label htmlFor="estimatedHours">Horas Estimadas</Label>
               <Input
                 id="estimatedHours"
+                name="estimatedHours"
                 type="number"
                 min="0"
                 step="0.5"
@@ -404,6 +417,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
               <Label htmlFor="actualHours">Horas Reales</Label>
               <Input
                 id="actualHours"
+                name="actualHours"
                 type="number"
                 min="0"
                 step="0.5"
@@ -417,6 +431,7 @@ export function FeatureEditor({ open, onOpenChange, projectId, feature, onSucces
               <Label htmlFor="storyPoints">Story Points</Label>
               <Input
                 id="storyPoints"
+                name="storyPoints"
                 type="number"
                 min="0"
                 value={formData.storyPoints}

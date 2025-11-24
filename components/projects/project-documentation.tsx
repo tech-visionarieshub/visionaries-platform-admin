@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileText, ExternalLink, Calendar, Plus, X, Search, Filter } from "lucide-react"
-import { useState } from "react"
+import { FileText, ExternalLink, Calendar, Plus, X, Search, Filter, Loader2, Trash2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import { toast } from "sonner"
+import { getIdToken } from "@/lib/firebase/visionaries-tech"
 
 const CATEGORIES = [
   { id: "all", name: "Todas", color: "bg-gray-100 text-gray-700" },
@@ -17,82 +20,24 @@ const CATEGORIES = [
   { id: "legal", name: "Legal", color: "bg-red-100 text-red-700" },
 ]
 
-const documents = [
-  {
-    id: 1,
-    name: "Contrato de Servicios",
-    type: "PDF",
-    category: "administrative",
-    version: "v2.0",
-    lastModified: "2025-03-15",
-    driveUrl: "https://drive.google.com/file/d/contract-123/view",
-  },
-  {
-    id: 2,
-    name: "Brief del Cliente",
-    type: "DOC",
-    category: "client",
-    version: "v1.0",
-    lastModified: "2025-03-10",
-    driveUrl: "https://drive.google.com/file/d/brief-456/view",
-  },
-  {
-    id: 3,
-    name: "Arquitectura del Sistema",
-    type: "PDF",
-    category: "technical",
-    version: "v3.1",
-    lastModified: "2025-03-20",
-    driveUrl: "https://drive.google.com/file/d/architecture-789/view",
-  },
-  {
-    id: 4,
-    name: "Manual de Usuario",
-    type: "PDF",
-    category: "manuals",
-    version: "v1.2",
-    lastModified: "2025-03-08",
-    driveUrl: "https://drive.google.com/file/d/user-manual-012/view",
-  },
-  {
-    id: 5,
-    name: "NDA",
-    type: "PDF",
-    category: "legal",
-    version: "v1.0",
-    lastModified: "2025-02-28",
-    driveUrl: "https://drive.google.com/file/d/nda-345/view",
-  },
-  {
-    id: 6,
-    name: "API Documentation",
-    type: "Link",
-    category: "technical",
-    version: "v2.5",
-    lastModified: "2025-03-18",
-    driveUrl: "https://drive.google.com/file/d/api-docs-678/view",
-  },
-  {
-    id: 7,
-    name: "Cotización",
-    type: "PDF",
-    category: "administrative",
-    version: "v1.0",
-    lastModified: "2025-02-15",
-    driveUrl: "https://drive.google.com/file/d/quote-901/view",
-  },
-  {
-    id: 8,
-    name: "Manual de Administrador",
-    type: "PDF",
-    category: "manuals",
-    version: "v1.0",
-    lastModified: "2025-03-12",
-    driveUrl: "https://drive.google.com/file/d/admin-manual-234/view",
-  },
-]
+interface ProjectDocument {
+  id: string
+  name: string
+  type: string
+  category: 'administrative' | 'client' | 'technical' | 'manuals' | 'legal'
+  version?: string
+  lastModified: Date | string
+  driveUrl: string
+}
 
 export function ProjectDocumentation() {
+  const params = useParams()
+  const projectId = params?.id as string
+  
+  const [documents, setDocuments] = useState<ProjectDocument[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newDocName, setNewDocName] = useState("")
   const [newDocType, setNewDocType] = useState("")
@@ -101,20 +46,124 @@ export function ProjectDocumentation() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
 
-  const handleAddDocument = () => {
-    if (newDocName && newDocUrl && newDocCategory) {
-      console.log("[v0] Adding document:", {
-        name: newDocName,
-        type: newDocType,
-        category: newDocCategory,
-        url: newDocUrl,
+  useEffect(() => {
+    if (projectId) {
+      loadDocuments()
+    }
+  }, [projectId])
+
+  const loadDocuments = async () => {
+    if (!projectId) return
+    
+    setLoading(true)
+    try {
+      const token = await getIdToken()
+      if (!token) {
+        throw new Error("No hay token de autenticación")
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/documents`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       })
-      // TODO: Save to database
+
+      if (!response.ok) {
+        throw new Error("Error al cargar documentos")
+      }
+
+      const data = await response.json()
+      setDocuments(data.documents || [])
+    } catch (error: any) {
+      console.error("Error loading documents:", error)
+      toast.error("Error al cargar documentos")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddDocument = async () => {
+    if (!newDocName || !newDocUrl || !newDocCategory) {
+      toast.error("Por favor completa todos los campos requeridos")
+      return
+    }
+
+    if (!projectId) return
+
+    setSaving(true)
+    try {
+      const token = await getIdToken()
+      if (!token) {
+        throw new Error("No hay token de autenticación")
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/documents`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newDocName,
+          type: newDocType,
+          category: newDocCategory,
+          driveUrl: newDocUrl,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Error al crear documento")
+      }
+
+      toast.success("Documento agregado exitosamente")
       setNewDocName("")
       setNewDocType("")
       setNewDocCategory("")
       setNewDocUrl("")
       setShowAddForm(false)
+      await loadDocuments()
+    } catch (error: any) {
+      console.error("Error adding document:", error)
+      toast.error(error.message || "Error al agregar documento")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este documento?")) {
+      return
+    }
+
+    if (!projectId) return
+
+    setDeleting(documentId)
+    try {
+      const token = await getIdToken()
+      if (!token) {
+        throw new Error("No hay token de autenticación")
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/documents/${documentId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Error al eliminar documento")
+      }
+
+      toast.success("Documento eliminado exitosamente")
+      await loadDocuments()
+    } catch (error: any) {
+      console.error("Error deleting document:", error)
+      toast.error(error.message || "Error al eliminar documento")
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -123,6 +172,16 @@ export function ProjectDocumentation() {
     const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesCategory && matchesSearch
   })
+
+  if (loading) {
+    return (
+      <Card className="p-4">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-[#4514F9]" />
+        </div>
+      </Card>
+    )
+  }
 
   const documentsByCategory = CATEGORIES.filter((cat) => cat.id !== "all")
     .map((category) => ({
@@ -181,8 +240,19 @@ export function ProjectDocumentation() {
               onChange={(e) => setNewDocUrl(e.target.value)}
               className="h-8 text-sm"
             />
-            <Button onClick={handleAddDocument} className="w-full h-8 text-sm bg-[#4514F9] hover:bg-[#3810C7]">
-              Guardar
+            <Button 
+              onClick={handleAddDocument} 
+              disabled={saving}
+              className="w-full h-8 text-sm bg-[#4514F9] hover:bg-[#3810C7]"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar"
+              )}
             </Button>
           </div>
         </Card>
@@ -242,20 +312,36 @@ export function ProjectDocumentation() {
                           {new Date(doc.lastModified).toLocaleDateString("es-ES", {
                             day: "2-digit",
                             month: "short",
+                            year: "numeric",
                           })}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs flex-shrink-0 bg-transparent"
-                    onClick={() => window.open(doc.driveUrl, "_blank")}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Abrir
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs flex-shrink-0 bg-transparent"
+                      onClick={() => window.open(doc.driveUrl, "_blank")}
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Abrir
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 text-xs flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteDocument(doc.id)}
+                      disabled={deleting === doc.id}
+                    >
+                      {deleting === doc.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

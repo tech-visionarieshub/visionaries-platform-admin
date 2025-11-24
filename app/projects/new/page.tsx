@@ -14,12 +14,16 @@ import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { getClientes } from "@/lib/api/finanzas-api"
 import { createProject } from "@/lib/api/projects-api"
+import { getCurrentUser } from "@/lib/firebase/visionaries-tech"
+import { useUser } from "@/hooks/use-user"
 
 export default function NewProjectPage() {
   const router = useRouter()
+  const { user } = useUser()
   const [clientes, setClientes] = useState<Array<{ id: string; nombre: string }>>([])
   const [loading, setLoading] = useState(false)
   const [loadingClientes, setLoadingClientes] = useState(true)
+  const [currentUserName, setCurrentUserName] = useState<string>("")
 
   useEffect(() => {
     async function loadClientes() {
@@ -38,6 +42,33 @@ export default function NewProjectPage() {
     }
     loadClientes()
   }, [])
+
+  useEffect(() => {
+    async function loadCurrentUser() {
+      try {
+        if (user?.name) {
+          setCurrentUserName(user.name)
+          if (!formData.responsible) {
+            setFormData(prev => ({ ...prev, responsible: user.name }))
+          }
+        } else {
+          const currentUser = getCurrentUser()
+          if (currentUser) {
+            const tokenResult = await currentUser.getIdTokenResult(true)
+            const displayName = currentUser.displayName || tokenResult.claims.name as string || currentUser.email?.split('@')[0] || 'Usuario'
+            setCurrentUserName(displayName)
+            // Pre-seleccionar el usuario actual como responsable
+            if (!formData.responsible) {
+              setFormData(prev => ({ ...prev, responsible: displayName }))
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading current user:', error)
+      }
+    }
+    loadCurrentUser()
+  }, [user])
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -201,20 +232,18 @@ export default function NewProjectPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="responsible">Responsable *</Label>
-                <Select
-                  required
+                <Input
+                  id="responsible"
                   value={formData.responsible}
-                  onValueChange={(value) => setFormData({ ...formData, responsible: value })}
-                >
-                  <SelectTrigger id="responsible">
-                    <SelectValue placeholder="Seleccionar responsable" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Gaby Moreno">Gaby Moreno</SelectItem>
-                    <SelectItem value="Arely Palafox">Arely Palafox</SelectItem>
-                    <SelectItem value="Juan Pérez">Juan Pérez</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
+                  placeholder="Nombre del responsable"
+                  required
+                />
+                {currentUserName && (
+                  <p className="text-xs text-muted-foreground">
+                    Usuario actual: {currentUserName}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

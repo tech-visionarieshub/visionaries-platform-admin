@@ -32,21 +32,58 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 
+// Helper functions para manejar fechas sin problemas de zona horaria
+function formatDateForInput(date: string | Date | undefined): string {
+  if (!date) return '';
+  if (typeof date === 'string') {
+    // Si ya es un string YYYY-MM-DD, usarlo directamente
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+    // Si tiene hora, extraer solo la fecha
+    if (date.includes('T')) {
+      return date.split('T')[0];
+    }
+  }
+  // Si es Date, convertir a YYYY-MM-DD en zona horaria local
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateForDisplay(date: string | Date | undefined, options: Intl.DateTimeFormatOptions): string {
+  if (!date) return '';
+  let dateObj: Date;
+  if (typeof date === 'string') {
+    // Si es YYYY-MM-DD, agregar hora del mediodía para evitar problemas de zona horaria
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      dateObj = new Date(date + 'T12:00:00');
+    } else {
+      dateObj = new Date(date);
+    }
+  } else {
+    dateObj = new Date(date);
+  }
+  return dateObj.toLocaleDateString("es-ES", options);
+}
+
 const navItems = [
-  { href: "", label: "Resumen" },
-  { href: "/backlog", label: "Funcionalidades" },
-  { href: "/ai-generator", label: "IA Generator" },
-  { href: "/timeline", label: "Cronograma" },
-  { href: "/team", label: "Equipo" },
-  { href: "/github", label: "GitHub" },
-  { href: "/toggl", label: "Horas (Toggl)" },
-  { href: "/qa", label: "QA" },
-  { href: "/status", label: "Status Cliente" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/deliverables", label: "Entregas" },
-  { href: "/documentation", label: "Documentación" },
-  { href: "/warranty", label: "Garantía" },
-  { href: "/finanzas", label: "Finanzas" }, // Added Finanzas tab
+  { href: "", label: "Resumen", active: true },
+  { href: "/backlog", label: "Funcionalidades", active: true },
+  { href: "/ai-generator", label: "IA Generator", active: false },
+  { href: "/timeline", label: "Cronograma", active: true },
+  { href: "/team", label: "Equipo", active: true },
+  { href: "/github", label: "GitHub", active: true },
+  { href: "/toggl", label: "Horas (Toggl)", active: false },
+  { href: "/qa", label: "QA", active: true },
+  { href: "/status", label: "Status Cliente", active: true },
+  { href: "/calendar", label: "Calendar", active: true },
+  { href: "/deliverables", label: "Entregas", active: true },
+  { href: "/documentation", label: "Documentación", active: true },
+  { href: "/warranty", label: "Garantía", active: true },
+  { href: "/finanzas", label: "Finanzas", active: false },
 ]
 
 export default function ProjectLayout({
@@ -66,32 +103,34 @@ export default function ProjectLayout({
   const { toast } = useToast()
 
   useEffect(() => {
-    async function loadProject() {
+    async function loadProjectAndFeatures() {
       try {
-        const data = await getProjectById(resolvedParams.id)
-        setProject(data)
+        const [projectData, featuresData] = await Promise.all([
+          getProjectById(resolvedParams.id),
+          getFeatures(resolvedParams.id)
+        ])
+        setProject(projectData)
+        setFeatures(featuresData)
       } catch (err) {
-        console.error('Error loading project:', err)
+        console.error('Error loading project or features:', err)
       } finally {
         setLoading(false)
       }
     }
     
-    async function loadFeatures() {
-      try {
-        const featuresData = await getFeatures(resolvedParams.id)
-        setFeatures(featuresData)
-      } catch (err) {
-        console.error('Error loading features:', err)
-      }
-    }
-    
-    loadProject()
-    loadFeatures()
+    loadProjectAndFeatures()
   }, [resolvedParams.id])
   
   // Calcular suma de horas estimadas
   const totalEstimatedHours = features.reduce((sum, feature) => sum + (feature.estimatedHours || 0), 0)
+  
+  // Calcular progreso basado en funcionalidades completadas
+  const calculatedProgress = features.length > 0
+    ? Math.round((features.filter(f => f.status === 'done' || f.status === 'completed').length / features.length) * 100)
+    : project?.progress || 0
+  
+  // Usar el progreso calculado si hay features, sino usar el del proyecto
+  const displayProgress = features.length > 0 ? calculatedProgress : (project?.progress || 0)
 
   const handleEditClick = () => {
     if (project) {
@@ -101,6 +140,7 @@ export default function ProjectLayout({
         status: project.status,
         client: project.client,
         budget: project.budget,
+        startDate: project.startDate,
         endDate: project.endDate,
         progress: project.progress,
       })
@@ -183,7 +223,7 @@ export default function ProjectLayout({
               Fecha de Entrega
             </div>
             <p className="font-semibold text-[#0E0734]">
-              {new Date(project.endDate).toLocaleDateString("es-ES", {
+              {formatDateForDisplay(project.endDate, {
                 day: "2-digit",
                 month: "long",
                 year: "numeric",
@@ -209,28 +249,42 @@ export default function ProjectLayout({
               <Clock className="h-4 w-4" />
               Progreso
             </div>
-            <p className="font-semibold text-[#4514F9]">{project.progress}%</p>
+            <p className="font-semibold text-[#4514F9]">{displayProgress}%</p>
           </div>
         </div>
 
         {/* Progress Bar */}
         <div className="mt-6">
-          <Progress value={project.progress} className="h-3" />
+          <Progress value={displayProgress} className="h-3" />
         </div>
       </Card>
 
       {/* Navigation */}
       <Card className="p-2">
         <nav className="flex gap-1 overflow-x-auto">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={`/projects/${resolvedParams.id}${item.href}`}
-              className="px-4 py-2 text-sm font-medium rounded-md hover:bg-accent whitespace-nowrap transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if (item.active) {
+              return (
+                <Link
+                  key={item.href}
+                  href={`/projects/${resolvedParams.id}${item.href}`}
+                  className="px-4 py-2 text-sm font-medium rounded-md hover:bg-accent whitespace-nowrap transition-colors"
+                >
+                  {item.label}
+                </Link>
+              )
+            } else {
+              return (
+                <span
+                  key={item.href}
+                  className="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap text-muted-foreground opacity-50 cursor-not-allowed"
+                  title="Funcionalidad no disponible"
+                >
+                  {item.label}
+                </span>
+              )
+            }
+          })}
         </nav>
       </Card>
 
@@ -251,6 +305,7 @@ export default function ProjectLayout({
               <Label htmlFor="name">Nombre del Proyecto</Label>
               <Input
                 id="name"
+                name="name"
                 value={editingProject.name || ''}
                 onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
                 placeholder="Nombre del proyecto"
@@ -260,6 +315,7 @@ export default function ProjectLayout({
               <Label htmlFor="description">Descripción</Label>
               <Textarea
                 id="description"
+                name="description"
                 value={editingProject.description || ''}
                 onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
                 placeholder="Descripción del proyecto"
@@ -271,6 +327,7 @@ export default function ProjectLayout({
                 <Label htmlFor="client">Cliente</Label>
                 <Input
                   id="client"
+                  name="client"
                   value={editingProject.client || ''}
                   onChange={(e) => setEditingProject({ ...editingProject, client: e.target.value })}
                   placeholder="Nombre del cliente"
@@ -279,10 +336,11 @@ export default function ProjectLayout({
               <div className="space-y-2">
                 <Label htmlFor="status">Estado</Label>
                 <Select
+                  name="status"
                   value={editingProject.status || ''}
                   onValueChange={(value) => setEditingProject({ ...editingProject, status: value })}
                 >
-                  <SelectTrigger id="status">
+                  <SelectTrigger id="status" name="status">
                     <SelectValue placeholder="Seleccionar estado" />
                   </SelectTrigger>
                   <SelectContent>
@@ -300,6 +358,7 @@ export default function ProjectLayout({
                 <Label htmlFor="budget">Presupuesto</Label>
                 <Input
                   id="budget"
+                  name="budget"
                   type="number"
                   value={editingProject.budget || 0}
                   onChange={(e) => setEditingProject({ ...editingProject, budget: Number(e.target.value) })}
@@ -307,26 +366,40 @@ export default function ProjectLayout({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="endDate">Fecha de Entrega</Label>
+                <Label htmlFor="progress">Progreso (%)</Label>
                 <Input
-                  id="endDate"
-                  type="date"
-                  value={editingProject.endDate ? new Date(editingProject.endDate).toISOString().split('T')[0] : ''}
-                  onChange={(e) => setEditingProject({ ...editingProject, endDate: e.target.value })}
+                  id="progress"
+                  name="progress"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={editingProject.progress || 0}
+                  onChange={(e) => setEditingProject({ ...editingProject, progress: Number(e.target.value) })}
+                  placeholder="0"
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="progress">Progreso (%)</Label>
-              <Input
-                id="progress"
-                type="number"
-                min="0"
-                max="100"
-                value={editingProject.progress || 0}
-                onChange={(e) => setEditingProject({ ...editingProject, progress: Number(e.target.value) })}
-                placeholder="0"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Fecha de Inicio</Label>
+                <Input
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  value={formatDateForInput(editingProject.startDate)}
+                  onChange={(e) => setEditingProject({ ...editingProject, startDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">Fecha de Entrega</Label>
+                <Input
+                  id="endDate"
+                  name="endDate"
+                  type="date"
+                  value={formatDateForInput(editingProject.endDate)}
+                  onChange={(e) => setEditingProject({ ...editingProject, endDate: e.target.value })}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

@@ -271,23 +271,23 @@ export function QASystem({ projectId }: QASystemProps) {
             filteredTasks.map((task) => {
               const statusInfo = statusConfig[task.estado] || statusConfig.Pendiente
               const StatusIcon = statusInfo.icon
-              return (
-                <Card
+            return (
+              <Card
                   key={task.id}
-                  className="p-3 hover:shadow-md transition-shadow cursor-pointer"
+                className="p-3 hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => setSelectedTask(task)}
-                >
-                  <div className="flex items-start gap-3">
-                    <StatusIcon className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <div className="flex-1 min-w-0">
+              >
+                <div className="flex items-start gap-3">
+                  <StatusIcon className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="text-xs font-mono text-muted-foreground">{task.id.substring(0, 8)}</span>
                             <Badge className={`text-xs px-1.5 py-0 ${statusInfo.color}`}>
                               {statusInfo.label}
                             </Badge>
-                            <Badge variant="outline" className="text-xs px-1.5 py-0">
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">
                               {task.categoria}
                             </Badge>
                             {task.featureId && (
@@ -313,22 +313,22 @@ export function QASystem({ projectId }: QASystemProps) {
                           {task.comentarios && (
                             <p className="text-xs text-muted-foreground truncate mt-1">{task.comentarios}</p>
                           )}
-                        </div>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           <span>{formatDate(task.createdAt)}</span>
                         </div>
                         {task.tipo && (
-                          <Badge variant="outline" className="text-xs px-1.5 py-0">
+                        <Badge variant="outline" className="text-xs px-1.5 py-0">
                             {task.tipo}
-                          </Badge>
+                        </Badge>
                         )}
                       </div>
                     </div>
                   </div>
-                </Card>
+            </Card>
               )
             })
           )}

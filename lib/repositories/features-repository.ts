@@ -224,9 +224,18 @@ export class FeaturesRepository {
       // No permitir actualizar id, projectId, createdAt
       const { id, projectId: _, createdAt, ...updateData } = updates as any
       
+      // Asegurar que updatedAt siempre se actualice
+      updateData.updatedAt = new Date()
+      
       const firestoreData = this.toFirestore(updateData)
       // No actualizar createdAt, solo updatedAt
       delete firestoreData.createdAt
+      
+      console.log(`[Features Repository] Actualizando feature ${featureId} en proyecto ${projectId}:`, {
+        camposActualizados: Object.keys(firestoreData),
+        status: firestoreData.status,
+        assignee: firestoreData.assignee,
+      })
       
       await docRef.update(firestoreData)
 
@@ -235,7 +244,10 @@ export class FeaturesRepository {
         throw new Error(`Feature ${featureId} does not exist`)
       }
 
-      return this.fromFirestore(updatedDoc)
+      const updatedFeature = this.fromFirestore(updatedDoc)
+      console.log(`[Features Repository] Feature ${featureId} actualizada exitosamente. Status actual:`, updatedFeature.status)
+      
+      return updatedFeature
     } catch (error: any) {
       console.error('[Features Repository] Error updating feature:', error)
       throw new Error(`Error actualizando funcionalidad: ${error.message}`)

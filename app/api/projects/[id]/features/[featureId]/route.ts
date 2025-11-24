@@ -149,8 +149,17 @@ export async function PUT(
       }
     }
 
+    // Asegurar que updatedAt se actualice
+    validatedData.updatedAt = new Date() as any
+
     // Actualizar la funcionalidad
     const updatedFeature = await featuresRepository.update(id, featureId, validatedData)
+
+    console.log(`[Features PUT] Feature ${featureId} actualizada:`, {
+      status: updatedFeature.status,
+      assignee: updatedFeature.assignee,
+      qaTaskId: updatedFeature.qaTaskId,
+    })
 
     return NextResponse.json({
       success: true,

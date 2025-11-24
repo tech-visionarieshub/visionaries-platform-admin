@@ -255,13 +255,31 @@ export function BacklogScrum() {
 
   const handleStatusChange = async (featureId: string, newStatus: FeatureStatus) => {
     try {
-      await updateFeature(projectId, featureId, { status: newStatus })
+      // Actualizar optimísticamente en el estado local
+      const currentFeature = features.find(f => f.id === featureId)
+      setFeatures(prevFeatures => 
+        prevFeatures.map(f => 
+          f.id === featureId 
+            ? { ...f, status: newStatus }
+            : f
+        )
+      )
+      
+      // Llamar a la API en segundo plano
+      const updatedFeature = await updateFeature(projectId, featureId, { status: newStatus })
+      
+      // Actualizar con la respuesta del servidor (puede incluir qaTaskId si se creó automáticamente)
+      setFeatures(prevFeatures => 
+        prevFeatures.map(f => f.id === featureId ? { ...f, ...updatedFeature } : f)
+      )
+      
       toast({
         title: "Estado actualizado",
         description: "La funcionalidad se ha actualizado correctamente",
       })
-      loadFeatures() // Recargar para ver cambios (puede haber creado QA automáticamente)
     } catch (error: any) {
+      // Revertir el cambio optimista en caso de error
+      loadFeatures()
       toast({
         title: "Error",
         description: error.message || "No se pudo actualizar el estado",
@@ -272,13 +290,59 @@ export function BacklogScrum() {
 
   const handleTimeTracking = async (feature: Feature, action: 'start' | 'pause' | 'complete') => {
     try {
+      // Actualizar optimísticamente según la acción
+      if (action === 'start') {
+        setFeatures(prevFeatures => 
+          prevFeatures.map(f => 
+            f.id === feature.id 
+              ? { ...f, startedAt: new Date(), status: 'in-progress' as FeatureStatus }
+              : f
+          )
+        )
+      } else if (action === 'pause') {
+        setFeatures(prevFeatures => 
+          prevFeatures.map(f => {
+            if (f.id === feature.id && f.startedAt) {
+              const startedAtDate = f.startedAt instanceof Date ? f.startedAt : new Date(f.startedAt)
+              const elapsedSeconds = Math.floor((new Date().getTime() - startedAtDate.getTime()) / 1000)
+              const currentAccumulated = f.accumulatedTime || 0
+              return {
+                ...f,
+                startedAt: undefined,
+                accumulatedTime: currentAccumulated + elapsedSeconds
+              }
+            }
+            return f
+          })
+        )
+      } else if (action === 'complete') {
+        const totalSeconds = feature.accumulatedTime || 0
+        const actualHours = Math.round((totalSeconds / 3600) * 10) / 10
+        setFeatures(prevFeatures => 
+          prevFeatures.map(f => 
+            f.id === feature.id 
+              ? { ...f, startedAt: undefined, actualHours, status: 'done' as FeatureStatus }
+              : f
+          )
+        )
+      }
+      
       const result = await trackFeatureTime(projectId, feature.id, action)
+      
+      // Actualizar con la respuesta del servidor
+      if (result.feature) {
+        setFeatures(prevFeatures => 
+          prevFeatures.map(f => f.id === feature.id ? { ...f, ...result.feature } : f)
+        )
+      }
+      
       toast({
         title: action === 'start' ? 'Timer iniciado' : action === 'pause' ? 'Timer pausado' : 'Tarea completada',
         description: result.message,
       })
-      loadFeatures() // Recargar para ver cambios
     } catch (error: any) {
+      // Revertir cambios optimistas en caso de error
+      loadFeatures()
       toast({
         title: "Error",
         description: error.message || "No se pudo ejecutar la acción",
@@ -342,14 +406,30 @@ export function BacklogScrum() {
       // Convertir "unassigned" a undefined para guardar sin asignación
       const assigneeValue = newAssignee === "unassigned" ? undefined : newAssignee
       console.log('[BacklogScrum] Llamando a updateFeature con:', { projectId, featureId, assignee: assigneeValue })
-      await updateFeature(projectId, featureId, { assignee: assigneeValue })
+      
+      // Actualizar optimísticamente en el estado local
+      setFeatures(prevFeatures => 
+        prevFeatures.map(f => 
+          f.id === featureId ? { ...f, assignee: assigneeValue } : f
+        )
+      )
+      
+      // Llamar a la API en segundo plano
+      const updatedFeature = await updateFeature(projectId, featureId, { assignee: assigneeValue })
+      
+      // Actualizar con la respuesta del servidor para asegurar sincronización
+      setFeatures(prevFeatures => 
+        prevFeatures.map(f => f.id === featureId ? { ...f, ...updatedFeature } : f)
+      )
+      
       toast({
         title: "Responsable actualizado",
         description: "El responsable se ha actualizado correctamente",
       })
-      loadFeatures() // Recargar para ver cambios
     } catch (error: any) {
       console.error('[BacklogScrum] Error actualizando responsable:', error)
+      // Revertir el cambio optimista en caso de error
+      loadFeatures()
       toast({
         title: "Error",
         description: error.message || "No se pudo actualizar el responsable",
@@ -534,6 +614,8 @@ export function BacklogScrum() {
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
+                id="searchTasks"
+                name="searchTasks"
                 placeholder="Buscar tasks..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -541,8 +623,8 @@ export function BacklogScrum() {
               />
             </div>
           </div>
-          <Select value={filterEpic} onValueChange={setFilterEpic}>
-            <SelectTrigger className="w-40 h-8 text-xs">
+          <Select name="filterEpic" value={filterEpic} onValueChange={setFilterEpic}>
+            <SelectTrigger id="filterEpic" name="filterEpic" className="w-40 h-8 text-xs">
               <SelectValue placeholder="Epic" />
             </SelectTrigger>
             <SelectContent>
@@ -554,8 +636,8 @@ export function BacklogScrum() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-28 h-8 text-xs">
+          <Select name="filterStatus" value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger id="filterStatus" name="filterStatus" className="w-28 h-8 text-xs">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
@@ -568,8 +650,8 @@ export function BacklogScrum() {
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="w-28 h-8 text-xs">
+          <Select name="filterPriority" value={filterPriority} onValueChange={setFilterPriority}>
+            <SelectTrigger id="filterPriority" name="filterPriority" className="w-28 h-8 text-xs">
               <SelectValue placeholder="Prioridad" />
             </SelectTrigger>
             <SelectContent>
@@ -579,8 +661,8 @@ export function BacklogScrum() {
               <SelectItem value="low">Baja</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-            <SelectTrigger className="w-32 h-8 text-xs">
+          <Select name="filterAssignee" value={filterAssignee} onValueChange={setFilterAssignee}>
+            <SelectTrigger id="filterAssignee" name="filterAssignee" className="w-32 h-8 text-xs">
               <SelectValue placeholder="Responsable" />
             </SelectTrigger>
             <SelectContent>
@@ -694,6 +776,7 @@ export function BacklogScrum() {
                           </TableCell>
                           <TableCell className="p-2">
                             <Select
+                              name={`assignee-${feature.id}`}
                               value={feature.assignee || 'unassigned'}
                               onValueChange={(value) => {
                                 console.log('[BacklogScrum] Select onChange:', value)
@@ -707,7 +790,7 @@ export function BacklogScrum() {
                                 console.log('[BacklogScrum] Select clicked, teamMembers:', teamMembers.length)
                               }}
                             >
-                              <SelectTrigger className="h-7 text-xs w-32">
+                              <SelectTrigger id={`assignee-${feature.id}`} name={`assignee-${feature.id}`} className="h-7 text-xs w-32">
                                 <SelectValue placeholder="Sin asignar">
                                   <div className="flex items-center gap-1.5">
                                     <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
@@ -754,11 +837,12 @@ export function BacklogScrum() {
                           </TableCell>
                           <TableCell className="p-2">
                             <Select
+                              name={`status-${feature.id}`}
                               value={feature.status}
                               onValueChange={(value) => handleStatusChange(feature.id, value as FeatureStatus)}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <SelectTrigger className="h-7 text-xs w-28">
+                              <SelectTrigger id={`status-${feature.id}`} name={`status-${feature.id}`} className="h-7 text-xs w-28">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>

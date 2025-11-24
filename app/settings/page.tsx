@@ -326,6 +326,91 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
+    } else if (key === "github") {
+      // Manejar GitHub token
+      try {
+        // Validar que el campo no esté vacío
+        if (!value || value.trim() === "") {
+          toast({
+            title: "Error",
+            description: "Por favor ingresa un token de GitHub válido",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Si el valor es el enmascarado, rechazar
+        if (value.includes("...") && value.startsWith("ghp_...")) {
+          toast({
+            title: "Error",
+            description: "Por favor ingresa el token completo. El valor mostrado está enmascarado.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Validar formato básico de GitHub token
+        if (!value.startsWith("ghp_") && !value.startsWith("github_pat_")) {
+          toast({
+            title: "Error",
+            description: "El token de GitHub debe comenzar con 'ghp_' o 'github_pat_'",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const token = await getIdToken()
+        if (!token) {
+          toast({
+            title: "Error",
+            description: "No hay token disponible. Por favor inicia sesión nuevamente.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const response = await fetch("/api/config/github", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ token: value }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Error desconocido" }))
+          
+          let errorMessage = errorData.error || "Error al guardar el token"
+          
+          if (response.status === 403) {
+            errorMessage = "No tienes permisos para guardar el token. Solo los superadmins o usuarios internos pueden configurar GitHub."
+          } else if (response.status === 400) {
+            errorMessage = errorData.error || "El token no tiene un formato válido o no tiene permisos."
+          } else if (response.status === 401) {
+            errorMessage = "No estás autenticado. Por favor inicia sesión nuevamente."
+          }
+          
+          throw new Error(errorMessage)
+        }
+
+        const data = await response.json()
+
+        toast({
+          title: "✅ Token guardado",
+          description: data.message || "El token de GitHub se ha guardado correctamente.",
+        })
+
+        // Recargar la configuración para mostrar el valor enmascarado
+        loadGitHubConfig()
+      } catch (error: any) {
+        console.error("Error guardando token de GitHub:", error)
+        toast({
+          title: "Error",
+          description: error.message || "No se pudo guardar el token. Verifica que tengas permisos de superadmin o interno.",
+          variant: "destructive",
+        })
+      }
     } else {
       // Para otras keys, mantener comportamiento simulado por ahora
       setApiKeys({ ...apiKeys, [key]: value })
@@ -359,8 +444,32 @@ export default function SettingsPage() {
     }
   }
 
+  // Cargar configuración de GitHub al inicializar
+  const loadGitHubConfig = async () => {
+    try {
+      const token = await getIdToken()
+      if (!token) return
+
+      const response = await fetch("/api/config/github", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.configured && data.token) {
+          setApiKeys(prev => ({ ...prev, github: data.token }))
+        }
+      }
+    } catch (error) {
+      console.error("Error cargando configuración de GitHub:", error)
+    }
+  }
+
   useEffect(() => {
     loadOpenAIConfig()
+    loadGitHubConfig()
   }, [])
 
   // handleUserRoleChange removido - ahora se maneja desde visionaries-tech
@@ -729,6 +838,45 @@ export default function SettingsPage() {
     }
   }
 
+  const handleDeleteMockProjects = async () => {
+    if (!confirm('¿Estás seguro de que deseas eliminar los proyectos mock? Esta acción no se puede deshacer.')) {
+      return
+    }
+
+    try {
+      const token = await getIdToken()
+      const response = await fetch('/api/admin/delete-mock-projects', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al eliminar proyectos mock')
+      }
+
+      toast({
+        title: "Proyectos mock eliminados",
+        description: data.message || `Se eliminaron ${data.deleted || 0} proyectos mock`,
+      })
+
+      // Recargar la página de proyectos si estamos ahí
+      if (window.location.pathname.startsWith('/projects')) {
+        window.location.reload()
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Error al eliminar proyectos mock",
+        variant: "destructive",
+      })
+    }
+  }
+
   // El layout-wrapper ya maneja la autenticación
   // Si llegamos aquí, el usuario está autorizado
   // Cargar usuario desde Firebase Auth si no está en el store
@@ -988,7 +1136,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>GitHub API</CardTitle>
-              <CardDescription>Conecta con GitHub para tracking automático de commits y PRs (Simulado)</CardDescription>
+              <CardDescription>Conecta con GitHub para tracking automático de commits y PRs</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -1009,6 +1157,18 @@ export default function SettingsPage() {
                     {showKeys.github ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Crea un token en{" "}
+                  <a
+                    href="https://github.com/settings/tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#4514F9] hover:underline"
+                  >
+                    GitHub Settings
+                  </a>
+                  {" "}con permisos de lectura de repositorios
+                </p>
               </div>
               <Button onClick={() => handleSaveApiKey("github", apiKeys.github)}>Guardar</Button>
             </CardContent>
@@ -1398,10 +1558,18 @@ export default function SettingsPage() {
                   Gestiona las variables y porcentajes para el cálculo automático de cotizaciones
                 </p>
               </div>
-              <Button variant="outline" onClick={handleResetCotizacionesConfig}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Restablecer
-              </Button>
+              <div className="flex gap-2">
+                {user?.superadmin && (
+                  <Button variant="destructive" onClick={handleDeleteMockProjects}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar Proyectos Mock
+                  </Button>
+                )}
+                <Button variant="outline" onClick={handleResetCotizacionesConfig}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Restablecer
+                </Button>
+              </div>
             </div>
 
             {configErrors.length > 0 && (

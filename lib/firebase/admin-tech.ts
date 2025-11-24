@@ -41,7 +41,7 @@ export function getAuraApp(): admin.app.App {
       } catch (parseError: any) {
         // Si falla el parseo, intentar como path a archivo
         try {
-          credential = admin.credential.cert(serviceAccount);
+        credential = admin.credential.cert(serviceAccount);
         } catch (fileError: any) {
           const error = new Error(
             `Error al inicializar Firebase Admin SDK para visionaries-tech. ` +

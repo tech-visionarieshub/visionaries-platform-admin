@@ -11,6 +11,23 @@ import Link from "next/link"
 import { getProjects } from "@/lib/api/projects-api"
 import type { Project } from "@/lib/mock-data/projects"
 
+// Helper function para formatear fechas sin problemas de zona horaria
+function formatDateForDisplay(date: string | Date | undefined, options: Intl.DateTimeFormatOptions): string {
+  if (!date) return '';
+  let dateObj: Date;
+  if (typeof date === 'string') {
+    // Si es YYYY-MM-DD, agregar hora del mediodía para evitar problemas de zona horaria
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      dateObj = new Date(date + 'T12:00:00');
+    } else {
+      dateObj = new Date(date);
+    }
+  } else {
+    dateObj = new Date(date);
+  }
+  return dateObj.toLocaleDateString("es-ES", options);
+}
+
 const statusConfig = {
   "En desarrollo": { variant: "info" as const, icon: Clock },
   QA: { variant: "warning" as const, icon: AlertCircle },
@@ -186,7 +203,7 @@ export default function ProjectsPage() {
                     <div>
                       <p className="text-muted-foreground">Inicio</p>
                       <p className="font-medium">
-                        {new Date(project.startDate).toLocaleDateString("es-ES", {
+                        {formatDateForDisplay(project.startDate, {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",
@@ -196,7 +213,7 @@ export default function ProjectsPage() {
                     <div className="text-right">
                       <p className="text-muted-foreground">Entrega</p>
                       <p className="font-medium">
-                        {new Date(project.endDate).toLocaleDateString("es-ES", {
+                        {formatDateForDisplay(project.endDate, {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",

@@ -61,38 +61,39 @@ export function ConvertToProjectDialog({
   const handleConvert = async () => {
     setLoading(true)
 
-    // Simular creación del proyecto
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Llamar al endpoint que genera el proyecto completo con IA
+      const response = await fetch(`/api/cotizaciones/${cotizacion.id}/generate-project`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          startDate: format(formData.startDate, "yyyy-MM-dd"),
+          responsible: formData.responsible,
+        }),
+      })
 
-    // Aquí se crearía el proyecto en la base de datos
-    const newProject = {
-      id: `proyecto-${Date.now()}`,
-      name: formData.name,
-      client: cotizacion.clienteNombre,
-      clientId: cotizacion.clienteId,
-      status: "En desarrollo" as const,
-      progress: 0,
-      startDate: format(formData.startDate, "yyyy-MM-dd"),
-      endDate: format(estimatedEndDate, "yyyy-MM-dd"),
-      responsible: formData.responsible,
-      features: 0,
-      completedFeatures: 0,
-      budget: cotizacion.desglose.costoTotal,
-      hoursEstimated: cotizacion.desglose.horasTotales,
-      hoursWorked: 0,
-      description: formData.description,
-      cotizacionId: cotizacion.id,
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al crear el proyecto')
+      }
+
+      const result = await response.json()
+      const newProject = result.data.project
+
+      setLoading(false)
+      onOpenChange(false)
+
+      // Redirigir al nuevo proyecto
+      router.push(`/projects/${newProject.id}`)
+    } catch (error: any) {
+      console.error('Error creando proyecto:', error)
+      alert('Error al crear el proyecto: ' + (error.message || 'Error desconocido'))
+      setLoading(false)
     }
-
-    console.log("[v0] Proyecto creado:", newProject)
-
-    // Marcar cotización como convertida (esto se haría en la base de datos)
-
-    setLoading(false)
-    onOpenChange(false)
-
-    // Redirigir al nuevo proyecto
-    router.push(`/projects/${newProject.id}`)
   }
 
   return (
