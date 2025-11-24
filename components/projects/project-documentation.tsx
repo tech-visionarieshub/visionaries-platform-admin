@@ -104,9 +104,9 @@ export function ProjectDocumentation() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: newDocName,
-          type: newDocType,
-          category: newDocCategory,
+        name: newDocName,
+        type: newDocType,
+        category: newDocCategory,
           driveUrl: newDocUrl,
         }),
       })
@@ -319,15 +319,15 @@ export function ProjectDocumentation() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs flex-shrink-0 bg-transparent"
-                      onClick={() => window.open(doc.driveUrl, "_blank")}
-                    >
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Abrir
-                    </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs flex-shrink-0 bg-transparent"
+                    onClick={() => window.open(doc.driveUrl, "_blank")}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Abrir
+                  </Button>
                     <Button
                       variant="ghost"
                       size="sm"

@@ -358,15 +358,15 @@ export function GitHubIntegration() {
               <p className="text-sm text-muted-foreground">{githubData.repository.fullName}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <a
+              <div className="flex items-center gap-2">
+              <a
               href={githubData.repository.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-[#4514F9] hover:underline"
-            >
-              Ver en GitHub
-            </a>
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-[#4514F9] hover:underline"
+              >
+                Ver en GitHub
+              </a>
             <Button
               size="sm"
               variant="outline"
@@ -385,7 +385,7 @@ export function GitHubIntegration() {
             >
               <X className="h-4 w-4" />
             </Button>
-          </div>
+            </div>
         </div>
       </Card>
 
@@ -407,7 +407,7 @@ export function GitHubIntegration() {
                 <p>No hay commits recientes</p>
               </div>
             ) : (
-              <div className="space-y-3">
+            <div className="space-y-3">
                 {githubData.recentCommits.map((commit) => (
                   <a
                     key={commit.id}
@@ -416,29 +416,29 @@ export function GitHubIntegration() {
                     rel="noopener noreferrer"
                     className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors block"
                   >
-                    <GitCommit className="h-5 w-5 text-[#4514F9] mt-1" />
-                    <div className="flex-1">
-                      <p className="font-medium text-sm text-[#0E0734]">{commit.message}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {commit.author}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(commit.date).toLocaleDateString("es-ES")}
-                        </div>
-                        <Badge variant="outline" className="text-[#95C900]">
-                          +{commit.additions}
-                        </Badge>
-                        <Badge variant="outline" className="text-[#E02814]">
-                          -{commit.deletions}
-                        </Badge>
+                  <GitCommit className="h-5 w-5 text-[#4514F9] mt-1" />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm text-[#0E0734]">{commit.message}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {commit.author}
                       </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(commit.date).toLocaleDateString("es-ES")}
+                      </div>
+                      <Badge variant="outline" className="text-[#95C900]">
+                        +{commit.additions}
+                      </Badge>
+                      <Badge variant="outline" className="text-[#E02814]">
+                        -{commit.deletions}
+                      </Badge>
                     </div>
+                  </div>
                   </a>
-                ))}
-              </div>
+              ))}
+            </div>
             )}
           </Card>
         </TabsContent>
@@ -452,7 +452,7 @@ export function GitHubIntegration() {
                 <p>No hay pull requests</p>
               </div>
             ) : (
-              <div className="space-y-3">
+            <div className="space-y-3">
                 {githubData.pullRequests.map((pr) => (
                   <a
                     key={pr.id}
@@ -461,32 +461,32 @@ export function GitHubIntegration() {
                     rel="noopener noreferrer"
                     className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors block"
                   >
-                    <GitPullRequest className="h-5 w-5 text-[#4514F9] mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-sm text-[#0E0734]">{pr.title}</p>
+                  <GitPullRequest className="h-5 w-5 text-[#4514F9] mt-1" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium text-sm text-[#0E0734]">{pr.title}</p>
                         <Badge variant="outline" className={pr.status === "open" ? "text-[#4BBAFF]" : "text-gray-500"}>
-                          {pr.status}
-                        </Badge>
+                        {pr.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {pr.author}
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {pr.author}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          {pr.reviews} reviews
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {pr.created}
-                        </div>
+                      <div className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {pr.reviews} reviews
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {pr.created}
                       </div>
                     </div>
+                  </div>
                   </a>
-                ))}
-              </div>
+              ))}
+            </div>
             )}
           </Card>
         </TabsContent>
@@ -565,45 +565,45 @@ export function GitHubIntegration() {
                 <p>No hay estadísticas de desarrolladores disponibles</p>
               </div>
             ) : (
-              <div className="space-y-4">
+            <div className="space-y-4">
                 {githubData.developerStats.map((dev, index) => (
-                  <div key={index} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-10 w-10 rounded-full bg-[#4514F9]/10 flex items-center justify-center">
-                          <User className="h-5 w-5 text-[#4514F9]" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-[#0E0734]">{dev.name}</p>
-                          <p className="text-xs text-muted-foreground">Velocity: {dev.velocity} pts/sprint</p>
-                        </div>
+                <div key={index} className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-10 w-10 rounded-full bg-[#4514F9]/10 flex items-center justify-center">
+                        <User className="h-5 w-5 text-[#4514F9]" />
                       </div>
-                      <Badge variant="outline" className="text-[#4514F9]">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {dev.velocity}
-                      </Badge>
+                      <div>
+                        <p className="font-medium text-[#0E0734]">{dev.name}</p>
+                        <p className="text-xs text-muted-foreground">Velocity: {dev.velocity} pts/sprint</p>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-4 text-center">
-                      <div>
-                        <p className="text-lg font-bold text-[#0E0734]">{dev.commits}</p>
-                        <p className="text-xs text-muted-foreground">Commits</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-[#0E0734]">{dev.prs}</p>
-                        <p className="text-xs text-muted-foreground">PRs</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-[#95C900]">+{dev.linesAdded}</p>
-                        <p className="text-xs text-muted-foreground">Líneas</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-[#E02814]">-{dev.linesDeleted}</p>
-                        <p className="text-xs text-muted-foreground">Líneas</p>
-                      </div>
+                    <Badge variant="outline" className="text-[#4514F9]">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      {dev.velocity}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-[#0E0734]">{dev.commits}</p>
+                      <p className="text-xs text-muted-foreground">Commits</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-[#0E0734]">{dev.prs}</p>
+                      <p className="text-xs text-muted-foreground">PRs</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-[#95C900]">+{dev.linesAdded}</p>
+                      <p className="text-xs text-muted-foreground">Líneas</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-[#E02814]">-{dev.linesDeleted}</p>
+                      <p className="text-xs text-muted-foreground">Líneas</p>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
             )}
           </Card>
         </TabsContent>

@@ -687,6 +687,170 @@ IMPORTANTE:
   }
 
   /**
+   * Extrae información de una cotización desde el contenido de un documento
+   */
+  async extractCotizacionFromDocument(documentContent: string): Promise<{
+    titulo: string
+    cliente: string
+    clienteId?: string
+    tipoProyecto: string
+    descripcion: string
+    funcionalidades: Array<{ nombre: string; descripcion: string; prioridad?: "Alta" | "Media" | "Baja" }>
+    pantallas: Array<{ nombre: string; descripcion: string }>
+    presupuesto: number
+    horasTotales: number
+    meses: number
+  }> {
+    const apiKey = await this.getApiKey()
+
+    const prompt = `Eres un experto en análisis de documentos de cotización de proyectos de software. Extrae la siguiente información del documento proporcionado:
+
+INFORMACIÓN A EXTRAER:
+1. Título del Proyecto
+2. Nombre del Cliente
+3. Tipo de Proyecto (Dashboard, CRM, E-commerce, App Móvil, Website, Personalizado)
+4. Descripción del alcance/proyecto
+5. Lista de funcionalidades con sus descripciones y prioridades (si están mencionadas)
+6. Lista de pantallas/interfaces (si están mencionadas)
+7. Presupuesto total (en cualquier moneda, convertir a número)
+8. Horas totales estimadas
+9. Duración en meses
+
+DOCUMENTO:
+${documentContent.substring(0, 15000)} ${documentContent.length > 15000 ? '...[documento truncado]' : ''}
+
+Responde SOLO con un JSON válido en este formato exacto:
+{
+  "titulo": "Nombre del proyecto",
+  "cliente": "Nombre del cliente",
+  "tipoProyecto": "Dashboard|CRM|E-commerce|App Móvil|Website|Personalizado",
+  "descripcion": "Descripción completa del alcance",
+  "funcionalidades": [
+    {
+      "nombre": "Nombre de la funcionalidad",
+      "descripcion": "Descripción detallada",
+      "prioridad": "Alta|Media|Baja" (opcional, usar "Media" si no se especifica)
+    }
+  ],
+  "pantallas": [
+    {
+      "nombre": "Nombre de la pantalla",
+      "descripcion": "Descripción"
+    }
+  ],
+  "presupuesto": 0 (número, 0 si no se encuentra),
+  "horasTotales": 0 (número, 0 si no se encuentra),
+  "meses": 6 (número, 6 por defecto si no se encuentra)
+}
+
+IMPORTANTE:
+- Si no encuentras alguna información, usa valores por defecto razonables
+- Extrae TODAS las funcionalidades mencionadas en el documento
+- Si hay secciones como "Alcance", "Funcionalidades", "Requisitos", extrae la información de ahí
+- Para el presupuesto, busca números grandes que puedan ser costos (ignora números pequeños como IDs)
+- Para horas, busca números seguidos de "h", "horas", "hours"`
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un experto en análisis de documentos de cotización. Extrae información estructurada de manera precisa. Responde SOLO con JSON válido, sin texto adicional.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 4000,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`)
+      }
+
+      const responseData: OpenAIResponse = await response.json()
+      const content = responseData.choices[0]?.message?.content?.trim() || ''
+
+      // Parsear JSON de la respuesta
+      let parsed: any
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0])
+        } else {
+          throw new Error('No se encontró JSON en la respuesta')
+        }
+      } catch (parseError) {
+        console.error('[OpenAI Service] Error parseando JSON de documento:', parseError)
+        // Valores por defecto si falla el parsing
+        return {
+          titulo: 'Proyecto Generado',
+          cliente: 'Cliente',
+          tipoProyecto: 'Personalizado',
+          descripcion: documentContent.substring(0, 500),
+          funcionalidades: [],
+          pantallas: [],
+          presupuesto: 0,
+          horasTotales: 0,
+          meses: 6,
+        }
+      }
+
+      // Validar y normalizar los datos extraídos
+      return {
+        titulo: parsed.titulo || 'Proyecto Generado',
+        cliente: parsed.cliente || 'Cliente',
+        clienteId: parsed.clienteId,
+        tipoProyecto: parsed.tipoProyecto || 'Personalizado',
+        descripcion: parsed.descripcion || documentContent.substring(0, 500),
+        funcionalidades: Array.isArray(parsed.funcionalidades) 
+          ? parsed.funcionalidades.map((f: any) => ({
+              nombre: f.nombre || 'Funcionalidad',
+              descripcion: f.descripcion || '',
+              prioridad: (f.prioridad === 'Alta' || f.prioridad === 'Media' || f.prioridad === 'Baja') 
+                ? f.prioridad 
+                : 'Media' as "Alta" | "Media" | "Baja",
+            }))
+          : [],
+        pantallas: Array.isArray(parsed.pantallas)
+          ? parsed.pantallas.map((p: any) => ({
+              nombre: p.nombre || 'Pantalla',
+              descripcion: p.descripcion || '',
+            }))
+          : [],
+        presupuesto: typeof parsed.presupuesto === 'number' ? parsed.presupuesto : 0,
+        horasTotales: typeof parsed.horasTotales === 'number' ? parsed.horasTotales : 0,
+        meses: typeof parsed.meses === 'number' ? parsed.meses : 6,
+      }
+    } catch (error: any) {
+      console.error('[OpenAI Service] Error extrayendo información del documento:', error)
+      // Valores por defecto si falla
+      return {
+        titulo: 'Proyecto Generado',
+        cliente: 'Cliente',
+        tipoProyecto: 'Personalizado',
+        descripcion: documentContent.substring(0, 500),
+        funcionalidades: [],
+        pantallas: [],
+        presupuesto: 0,
+        horasTotales: 0,
+        meses: 6,
+      }
+    }
+  }
+
+  /**
    * Genera un reporte de status semanal usando IA
    */
   async generateStatusReport(data: {

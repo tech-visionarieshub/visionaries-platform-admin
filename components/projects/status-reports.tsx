@@ -384,10 +384,10 @@ export function StatusReports() {
         throw new Error(errorData.error || "Error al enviar reporte")
       }
 
-      toast.success("Reporte enviado exitosamente")
-      setGeneratedReport("")
-      setSubject("")
-      setPreviewUrl("")
+    toast.success("Reporte enviado exitosamente")
+    setGeneratedReport("")
+    setSubject("")
+    setPreviewUrl("")
       setSentTo("")
       setCurrentReportId(null)
       await loadReports()
@@ -420,7 +420,7 @@ export function StatusReports() {
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-4 w-4" />
+            <Sparkles className="mr-2 h-4 w-4" />
                 Generar con IA
               </>
             )}
@@ -550,35 +550,35 @@ export function StatusReports() {
             <p className="text-sm mt-1">Genera tu primer reporte usando el botón de arriba</p>
           </div>
         ) : (
-          <div className="space-y-2">
+        <div className="space-y-2">
             {reports.map((report) => (
-              <div key={report.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-medium text-sm">{report.subject}</p>
+            <div key={report.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-medium text-sm">{report.subject}</p>
                     <Badge variant={report.status === "sent" ? "default" : "secondary"} className="text-xs">
                       {report.status === "sent" ? "Enviado" : "Draft"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {new Date(report.weekStartDate).toLocaleDateString("es-ES")} - {new Date(report.weekEndDate).toLocaleDateString("es-ES")}
-                    </span>
-                    {report.sentTo && (
-                      <span className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {report.sentTo}
-                      </span>
-                    )}
-                    {report.openRate && (
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-3 w-3" />
-                        {report.openRate}% abierto
-                      </span>
-                    )}
-                  </div>
+                  </Badge>
                 </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                      {new Date(report.weekStartDate).toLocaleDateString("es-ES")} - {new Date(report.weekEndDate).toLocaleDateString("es-ES")}
+                  </span>
+                    {report.sentTo && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {report.sentTo}
+                  </span>
+                    )}
+                  {report.openRate && (
+                    <span className="flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      {report.openRate}% abierto
+                    </span>
+                  )}
+                </div>
+              </div>
                 <div className="flex items-center gap-2">
                   {report.status === 'draft' && (
                     <>
@@ -608,17 +608,17 @@ export function StatusReports() {
                       </Button>
                     </>
                   )}
-                  {report.previewUrl && (
-                    <Button variant="ghost" size="sm" asChild>
-                      <a href={report.previewUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
+              {report.previewUrl && (
+                <Button variant="ghost" size="sm" asChild>
+                  <a href={report.previewUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              )}
                 </div>
-              </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
         )}
       </Card>
 

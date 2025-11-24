@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, Plus, Clock, CheckCircle2, AlertCircle, FolderKanban } from "lucide-react"
+import { Search, Filter, Plus, Clock, CheckCircle2, AlertCircle, FolderKanban, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -137,12 +137,20 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold text-[#0E0734]">Proyectos</h1>
           <p className="text-muted-foreground mt-1">Gestión y seguimiento de proyectos activos</p>
         </div>
-        <Link href="/projects/new">
-          <Button className="bg-[#4514F9] hover:bg-[#3810C7]">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Proyecto
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/projects/new-from-document">
+            <Button variant="outline" className="border-[#4514F9] text-[#4514F9] hover:bg-[#4514F9] hover:text-white">
+              <FileText className="mr-2 h-4 w-4" />
+              Desde Documento
+            </Button>
+          </Link>
+          <Link href="/projects/new">
+            <Button className="bg-[#4514F9] hover:bg-[#3810C7]">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Proyecto
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
