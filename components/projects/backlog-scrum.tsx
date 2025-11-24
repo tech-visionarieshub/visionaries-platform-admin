@@ -97,10 +97,17 @@ export function BacklogScrum() {
 
   const loadTeamMembers = async () => {
     try {
+      console.log('[BacklogScrum] Cargando miembros del equipo para proyecto:', projectId)
       const members = await getProjectTeam(projectId)
+      console.log('[BacklogScrum] Miembros del equipo cargados:', members)
       setTeamMembers(members)
     } catch (error: any) {
       console.error('[BacklogScrum] Error loading team members:', error)
+      toast({
+        title: "Error",
+        description: `No se pudieron cargar los miembros del equipo: ${error.message}`,
+        variant: "destructive",
+      })
     }
   }
 
@@ -331,8 +338,10 @@ export function BacklogScrum() {
 
   const handleAssigneeChange = async (featureId: string, newAssignee: string) => {
     try {
+      console.log('[BacklogScrum] Cambiando responsable:', { featureId, newAssignee, teamMembersCount: teamMembers.length })
       // Convertir "unassigned" a undefined para guardar sin asignación
       const assigneeValue = newAssignee === "unassigned" ? undefined : newAssignee
+      console.log('[BacklogScrum] Llamando a updateFeature con:', { projectId, featureId, assignee: assigneeValue })
       await updateFeature(projectId, featureId, { assignee: assigneeValue })
       toast({
         title: "Responsable actualizado",
@@ -340,6 +349,7 @@ export function BacklogScrum() {
       })
       loadFeatures() // Recargar para ver cambios
     } catch (error: any) {
+      console.error('[BacklogScrum] Error actualizando responsable:', error)
       toast({
         title: "Error",
         description: error.message || "No se pudo actualizar el responsable",
@@ -685,8 +695,17 @@ export function BacklogScrum() {
                           <TableCell className="p-2">
                             <Select
                               value={feature.assignee || 'unassigned'}
-                              onValueChange={(value) => handleAssigneeChange(feature.id, value)}
-                              onClick={(e) => e.stopPropagation()}
+                              onValueChange={(value) => {
+                                console.log('[BacklogScrum] Select onChange:', value)
+                                handleAssigneeChange(feature.id, value)
+                              }}
+                              onOpenChange={(open) => {
+                                console.log('[BacklogScrum] Select openChange:', open, 'teamMembers:', teamMembers.length)
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                console.log('[BacklogScrum] Select clicked, teamMembers:', teamMembers.length)
+                              }}
                             >
                               <SelectTrigger className="h-7 text-xs w-32">
                                 <SelectValue placeholder="Sin asignar">
@@ -702,11 +721,15 @@ export function BacklogScrum() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="unassigned">Sin asignar</SelectItem>
-                                {teamMembers.map((member) => (
-                                  <SelectItem key={member.email} value={member.email}>
-                                    {member.displayName} ({member.email})
-                                  </SelectItem>
-                                ))}
+                                {teamMembers.length === 0 ? (
+                                  <SelectItem value="loading" disabled>No hay miembros del equipo</SelectItem>
+                                ) : (
+                                  teamMembers.map((member) => (
+                                    <SelectItem key={member.email} value={member.email}>
+                                      {member.displayName} ({member.email})
+                                    </SelectItem>
+                                  ))
+                                )}
                               </SelectContent>
                             </Select>
                           </TableCell>
