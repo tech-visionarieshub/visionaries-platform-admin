@@ -411,6 +411,107 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
+    } else if (key === "googleCalendar") {
+      // Manejar Google Calendar Service Account JSON
+      try {
+        // Validar que el campo no esté vacío
+        if (!value || value.trim() === "") {
+          toast({
+            title: "Error",
+            description: "Por favor ingresa el Service Account JSON de Google Calendar",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Validar que sea un JSON válido
+        let parsedJson;
+        try {
+          parsedJson = JSON.parse(value);
+        } catch (e) {
+          toast({
+            title: "Error",
+            description: "El Service Account debe ser un JSON válido",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Validar campos requeridos
+        const requiredFields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email', 'client_id'];
+        const missingFields = requiredFields.filter(field => !parsedJson[field]);
+        
+        if (missingFields.length > 0) {
+          toast({
+            title: "Error",
+            description: `El Service Account JSON está incompleto. Faltan campos: ${missingFields.join(', ')}`,
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Validar que sea un Service Account
+        if (parsedJson.type !== 'service_account') {
+          toast({
+            title: "Error",
+            description: "El JSON proporcionado no es un Service Account válido (type debe ser 'service_account')",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const token = await getIdToken()
+        if (!token) {
+          toast({
+            title: "Error",
+            description: "No hay token disponible. Por favor inicia sesión nuevamente.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        const response = await fetch("/api/config/google-calendar", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ serviceAccountJson: value }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Error desconocido" }))
+          
+          let errorMessage = errorData.error || "Error al guardar el Service Account"
+          
+          if (response.status === 403) {
+            errorMessage = "No tienes permisos para guardar el Service Account. Solo los superadmins o usuarios internos pueden configurar Google Calendar."
+          } else if (response.status === 400) {
+            errorMessage = errorData.error || "El Service Account JSON no tiene un formato válido."
+          } else if (response.status === 401) {
+            errorMessage = "No estás autenticado. Por favor inicia sesión nuevamente."
+          }
+          
+          throw new Error(errorMessage)
+        }
+
+        const data = await response.json()
+
+        toast({
+          title: "✅ Service Account guardado",
+          description: data.message || "El Service Account de Google Calendar se ha guardado correctamente.",
+        })
+
+        // Recargar la configuración
+        loadGoogleCalendarConfig()
+      } catch (error: any) {
+        console.error("Error guardando Service Account de Google Calendar:", error)
+        toast({
+          title: "Error",
+          description: error.message || "No se pudo guardar el Service Account. Verifica que tengas permisos de superadmin o interno.",
+          variant: "destructive",
+        })
+      }
     } else {
       // Para otras keys, mantener comportamiento simulado por ahora
       setApiKeys({ ...apiKeys, [key]: value })
@@ -467,9 +568,35 @@ export default function SettingsPage() {
     }
   }
 
+  // Cargar configuración de Google Calendar al inicializar
+  const loadGoogleCalendarConfig = async () => {
+    try {
+      const token = await getIdToken()
+      if (!token) return
+
+      const response = await fetch("/api/config/google-calendar", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.configured && data.maskedInfo) {
+          // Mostrar información enmascarada
+          const maskedValue = `{"type":"service_account","project_id":"${data.maskedInfo.project_id}","client_email":"${data.maskedInfo.client_email}"}`
+          setApiKeys(prev => ({ ...prev, googleCalendar: maskedValue }))
+        }
+      }
+    } catch (error) {
+      console.error("Error cargando configuración de Google Calendar:", error)
+    }
+  }
+
   useEffect(() => {
     loadOpenAIConfig()
     loadGitHubConfig()
+    loadGoogleCalendarConfig()
   }, [])
 
   // handleUserRoleChange removido - ahora se maneja desde visionaries-tech
