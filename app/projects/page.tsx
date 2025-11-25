@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, Plus, Clock, CheckCircle2, AlertCircle, FolderKanban, FileText } from "lucide-react"
+import { Search, Filter, Plus, Clock, CheckCircle2, AlertCircle, FolderKanban, FileText, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -26,6 +26,36 @@ function formatDateForDisplay(date: string | Date | undefined, options: Intl.Dat
     dateObj = new Date(date);
   }
   return dateObj.toLocaleDateString("es-ES", options);
+}
+
+// Helper function para calcular semanas de retraso
+function calculateWeeksDelay(endDate: string | Date | undefined): number | null {
+  if (!endDate) return null;
+  
+  let dateObj: Date;
+  if (typeof endDate === 'string') {
+    // Si es YYYY-MM-DD, agregar hora del mediodía para evitar problemas de zona horaria
+    if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      dateObj = new Date(endDate + 'T12:00:00');
+    } else {
+      dateObj = new Date(endDate);
+    }
+  } else {
+    dateObj = new Date(endDate);
+  }
+  
+  const today = new Date();
+  today.setHours(12, 0, 0, 0); // Normalizar a mediodía para comparación justa
+  dateObj.setHours(12, 0, 0, 0);
+  
+  // Si la fecha de entrega ya pasó
+  if (dateObj < today) {
+    const diffTime = today.getTime() - dateObj.getTime();
+    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+    return diffWeeks;
+  }
+  
+  return null;
 }
 
 const statusConfig = {
@@ -173,6 +203,7 @@ export default function ProjectsPage() {
           const statusKey = project.status as keyof typeof statusConfig
           const statusInfo = statusConfig[statusKey] || { variant: "default" as const, icon: FolderKanban }
           const StatusIcon = statusInfo.icon
+          const weeksDelay = calculateWeeksDelay(project.endDate)
 
           return (
             <Link key={project.id} href={`/projects/${project.id}`}>
@@ -227,6 +258,14 @@ export default function ProjectsPage() {
                           year: "numeric",
                         })}
                       </p>
+                      {weeksDelay !== null && weeksDelay > 0 && (
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <AlertTriangle className="h-3.5 w-3.5 text-[#E02814]" />
+                          <span className="text-xs font-medium text-[#E02814]">
+                            {weeksDelay} semana{weeksDelay !== 1 ? 's' : ''} de retraso
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

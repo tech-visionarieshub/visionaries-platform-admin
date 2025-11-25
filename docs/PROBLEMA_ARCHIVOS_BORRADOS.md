@@ -86,3 +86,6 @@ lsof +D components/projects | grep qa
 - 🔍 Monitoreo continuo recomendado
 
 
+
+
+

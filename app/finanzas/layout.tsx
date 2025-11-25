@@ -5,6 +5,7 @@ import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { FinanzasGuard } from "@/components/auth/finanzas-guard"
 
 const tabs = [
   { name: "Dashboard", href: "/finanzas/dashboard" },
@@ -22,18 +23,20 @@ export default function FinanzasLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="space-y-4">
-      <div className="border-b -mx-4 sm:mx-0">
-        <div className="flex gap-1 overflow-x-auto px-4 sm:px-0 scrollbar-hide">
-          {tabs.map((tab) => (
-            <TabLink key={tab.href} href={tab.href}>
-              {tab.name}
-            </TabLink>
-          ))}
+    <FinanzasGuard>
+      <div className="space-y-4">
+        <div className="border-b -mx-4 sm:mx-0">
+          <div className="flex gap-1 overflow-x-auto px-4 sm:px-0 scrollbar-hide">
+            {tabs.map((tab) => (
+              <TabLink key={tab.href} href={tab.href}>
+                {tab.name}
+              </TabLink>
+            ))}
+          </div>
         </div>
+        <div className="px-4 sm:px-0">{children}</div>
       </div>
-      <div className="px-4 sm:px-0">{children}</div>
-    </div>
+    </FinanzasGuard>
   )
 }
 

@@ -31,6 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/hooks/use-user"
+import { cn } from "@/lib/utils"
 
 // Helper functions para manejar fechas sin problemas de zona horaria
 function formatDateForInput(date: string | Date | undefined): string {
@@ -69,6 +71,17 @@ function formatDateForDisplay(date: string | Date | undefined, options: Intl.Dat
   return dateObj.toLocaleDateString("es-ES", options);
 }
 
+// Usuarios autorizados para acceder a Finanzas
+const FINANZAS_AUTHORIZED_EMAILS = [
+  'arelyibarra@visionarieshub.com',
+  'gabypino@visionarieshub.com'
+]
+
+const hasFinanzasAccess = (userEmail: string | undefined): boolean => {
+  if (!userEmail) return false
+  return FINANZAS_AUTHORIZED_EMAILS.includes(userEmail.toLowerCase())
+}
+
 const navItems = [
   { href: "", label: "Resumen", active: true },
   { href: "/backlog", label: "Funcionalidades", active: true },
@@ -83,7 +96,7 @@ const navItems = [
   { href: "/deliverables", label: "Entregas", active: true },
   { href: "/documentation", label: "Documentación", active: true },
   { href: "/warranty", label: "Garantía", active: true },
-  { href: "/finanzas", label: "Finanzas", active: false },
+  { href: "/finanzas", label: "Finanzas", active: false, requiresFinanzasAccess: true },
 ]
 
 export default function ProjectLayout({
@@ -101,6 +114,8 @@ export default function ProjectLayout({
   const [editingProject, setEditingProject] = useState<Partial<Project>>({})
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
+  const { user } = useUser()
+  const canAccessFinanzas = hasFinanzasAccess(user?.email)
 
   useEffect(() => {
     async function loadProjectAndFeatures() {
@@ -263,7 +278,11 @@ export default function ProjectLayout({
       <Card className="p-2">
         <nav className="flex gap-1 overflow-x-auto">
           {navItems.map((item) => {
-            if (item.active) {
+            // Verificar si requiere acceso a finanzas
+            const requiresAccess = (item as any).requiresFinanzasAccess
+            const hasAccess = !requiresAccess || canAccessFinanzas
+
+            if (item.active && hasAccess) {
               return (
                 <Link
                   key={item.href}
@@ -277,8 +296,13 @@ export default function ProjectLayout({
               return (
                 <span
                   key={item.href}
-                  className="px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap text-muted-foreground opacity-50 cursor-not-allowed"
-                  title="Funcionalidad no disponible"
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium rounded-md whitespace-nowrap",
+                    requiresAccess && !hasAccess
+                      ? "text-gray-400 bg-gray-50 opacity-60 cursor-not-allowed"
+                      : "text-muted-foreground opacity-50 cursor-not-allowed"
+                  )}
+                  title={requiresAccess && !hasAccess ? "No tienes acceso a esta sección" : "Funcionalidad no disponible"}
                 >
                   {item.label}
                 </span>

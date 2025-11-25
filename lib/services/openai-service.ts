@@ -16,25 +16,51 @@ interface OpenAIResponse {
 }
 
 export class OpenAIService {
-  private db = getInternalFirestore()
-  private configCollection = this.db.collection('config')
+  private get db() {
+    return getInternalFirestore()
+  }
+  
+  private get configCollection() {
+    return this.db.collection('config')
+  }
 
   /**
    * Obtiene la API key de OpenAI desde Firestore
    */
   private async getApiKey(): Promise<string> {
-    const doc = await this.configCollection.doc('openai').get()
-    
-    if (!doc.exists) {
-      throw new Error('OpenAI API key no está configurada. Ve a Settings para configurarla.')
-    }
+    try {
+      const doc = await this.configCollection.doc('openai').get()
+      
+      console.log('[OpenAI Service] Verificando documento openai:', {
+        exists: doc.exists,
+        hasData: !!doc.data(),
+      })
+      
+      if (!doc.exists) {
+        console.error('[OpenAI Service] Documento openai no existe en Firestore')
+        throw new Error('OpenAI API key no está configurada. Ve a Settings para configurarla.')
+      }
 
-    const data = doc.data()
-    if (!data?.apiKey) {
-      throw new Error('OpenAI API key no está configurada. Ve a Settings para configurarla.')
-    }
+      const data = doc.data()
+      console.log('[OpenAI Service] Datos del documento:', {
+        hasApiKey: !!data?.apiKey,
+        apiKeyLength: data?.apiKey?.length || 0,
+        keys: Object.keys(data || {}),
+      })
+      
+      if (!data?.apiKey) {
+        console.error('[OpenAI Service] Documento existe pero no tiene apiKey')
+        throw new Error('OpenAI API key no está configurada. Ve a Settings para configurarla.')
+      }
 
-    return data.apiKey
+      return data.apiKey
+    } catch (error: any) {
+      console.error('[OpenAI Service] Error obteniendo API key:', {
+        message: error.message,
+        stack: error.stack,
+      })
+      throw error
+    }
   }
 
   /**
@@ -429,428 +455,6 @@ IMPORTANTE:
   }
 
   /**
-   * Genera una descripción detallada del proyecto desde una cotización
-   */
-  async generateProjectDescription(data: {
-    titulo: string
-    tipoProyecto: string
-    descripcionAlcance: string
-    funcionalidades: Array<{ nombre: string; descripcion: string; prioridad?: string }>
-    pantallas: Array<{ nombre: string; descripcion: string }>
-    cliente: string
-  }): Promise<string> {
-    const apiKey = await this.getApiKey()
-
-    const funcionalidadesText = data.funcionalidades
-      .map(f => `- ${f.nombre}: ${f.descripcion}${f.prioridad ? ` (Prioridad: ${f.prioridad})` : ''}`)
-      .join('\n')
-
-    const pantallasText = data.pantallas
-      .map(p => `- ${p.nombre}: ${p.descripcion}`)
-      .join('\n')
-
-    const prompt = `Eres un experto en gestión de proyectos de software. Genera una descripción profesional y detallada del proyecto basándote en la siguiente información:
-
-Título del Proyecto: ${data.titulo}
-Tipo de Proyecto: ${data.tipoProyecto}
-Cliente: ${data.cliente}
-
-Descripción del Alcance:
-${data.descripcionAlcance || 'No especificada'}
-
-Funcionalidades Principales:
-${funcionalidadesText || 'No especificadas'}
-
-Pantallas/Interfaces:
-${pantallasText || 'No especificadas'}
-
-Genera una descripción profesional de 3-5 párrafos que:
-1. Presente el proyecto de manera clara y profesional
-2. Explique el propósito y objetivos del proyecto
-3. Mencione las funcionalidades principales
-4. Describa el alcance general
-5. Sea adecuada para documentación de proyecto
-
-Responde SOLO con la descripción, sin títulos ni encabezados adicionales.`
-
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'Eres un experto en redacción de documentación de proyectos de software. Genera descripciones profesionales y claras.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 800,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`)
-      }
-
-      const result: OpenAIResponse = await response.json()
-      const description = result.choices[0]?.message?.content?.trim() || data.descripcionAlcance || 'Proyecto de desarrollo de software.'
-
-      return description
-    } catch (error: any) {
-      console.error('[OpenAI Service] Error generando descripción del proyecto:', error)
-      return data.descripcionAlcance || `${data.titulo} es un proyecto de tipo ${data.tipoProyecto} para ${data.cliente}.`
-    }
-  }
-
-  /**
-   * Genera features desde las funcionalidades de una cotización
-   */
-  async generateFeaturesFromCotizacion(data: {
-    projectName: string
-    funcionalidades: Array<{ nombre: string; descripcion: string; prioridad?: "Alta" | "Media" | "Baja" }>
-    pantallas: Array<{ nombre: string; descripcion: string }>
-    horasTotales: number
-  }): Promise<Array<{
-    epicTitle: string
-    title: string
-    description: string
-    criteriosAceptacion?: string
-    tipo: 'Funcionalidad' | 'QA' | 'Bug'
-    categoria: 'Funcionalidad' | 'QA' | 'Bugs Generales' | 'Otra'
-    status: 'backlog' | 'todo' | 'in-progress' | 'review' | 'done' | 'completed'
-    priority: 'high' | 'medium' | 'low'
-    estimatedHours: number
-    storyPoints?: number
-  }>> {
-    const apiKey = await this.getApiKey()
-
-    const funcionalidadesText = data.funcionalidades
-      .map((f, i) => `${i + 1}. ${f.nombre}: ${f.descripcion} (Prioridad: ${f.prioridad || 'Media'})`)
-      .join('\n')
-
-    const horasPorFeature = Math.ceil(data.horasTotales / Math.max(data.funcionalidades.length, 1))
-
-    const prompt = `Eres un experto en gestión de proyectos de software. Convierte las siguientes funcionalidades de una cotización en features técnicas detalladas para un proyecto.
-
-Proyecto: ${data.projectName}
-Total de horas estimadas: ${data.horasTotales}h
-Horas promedio por feature: ~${horasPorFeature}h
-
-Funcionalidades:
-${funcionalidadesText}
-
-Pantallas/Interfaces:
-${data.pantallas.map(p => `- ${p.nombre}: ${p.descripcion}`).join('\n') || 'No especificadas'}
-
-Para cada funcionalidad, genera una feature con:
-1. Epic Title: Agrupa funcionalidades relacionadas en epics (máximo 3-4 epics)
-2. Title: Nombre claro y técnico de la feature
-3. Description: Descripción detallada de lo que debe hacer la feature
-4. Criterios de Aceptación: Lista de criterios claros y medibles (3-5 puntos)
-5. Tipo: "Funcionalidad" (siempre para estas)
-6. Categoria: "Funcionalidad" (siempre para estas)
-7. Status: "backlog" (todas empiezan aquí)
-8. Priority: "high" si la prioridad original es "Alta", "medium" si es "Media", "low" si es "Baja"
-9. Estimated Hours: Distribuye las horas totales de forma proporcional según la complejidad
-10. Story Points: Estima story points (1-13) basado en la complejidad
-
-IMPORTANTE:
-- Distribuye las ${data.horasTotales}h entre todas las features de forma proporcional
-- Las features más complejas deben tener más horas
-- Responde SOLO con un JSON válido en este formato exacto:
-{
-  "features": [
-    {
-      "epicTitle": "Nombre del Epic",
-      "title": "Nombre de la Feature",
-      "description": "Descripción detallada",
-      "criteriosAceptacion": "1. Criterio 1\n2. Criterio 2\n3. Criterio 3",
-      "tipo": "Funcionalidad",
-      "categoria": "Funcionalidad",
-      "status": "backlog",
-      "priority": "high|medium|low",
-      "estimatedHours": 8,
-      "storyPoints": 5
-    }
-  ]
-}`
-
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'Eres un experto en gestión de proyectos de software. Responde SOLO con JSON válido, sin texto adicional.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.5,
-          max_tokens: 4000,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`)
-      }
-
-      const responseData: OpenAIResponse = await response.json()
-      const content = responseData.choices[0]?.message?.content?.trim() || ''
-
-      // Parsear JSON de la respuesta
-      let parsed: { features: any[] }
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0])
-        } else {
-          throw new Error('No se encontró JSON en la respuesta')
-        }
-      } catch (parseError) {
-        console.error('[OpenAI Service] Error parseando JSON de features:', parseError)
-        // Si falla el parsing, crear features básicas desde las funcionalidades
-        return data.funcionalidades.map((func, index) => {
-          const horas = Math.ceil(data.horasTotales / data.funcionalidades.length)
-          return {
-            epicTitle: 'Funcionalidades Principales',
-            title: func.nombre,
-            description: func.descripcion,
-            criteriosAceptacion: `1. La funcionalidad debe cumplir con: ${func.descripcion}\n2. Debe estar completamente implementada y probada\n3. Debe cumplir con los estándares de calidad del proyecto`,
-            tipo: 'Funcionalidad' as const,
-            categoria: 'Funcionalidad' as const,
-            status: 'backlog' as const,
-            priority: (func.prioridad === 'Alta' ? 'high' : func.prioridad === 'Baja' ? 'low' : 'medium') as 'high' | 'medium' | 'low',
-            estimatedHours: horas,
-            storyPoints: horas <= 8 ? 3 : horas <= 16 ? 5 : 8,
-          }
-        })
-      }
-
-      // Validar y ajustar las features generadas
-      const features = parsed.features.map((f, index) => {
-        const horas = f.estimatedHours || Math.ceil(data.horasTotales / parsed.features.length)
-        
-        return {
-          epicTitle: f.epicTitle || 'Funcionalidades Principales',
-          title: f.title || `Feature ${index + 1}`,
-          description: f.description || '',
-          criteriosAceptacion: f.criteriosAceptacion || `1. Implementar ${f.title}\n2. Probar funcionalidad\n3. Documentar`,
-          tipo: (f.tipo === 'Funcionalidad' || f.tipo === 'QA' || f.tipo === 'Bug') ? f.tipo : 'Funcionalidad' as const,
-          categoria: (f.categoria === 'Funcionalidad' || f.categoria === 'QA' || f.categoria === 'Bugs Generales' || f.categoria === 'Otra') ? f.categoria : 'Funcionalidad' as const,
-          status: 'backlog' as const,
-          priority: (f.priority === 'high' || f.priority === 'medium' || f.priority === 'low') ? f.priority : 'medium' as const,
-          estimatedHours: horas,
-          storyPoints: f.storyPoints || (horas <= 8 ? 3 : horas <= 16 ? 5 : 8),
-        }
-      })
-
-      return features
-    } catch (error: any) {
-      console.error('[OpenAI Service] Error generando features:', error)
-      // Si falla, crear features básicas desde las funcionalidades
-      return data.funcionalidades.map((func, index) => {
-        const horas = Math.ceil(data.horasTotales / data.funcionalidades.length)
-        return {
-          epicTitle: 'Funcionalidades Principales',
-          title: func.nombre,
-          description: func.descripcion,
-          criteriosAceptacion: `1. La funcionalidad debe cumplir con: ${func.descripcion}\n2. Debe estar completamente implementada y probada\n3. Debe cumplir con los estándares de calidad del proyecto`,
-          tipo: 'Funcionalidad' as const,
-          categoria: 'Funcionalidad' as const,
-          status: 'backlog' as const,
-          priority: (func.prioridad === 'Alta' ? 'high' : func.prioridad === 'Baja' ? 'low' : 'medium') as 'high' | 'medium' | 'low',
-          estimatedHours: horas,
-          storyPoints: horas <= 8 ? 3 : horas <= 16 ? 5 : 8,
-        }
-      })
-    }
-  }
-
-  /**
-   * Extrae información de una cotización desde el contenido de un documento
-   */
-  async extractCotizacionFromDocument(documentContent: string): Promise<{
-    titulo: string
-    cliente: string
-    clienteId?: string
-    tipoProyecto: string
-    descripcion: string
-    funcionalidades: Array<{ nombre: string; descripcion: string; prioridad?: "Alta" | "Media" | "Baja" }>
-    pantallas: Array<{ nombre: string; descripcion: string }>
-    presupuesto: number
-    horasTotales: number
-    meses: number
-  }> {
-    const apiKey = await this.getApiKey()
-
-    const prompt = `Eres un experto en análisis de documentos de cotización de proyectos de software. Extrae la siguiente información del documento proporcionado:
-
-INFORMACIÓN A EXTRAER:
-1. Título del Proyecto
-2. Nombre del Cliente
-3. Tipo de Proyecto (Dashboard, CRM, E-commerce, App Móvil, Website, Personalizado)
-4. Descripción del alcance/proyecto
-5. Lista de funcionalidades con sus descripciones y prioridades (si están mencionadas)
-6. Lista de pantallas/interfaces (si están mencionadas)
-7. Presupuesto total (en cualquier moneda, convertir a número)
-8. Horas totales estimadas
-9. Duración en meses
-
-DOCUMENTO:
-${documentContent.substring(0, 15000)} ${documentContent.length > 15000 ? '...[documento truncado]' : ''}
-
-Responde SOLO con un JSON válido en este formato exacto:
-{
-  "titulo": "Nombre del proyecto",
-  "cliente": "Nombre del cliente",
-  "tipoProyecto": "Dashboard|CRM|E-commerce|App Móvil|Website|Personalizado",
-  "descripcion": "Descripción completa del alcance",
-  "funcionalidades": [
-    {
-      "nombre": "Nombre de la funcionalidad",
-      "descripcion": "Descripción detallada",
-      "prioridad": "Alta|Media|Baja" (opcional, usar "Media" si no se especifica)
-    }
-  ],
-  "pantallas": [
-    {
-      "nombre": "Nombre de la pantalla",
-      "descripcion": "Descripción"
-    }
-  ],
-  "presupuesto": 0 (número, 0 si no se encuentra),
-  "horasTotales": 0 (número, 0 si no se encuentra),
-  "meses": 6 (número, 6 por defecto si no se encuentra)
-}
-
-IMPORTANTE:
-- Si no encuentras alguna información, usa valores por defecto razonables
-- Extrae TODAS las funcionalidades mencionadas en el documento
-- Si hay secciones como "Alcance", "Funcionalidades", "Requisitos", extrae la información de ahí
-- Para el presupuesto, busca números grandes que puedan ser costos (ignora números pequeños como IDs)
-- Para horas, busca números seguidos de "h", "horas", "hours"`
-
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'Eres un experto en análisis de documentos de cotización. Extrae información estructurada de manera precisa. Responde SOLO con JSON válido, sin texto adicional.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 4000,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`)
-      }
-
-      const responseData: OpenAIResponse = await response.json()
-      const content = responseData.choices[0]?.message?.content?.trim() || ''
-
-      // Parsear JSON de la respuesta
-      let parsed: any
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0])
-        } else {
-          throw new Error('No se encontró JSON en la respuesta')
-        }
-      } catch (parseError) {
-        console.error('[OpenAI Service] Error parseando JSON de documento:', parseError)
-        // Valores por defecto si falla el parsing
-        return {
-          titulo: 'Proyecto Generado',
-          cliente: 'Cliente',
-          tipoProyecto: 'Personalizado',
-          descripcion: documentContent.substring(0, 500),
-          funcionalidades: [],
-          pantallas: [],
-          presupuesto: 0,
-          horasTotales: 0,
-          meses: 6,
-        }
-      }
-
-      // Validar y normalizar los datos extraídos
-      return {
-        titulo: parsed.titulo || 'Proyecto Generado',
-        cliente: parsed.cliente || 'Cliente',
-        clienteId: parsed.clienteId,
-        tipoProyecto: parsed.tipoProyecto || 'Personalizado',
-        descripcion: parsed.descripcion || documentContent.substring(0, 500),
-        funcionalidades: Array.isArray(parsed.funcionalidades) 
-          ? parsed.funcionalidades.map((f: any) => ({
-              nombre: f.nombre || 'Funcionalidad',
-              descripcion: f.descripcion || '',
-              prioridad: (f.prioridad === 'Alta' || f.prioridad === 'Media' || f.prioridad === 'Baja') 
-                ? f.prioridad 
-                : 'Media' as "Alta" | "Media" | "Baja",
-            }))
-          : [],
-        pantallas: Array.isArray(parsed.pantallas)
-          ? parsed.pantallas.map((p: any) => ({
-              nombre: p.nombre || 'Pantalla',
-              descripcion: p.descripcion || '',
-            }))
-          : [],
-        presupuesto: typeof parsed.presupuesto === 'number' ? parsed.presupuesto : 0,
-        horasTotales: typeof parsed.horasTotales === 'number' ? parsed.horasTotales : 0,
-        meses: typeof parsed.meses === 'number' ? parsed.meses : 6,
-      }
-    } catch (error: any) {
-      console.error('[OpenAI Service] Error extrayendo información del documento:', error)
-      // Valores por defecto si falla
-      return {
-        titulo: 'Proyecto Generado',
-        cliente: 'Cliente',
-        tipoProyecto: 'Personalizado',
-        descripcion: documentContent.substring(0, 500),
-        funcionalidades: [],
-        pantallas: [],
-        presupuesto: 0,
-        horasTotales: 0,
-        meses: 6,
-      }
-    }
-  }
-
-  /**
    * Genera un reporte de status semanal usando IA
    */
   async generateStatusReport(data: {
@@ -1152,6 +756,343 @@ The report must use bullets for all lists. Format example:
     } catch (error: any) {
       console.error('[OpenAI Service] Error generando status report:', error)
       throw new Error(`Error al generar reporte de status: ${error.message}`)
+    }
+  }
+
+  /**
+   * Genera funcionalidades desde un transcript de reunión usando IA
+   */
+  async generateFeaturesFromTranscript(transcript: string): Promise<Array<{
+    epicTitle: string
+    title: string
+    description: string
+    criteriosAceptacion?: string
+    comentarios?: string
+    tipo: 'Funcionalidad' | 'QA' | 'Bug'
+    categoria: 'Funcionalidad' | 'QA' | 'Bugs Generales' | 'Otra'
+    status: 'backlog' | 'todo' | 'in-progress' | 'review' | 'done' | 'completed'
+    priority: 'high' | 'medium' | 'low'
+    estimatedHours: number
+    storyPoints?: number
+  }>> {
+    const apiKey = await this.getApiKey()
+
+    // Truncar transcript a 80,000 caracteres para respetar límites de tokens
+    const transcriptToProcess = transcript.length > 80000 
+      ? transcript.substring(0, 80000) + '... [transcript truncado]'
+      : transcript
+
+    const prompt = `Eres un experto en análisis de reuniones con clientes y gestión de proyectos de software. Analiza el siguiente transcript de una reunión y extrae todas las funcionalidades, requisitos y características mencionadas.
+
+TRANSCRIPT:
+${transcriptToProcess}
+
+Para cada funcionalidad, requisito o característica mencionada en el transcript, genera una feature con la siguiente estructura:
+
+1. Epic Title: Agrupa funcionalidades relacionadas en epics lógicos (máximo 4-5 epics). Usa nombres descriptivos como "Sistema de Autenticación", "Dashboard de Analytics", "Gestión de Usuarios", etc.
+
+2. Title: Nombre claro y técnico de la funcionalidad basado en lo mencionado en el transcript
+
+3. Description: Descripción detallada de lo que debe hacer la funcionalidad, incluyendo contexto de la conversación cuando sea relevante
+
+4. Criterios de Aceptación: Lista de criterios claros y medibles (3-5 puntos) basados en los requisitos mencionados
+
+5. Tipo: "Funcionalidad" (la mayoría), "QA" solo si se menciona explícitamente testing, o "Bug" solo si se menciona un error específico
+
+6. Categoria: "Funcionalidad" (la mayoría), "QA" solo si es explícitamente de testing, "Bugs Generales" solo si es un bug, "Otra" solo si no encaja en las anteriores
+
+7. Status: "backlog" (todas empiezan aquí)
+
+8. Priority: 
+   - "high" si se menciona como urgente, crítica, importante, prioritaria
+   - "low" si se menciona como opcional, nice-to-have, futuro
+   - "medium" para todo lo demás
+
+9. Estimated Hours: Estima horas de desarrollo basándote en la complejidad mencionada (mínimo 1h, máximo 40h, usar decimales como 2.5, 8.0)
+
+10. Story Points: Estima story points (1-13) basado en la complejidad
+
+IMPORTANTE:
+- Extrae TODAS las funcionalidades mencionadas, no solo las principales
+- Si se menciona algo como "necesitamos que...", "debería tener...", "sería bueno que...", "requerimos...", conviértelo en una feature
+- Agrupa funcionalidades relacionadas en el mismo epic
+- Si no hay suficiente información para estimar horas, usa valores conservadores (2-4 horas)
+- Responde SOLO con un JSON válido en este formato exacto:
+{
+  "features": [
+    {
+      "epicTitle": "Nombre del Epic",
+      "title": "Nombre de la Feature",
+      "description": "Descripción detallada",
+      "criteriosAceptacion": "1. Criterio 1\n2. Criterio 2\n3. Criterio 3",
+      "comentarios": "Notas adicionales si las hay",
+      "tipo": "Funcionalidad",
+      "categoria": "Funcionalidad",
+      "status": "backlog",
+      "priority": "high|medium|low",
+      "estimatedHours": 8.0,
+      "storyPoints": 5
+    }
+  ]
+}`
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un experto en análisis de reuniones con clientes y gestión de proyectos de software. Responde SOLO con JSON válido, sin texto adicional.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.5,
+          max_tokens: 8000,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Error desconocido' }))
+        throw new Error(`OpenAI API error: ${error.error?.message || 'Error desconocido'}`)
+      }
+
+      const data: OpenAIResponse = await response.json()
+      const content = data.choices[0]?.message?.content
+
+      if (!content) {
+        throw new Error('No se recibió respuesta de OpenAI')
+      }
+
+      console.log('[OpenAI Service] Respuesta recibida de OpenAI (primeros 1000 caracteres):', content.substring(0, 1000))
+
+      // Limpiar el contenido: remover markdown code blocks si existen
+      let cleanedContent = content.trim()
+      
+      // Remover ```json o ``` al inicio/final si existen
+      cleanedContent = cleanedContent.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '')
+      
+      // Buscar JSON en el contenido
+      let jsonMatch = cleanedContent.match(/\{[\s\S]*\}/)
+      
+      // Si no encuentra con el patrón simple, intentar buscar desde la primera llave
+      if (!jsonMatch) {
+        const firstBrace = cleanedContent.indexOf('{')
+        if (firstBrace !== -1) {
+          const lastBrace = cleanedContent.lastIndexOf('}')
+          if (lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonMatch = [cleanedContent.substring(firstBrace, lastBrace + 1)]
+          }
+        }
+      }
+
+      if (!jsonMatch) {
+        console.error('[OpenAI Service] Respuesta sin JSON válido. Contenido completo:', content)
+        throw new Error('Respuesta de OpenAI no contiene JSON válido. La respuesta fue: ' + content.substring(0, 200))
+      }
+
+      let parsed
+      try {
+        const jsonString = jsonMatch[0]
+        console.log('[OpenAI Service] Intentando parsear JSON (primeros 500 caracteres):', jsonString.substring(0, 500))
+        parsed = JSON.parse(jsonString)
+      } catch (parseError: any) {
+        console.error('[OpenAI Service] Error parseando JSON:', {
+          error: parseError.message,
+          jsonPreview: jsonMatch[0].substring(0, 1000),
+          fullContent: content,
+        })
+        throw new Error(`Error al parsear la respuesta JSON de OpenAI: ${parseError.message}. Respuesta recibida: ${content.substring(0, 300)}`)
+      }
+
+      const features = parsed.features || []
+
+      if (!Array.isArray(features) || features.length === 0) {
+        console.error('[OpenAI Service] No se generaron features. Respuesta:', parsed)
+        throw new Error('No se generaron funcionalidades. Intenta con un transcript más detallado.')
+      }
+
+      // Validar y formatear features
+      return features.map((f: any) => ({
+        epicTitle: f.epicTitle || 'Sin Epic',
+        title: f.title || 'Sin título',
+        description: f.description || '',
+        criteriosAceptacion: f.criteriosAceptacion || '',
+        comentarios: f.comentarios || '',
+        tipo: ['Funcionalidad', 'QA', 'Bug'].includes(f.tipo) ? f.tipo : 'Funcionalidad',
+        categoria: ['Funcionalidad', 'QA', 'Bugs Generales', 'Otra'].includes(f.categoria) ? f.categoria : 'Funcionalidad',
+        status: 'backlog' as const,
+        priority: ['high', 'medium', 'low'].includes(f.priority) ? f.priority : 'medium',
+        estimatedHours: Math.max(1, Math.min(40, parseFloat(f.estimatedHours) || 2)),
+        storyPoints: Math.max(1, Math.min(13, parseInt(f.storyPoints) || 3)),
+      }))
+    } catch (error: any) {
+      console.error('[OpenAI Service] Error generando features desde transcript:', error)
+      throw new Error(`Error al generar funcionalidades: ${error.message}`)
+    }
+  }
+
+  /**
+   * Detecta funcionalidades duplicadas comparando nuevas features con existentes usando IA
+   */
+  async detectDuplicateFeatures(
+    newFeatures: Array<{ title: string; description: string; epicTitle: string }>,
+    existingFeatures: Array<{ title: string; description: string; epicTitle: string }>
+  ): Promise<Array<{
+    isPossibleDuplicate: boolean
+    duplicateOf: string | null
+    similarityScore: number
+  }>> {
+    const apiKey = await this.getApiKey()
+
+    // Si no hay features existentes, retornar que ninguna es duplicado
+    if (existingFeatures.length === 0) {
+      return newFeatures.map(() => ({
+        isPossibleDuplicate: false,
+        duplicateOf: null,
+        similarityScore: 0,
+      }))
+    }
+
+    const prompt = `Eres un experto en análisis de funcionalidades de software. Compara las siguientes funcionalidades NUEVAS con las funcionalidades EXISTENTES y determina si alguna nueva es similar o duplicada de alguna existente.
+
+FUNCIONALIDADES NUEVAS:
+${JSON.stringify(newFeatures.map((f, i) => ({
+  index: i,
+  epicTitle: f.epicTitle,
+  title: f.title,
+  description: f.description,
+})), null, 2)}
+
+FUNCIONALIDADES EXISTENTES:
+${JSON.stringify(existingFeatures.map((f, i) => ({
+  index: i,
+  epicTitle: f.epicTitle,
+  title: f.title,
+  description: f.description,
+})), null, 2)}
+
+Para cada funcionalidad NUEVA, determina:
+1. Si es similar o duplicada de alguna EXISTENTE (considera el título, descripción y epic)
+2. Si es similar, indica el título de la funcionalidad existente más similar
+3. Un score de similitud entre 0.0 y 1.0 (donde 1.0 es idéntica)
+
+IMPORTANTE:
+- Dos funcionalidades son similares si tienen el mismo propósito o funcionalidad, aunque usen palabras diferentes
+- Considera variaciones en el nombre pero mismo objetivo
+- Si una nueva feature es parte de o está relacionada con una existente, también es similar
+- Responde SOLO con un JSON válido en este formato exacto:
+{
+  "comparisons": [
+    {
+      "newFeatureIndex": 0,
+      "isPossibleDuplicate": true,
+      "duplicateOf": "Título de la feature existente más similar",
+      "similarityScore": 0.85
+    }
+  ]
+}`
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un experto en análisis de funcionalidades de software. Responde SOLO con JSON válido, sin texto adicional.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 4000,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Error desconocido' }))
+        throw new Error(`OpenAI API error: ${error.error?.message || 'Error desconocido'}`)
+      }
+
+      const data: OpenAIResponse = await response.json()
+      const content = data.choices[0]?.message?.content
+
+      if (!content) {
+        throw new Error('No se recibió respuesta de OpenAI')
+      }
+
+      // Parsear JSON de la respuesta
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        console.warn('[OpenAI Service] Respuesta sin JSON válido para detección de duplicados, asumiendo que no hay duplicados')
+        return newFeatures.map(() => ({
+          isPossibleDuplicate: false,
+          duplicateOf: null,
+          similarityScore: 0,
+        }))
+      }
+
+      let parsed
+      try {
+        parsed = JSON.parse(jsonMatch[0])
+      } catch (parseError) {
+        console.warn('[OpenAI Service] Error parseando JSON de duplicados, asumiendo que no hay duplicados')
+        return newFeatures.map(() => ({
+          isPossibleDuplicate: false,
+          duplicateOf: null,
+          similarityScore: 0,
+        }))
+      }
+
+      const comparisons = parsed.comparisons || []
+      
+      // Crear un mapa de índices a resultados
+      const resultMap = new Map<number, { isPossibleDuplicate: boolean; duplicateOf: string | null; similarityScore: number }>()
+      
+      comparisons.forEach((comp: any) => {
+        const index = comp.newFeatureIndex
+        if (typeof index === 'number' && index >= 0 && index < newFeatures.length) {
+          resultMap.set(index, {
+            isPossibleDuplicate: comp.isPossibleDuplicate === true,
+            duplicateOf: comp.duplicateOf || null,
+            similarityScore: Math.max(0, Math.min(1, parseFloat(comp.similarityScore) || 0)),
+          })
+        }
+      })
+
+      // Retornar resultados en el mismo orden que las nuevas features
+      return newFeatures.map((_, index) => {
+        const result = resultMap.get(index)
+        return result || {
+          isPossibleDuplicate: false,
+          duplicateOf: null,
+          similarityScore: 0,
+        }
+      })
+    } catch (error: any) {
+      console.error('[OpenAI Service] Error detectando duplicados:', error)
+      // En caso de error, retornar que no hay duplicados para no bloquear el flujo
+      return newFeatures.map(() => ({
+        isPossibleDuplicate: false,
+        duplicateOf: null,
+        similarityScore: 0,
+      }))
     }
   }
 }

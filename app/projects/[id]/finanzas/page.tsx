@@ -10,14 +10,35 @@ import { getFacturas, getEgresos } from "@/lib/api/finanzas-api"
 import { useEffect, useState } from "react"
 import type { Project } from "@/lib/mock-data/projects"
 import type { Factura, Egreso } from "@/lib/mock-data/finanzas"
+import { useUser } from "@/hooks/use-user"
+import { useRouter } from "next/navigation"
+
+// Usuarios autorizados para acceder a Finanzas
+const FINANZAS_AUTHORIZED_EMAILS = [
+  'arelyibarra@visionarieshub.com',
+  'gabypino@visionarieshub.com'
+]
+
+const hasFinanzasAccess = (userEmail: string | undefined): boolean => {
+  if (!userEmail) return false
+  return FINANZAS_AUTHORIZED_EMAILS.includes(userEmail.toLowerCase())
+}
 
 export default function ProjectFinancePage({ params }: { params: { id: string } }) {
+  const { user } = useUser()
+  const router = useRouter()
   const [project, setProject] = useState<Project | null>(null)
   const [facturas, setFacturas] = useState<Factura[]>([])
   const [egresos, setEgresos] = useState<Egreso[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Verificar acceso antes de cargar datos
+    if (user && !hasFinanzasAccess(user.email)) {
+      router.push(`/projects/${params.id}`)
+      return
+    }
+
     async function loadData() {
       try {
         const [projectData, facturasData, egresosData] = await Promise.all([
@@ -34,8 +55,58 @@ export default function ProjectFinancePage({ params }: { params: { id: string } 
         setLoading(false)
       }
     }
-    loadData()
-  }, [params.id])
+    
+    if (user) {
+      loadData()
+    }
+  }, [params.id, user, router])
+
+  // Mostrar loading mientras se verifica el usuario
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4514F9] mx-auto mb-4"></div>
+          <p className="text-sm text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Verificar acceso
+  if (!hasFinanzasAccess(user.email)) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md p-8">
+          <div className="mb-4">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Denegado</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            No tienes permiso para acceder a la sección de Finanzas. Esta sección está restringida a usuarios autorizados.
+          </p>
+          <Button
+            onClick={() => router.push(`/projects/${params.id}`)}
+            className="bg-[#4514F9] hover:bg-[#3810C7]"
+          >
+            Volver al proyecto
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   if (loading || !project) {
     return <div>Cargando datos del proyecto...</div>

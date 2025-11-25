@@ -195,13 +195,40 @@ export function CalendarSync({ projectId }: { projectId: string }) {
         return
       }
 
-      // Formatear fecha y hora
+      // Formatear fecha y hora correctamente para evitar problemas de timezone
+      // eventDate viene en formato "YYYY-MM-DD" (hora local)
       const [hours, minutes] = eventTime.split(":")
-      const startDateTime = new Date(eventDate)
-      startDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0)
+      const [year, month, day] = eventDate.split("-").map(Number)
+      
+      // Crear fecha en hora local (no UTC) para evitar el desfase de un día
+      const startDateTime = new Date(year, month - 1, day, parseInt(hours, 10), parseInt(minutes, 10), 0, 0)
       
       const endDateTime = new Date(startDateTime)
       endDateTime.setHours(endDateTime.getHours() + 1) // Duración de 1 hora por defecto
+      
+      // Formatear fechas como strings en formato local para enviar al backend
+      // Esto preserva la hora local sin convertir a UTC
+      const formatLocalDateTime = (date: Date) => {
+        const y = date.getFullYear()
+        const m = String(date.getMonth() + 1).padStart(2, '0')
+        const d = String(date.getDate()).padStart(2, '0')
+        const h = String(date.getHours()).padStart(2, '0')
+        const min = String(date.getMinutes()).padStart(2, '0')
+        const s = String(date.getSeconds()).padStart(2, '0')
+        return `${y}-${m}-${d}T${h}:${min}:${s}`
+      }
+      
+      const startLocal = formatLocalDateTime(startDateTime)
+      const endLocal = formatLocalDateTime(endDateTime)
+      
+      console.log('[CalendarSync] Fechas creadas:', {
+        eventDate,
+        eventTime,
+        startLocal,
+        endLocal,
+        startISO: startDateTime.toISOString(),
+        endISO: endDateTime.toISOString(),
+      })
 
       // Parsear asistentes
       const attendees = eventAttendees
@@ -218,8 +245,8 @@ export function CalendarSync({ projectId }: { projectId: string }) {
         body: JSON.stringify({
           title: eventTitle,
           description: eventDescription,
-          start: startDateTime.toISOString(),
-          end: endDateTime.toISOString(),
+          start: startLocal, // Enviar como string local, no ISO (que convierte a UTC)
+          end: endLocal,
           attendees,
           location: eventLocation,
           type: eventType,

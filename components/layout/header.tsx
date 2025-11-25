@@ -60,6 +60,17 @@ const navigation = [
   },
 ]
 
+// Usuarios autorizados para acceder a Finanzas
+const FINANZAS_AUTHORIZED_EMAILS = [
+  'arelyibarra@visionarieshub.com',
+  'gabypino@visionarieshub.com'
+]
+
+const hasFinanzasAccess = (userEmail: string | undefined): boolean => {
+  if (!userEmail) return false
+  return FINANZAS_AUTHORIZED_EMAILS.includes(userEmail.toLowerCase())
+}
+
 export function Header() {
   const pathname = usePathname()
   const { user, logout } = useUser()
@@ -74,6 +85,8 @@ export function Header() {
       prev.includes(sectionName) ? prev.filter((name) => name !== sectionName) : [...prev, sectionName],
     )
   }
+
+  const canAccessFinanzas = hasFinanzasAccess(user?.email)
 
   return (
     <header className="sticky top-0 z-30 border-b bg-white shadow-sm">
@@ -97,21 +110,35 @@ export function Header() {
                   const isActive = pathname.startsWith(item.href)
                   const isExpanded = expandedSections.includes(item.name)
                   const hasSubmenu = item.submenu && item.submenu.length > 0
+                  const isFinanzas = item.name === "Finanzas"
+                  const hasAccess = !isFinanzas || canAccessFinanzas
 
                   return (
                     <div key={item.name} className="mb-2">
                       <div className="flex items-center gap-1">
-                        <Link
-                          href={item.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={cn(
-                            "flex-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                            isActive ? "bg-[#4514F9]/10 text-[#4514F9]" : "text-gray-700 hover:bg-gray-100",
-                          )}
-                        >
-                          {item.name}
-                        </Link>
-                        {hasSubmenu && (
+                        {hasAccess ? (
+                          <Link
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={cn(
+                              "flex-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                              isActive ? "bg-[#4514F9]/10 text-[#4514F9]" : "text-gray-700 hover:bg-gray-100",
+                            )}
+                          >
+                            {item.name}
+                          </Link>
+                        ) : (
+                          <div
+                            className={cn(
+                              "flex-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-not-allowed",
+                              "text-gray-400 bg-gray-50 opacity-60",
+                            )}
+                            title="No tienes acceso a esta sección"
+                          >
+                            {item.name}
+                          </div>
+                        )}
+                        {hasSubmenu && hasAccess && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -122,7 +149,7 @@ export function Header() {
                           </Button>
                         )}
                       </div>
-                      {hasSubmenu && isExpanded && (
+                      {hasSubmenu && isExpanded && hasAccess && (
                         <div className="ml-4 mt-1 space-y-1">
                           {item.submenu!.map((subitem) => (
                             <Link
@@ -162,23 +189,39 @@ export function Header() {
         <nav className="hidden lg:flex flex-1 items-center gap-1">
           {navigation.map((item) => {
             const isActive = pathname.startsWith(item.href)
+            const isFinanzas = item.name === "Finanzas"
+            const hasAccess = !isFinanzas || canAccessFinanzas
+
             return (
               <div key={item.name} className="group relative">
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-[#4514F9]/10 text-[#4514F9]"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-[#0E0734]",
-                  )}
-                >
-                  {item.name}
-                  {item.submenu && <ChevronDown className="h-4 w-4" />}
-                </Link>
+                {hasAccess ? (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-[#4514F9]/10 text-[#4514F9]"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-[#0E0734]",
+                    )}
+                  >
+                    {item.name}
+                    {item.submenu && <ChevronDown className="h-4 w-4" />}
+                  </Link>
+                ) : (
+                  <div
+                    className={cn(
+                      "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-not-allowed",
+                      "text-gray-400 bg-gray-50 opacity-60",
+                    )}
+                    title="No tienes acceso a esta sección"
+                  >
+                    {item.name}
+                    {item.submenu && <ChevronDown className="h-4 w-4" />}
+                  </div>
+                )}
 
                 {/* Submenu */}
-                {item.submenu && (
+                {item.submenu && hasAccess && (
                   <div className="invisible absolute left-0 top-full mt-1 w-48 rounded-lg border bg-white py-2 shadow-lg opacity-0 transition-all group-hover:visible group-hover:opacity-100 z-50">
                     {item.submenu.map((subitem) => (
                       <Link

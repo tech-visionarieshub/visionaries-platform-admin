@@ -19,6 +19,7 @@ import type { FeatureStatus, FeaturePriority } from "@/types/feature"
 import Link from "next/link"
 import { FeatureEditor } from "./feature-editor"
 import { FeatureFileUploader } from "./feature-file-uploader"
+import { TranscriptFeatureGenerator } from "./transcript-feature-generator"
 
 const statusConfig = {
   backlog: { label: "Backlog", color: "bg-gray-500" },
@@ -46,6 +47,7 @@ export function BacklogScrum() {
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set())
   const [showFeatureEditor, setShowFeatureEditor] = useState(false)
   const [showFileUploader, setShowFileUploader] = useState(false)
+  const [showTranscriptGenerator, setShowTranscriptGenerator] = useState(false)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [reEstimating, setReEstimating] = useState(false)
 
@@ -234,6 +236,14 @@ export function BacklogScrum() {
       newExpanded.add(epic)
     }
     setExpandedEpics(newExpanded)
+  }
+
+  const toggleAllEpics = () => {
+    if (expandedEpics.size === filteredEpics.length && filteredEpics.length > 0) {
+      setExpandedEpics(new Set())
+    } else {
+      setExpandedEpics(new Set(filteredEpics))
+    }
   }
 
   const handleMoveToQA = async (feature: Feature) => {
@@ -557,6 +567,25 @@ export function BacklogScrum() {
           <p className="text-xs text-muted-foreground">{filteredFeatures.length} funcionalidades</p>
         </div>
         <div className="flex items-center gap-2">
+          {filteredEpics.length > 0 && (
+            <Button 
+              variant="outline" 
+              className="h-8 text-xs"
+              onClick={toggleAllEpics}
+            >
+              {expandedEpics.size === filteredEpics.length ? (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                  Colapsar todos
+                </>
+              ) : (
+                <>
+                  <ChevronRight className="h-3.5 w-3.5 mr-1" />
+                  Expandir todos
+                </>
+              )}
+            </Button>
+          )}
           {selectedFeatures.size > 0 && (
             <>
               <Badge variant="secondary" className="text-xs">
@@ -599,6 +628,14 @@ export function BacklogScrum() {
             Subir CSV/Excel
           </Button>
           <Button 
+            variant="outline" 
+            className="h-8 text-xs"
+            onClick={() => setShowTranscriptGenerator(true)}
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+            Generar desde Transcript
+          </Button>
+          <Button 
             className="bg-[#4514F9] hover:bg-[#3810C7] h-8 text-xs"
             onClick={() => setShowFeatureEditor(true)}
           >
@@ -624,11 +661,13 @@ export function BacklogScrum() {
             </div>
           </div>
           <Select name="filterEpic" value={filterEpic} onValueChange={setFilterEpic}>
-            <SelectTrigger id="filterEpic" name="filterEpic" className="w-40 h-8 text-xs">
-              <SelectValue placeholder="Epic" />
+            <SelectTrigger id="filterEpic" name="filterEpic" className="w-48 h-8 text-xs">
+              <SelectValue placeholder="Epic">
+                {filterEpic === "all" ? "📋 Todos los Epics" : filterEpic}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los Epics</SelectItem>
+              <SelectItem value="all">📋 Todos los Epics</SelectItem>
               {epics.map(epic => (
                 <SelectItem key={epic} value={epic}>
                   {epic} ({featuresByEpic[epic]?.length || 0})
@@ -637,11 +676,13 @@ export function BacklogScrum() {
             </SelectContent>
           </Select>
           <Select name="filterStatus" value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger id="filterStatus" name="filterStatus" className="w-28 h-8 text-xs">
-              <SelectValue placeholder="Estado" />
+            <SelectTrigger id="filterStatus" name="filterStatus" className="w-44 h-8 text-xs">
+              <SelectValue placeholder="Estado">
+                {filterStatus === "all" ? "📊 Todos los Estados" : statusConfig[filterStatus as keyof typeof statusConfig]?.label || filterStatus}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">📊 Todos los Estados</SelectItem>
               <SelectItem value="backlog">Backlog</SelectItem>
               <SelectItem value="todo">To Do</SelectItem>
               <SelectItem value="in-progress">In Progress</SelectItem>
@@ -651,22 +692,26 @@ export function BacklogScrum() {
             </SelectContent>
           </Select>
           <Select name="filterPriority" value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger id="filterPriority" name="filterPriority" className="w-28 h-8 text-xs">
-              <SelectValue placeholder="Prioridad" />
+            <SelectTrigger id="filterPriority" name="filterPriority" className="w-44 h-8 text-xs">
+              <SelectValue placeholder="Prioridad">
+                {filterPriority === "all" ? "⚡ Todas las Prioridades" : filterPriority === "high" ? "Alta" : filterPriority === "medium" ? "Media" : "Baja"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="all">⚡ Todas las Prioridades</SelectItem>
               <SelectItem value="high">Alta</SelectItem>
               <SelectItem value="medium">Media</SelectItem>
               <SelectItem value="low">Baja</SelectItem>
             </SelectContent>
           </Select>
           <Select name="filterAssignee" value={filterAssignee} onValueChange={setFilterAssignee}>
-            <SelectTrigger id="filterAssignee" name="filterAssignee" className="w-32 h-8 text-xs">
-              <SelectValue placeholder="Responsable" />
+            <SelectTrigger id="filterAssignee" name="filterAssignee" className="w-48 h-8 text-xs">
+              <SelectValue placeholder="Responsable">
+                {filterAssignee === "all" ? "👤 Todos los Responsables" : filterAssignee}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">👤 Todos los Responsables</SelectItem>
               {assignees.map(assignee => (
                 <SelectItem key={assignee} value={assignee}>{assignee}</SelectItem>
               ))}
@@ -702,6 +747,26 @@ export function BacklogScrum() {
                     <Badge variant="secondary" className="text-xs">
                       {epicFeatures.length} funcionalidades
                     </Badge>
+                    {/* Resumen rápido cuando está colapsado */}
+                    {!expandedEpics.has(epic) && (
+                      <div className="flex items-center gap-2 ml-4 text-xs text-muted-foreground">
+                        <span>
+                          {epicFeatures.filter(f => f.status === 'in-progress').length} en progreso
+                        </span>
+                        <span>•</span>
+                        <span>
+                          {epicFeatures.filter(f => f.status === 'done' || f.status === 'completed').length} completadas
+                        </span>
+                        {epicFeatures.filter(f => f.status === 'backlog' || f.status === 'todo').length > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {epicFeatures.filter(f => f.status === 'backlog' || f.status === 'todo').length} pendientes
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1174,6 +1239,14 @@ export function BacklogScrum() {
         onOpenChange={setShowFileUploader}
         projectId={projectId}
         onUploadComplete={loadFeatures}
+      />
+
+      {/* Transcript Feature Generator */}
+      <TranscriptFeatureGenerator
+        open={showTranscriptGenerator}
+        onOpenChange={setShowTranscriptGenerator}
+        projectId={projectId}
+        onGenerateComplete={loadFeatures}
       />
     </div>
   )

@@ -165,17 +165,56 @@ export async function POST(
         );
       }
 
-      console.log('[Calendar API POST] Creando evento:', { title, start, end, location, attendees: attendees.length });
+      console.log('[Calendar API POST] Creando evento:', { 
+        title, 
+        start, 
+        end, 
+        location, 
+        attendees: attendees.length 
+      });
       
       // Crear evento en Google Calendar
-      // Asegurar que start y end tengan el formato correcto con timezone
-      const startObj = typeof start === 'string' 
-        ? { dateTime: start, timeZone: 'America/Mexico_City' }
-        : { ...start, timeZone: start.timeZone || 'America/Mexico_City' };
+      // Las fechas vienen en ISO string desde el frontend
+      // Necesitamos mantener la fecha/hora exacta pero especificar el timezone correcto
+      let startObj, endObj;
       
-      const endObj = typeof end === 'string'
-        ? { dateTime: end, timeZone: 'America/Mexico_City' }
-        : { ...end, timeZone: end.timeZone || 'America/Mexico_City' };
+      if (typeof start === 'string') {
+        // La fecha viene como ISO string, pero la interpretamos como hora local de México
+        // Convertir a formato RFC3339 sin 'Z' y especificar timezone
+        const startDate = new Date(start);
+        // Formatear como YYYY-MM-DDTHH:mm:ss (sin timezone indicator)
+        const year = startDate.getFullYear();
+        const month = String(startDate.getMonth() + 1).padStart(2, '0');
+        const day = String(startDate.getDate()).padStart(2, '0');
+        const hours = String(startDate.getHours()).padStart(2, '0');
+        const mins = String(startDate.getMinutes()).padStart(2, '0');
+        const secs = String(startDate.getSeconds()).padStart(2, '0');
+        const dateTimeStr = `${year}-${month}-${day}T${hours}:${mins}:${secs}`;
+        startObj = { dateTime: dateTimeStr, timeZone: 'America/Mexico_City' };
+      } else {
+        startObj = { ...start, timeZone: start.timeZone || 'America/Mexico_City' };
+      }
+      
+      if (typeof end === 'string') {
+        const endDate = new Date(end);
+        const year = endDate.getFullYear();
+        const month = String(endDate.getMonth() + 1).padStart(2, '0');
+        const day = String(endDate.getDate()).padStart(2, '0');
+        const hours = String(endDate.getHours()).padStart(2, '0');
+        const mins = String(endDate.getMinutes()).padStart(2, '0');
+        const secs = String(endDate.getSeconds()).padStart(2, '0');
+        const dateTimeStr = `${year}-${month}-${day}T${hours}:${mins}:${secs}`;
+        endObj = { dateTime: dateTimeStr, timeZone: 'America/Mexico_City' };
+      } else {
+        endObj = { ...end, timeZone: end.timeZone || 'America/Mexico_City' };
+      }
+      
+      console.log('[Calendar API POST] Fechas formateadas:', {
+        startOriginal: start,
+        startFormatted: startObj,
+        endOriginal: end,
+        endFormatted: endObj,
+      });
 
       const googleEvent = await googleCalendarService.createEvent({
         title,
