@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/api/middleware';
+import { withFinanzasAuth } from '@/lib/api/middleware';
 import { clientesRepository } from '@/lib/repositories/clientes-repository';
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withFinanzasAuth(request, async (user) => {
     try {
       const clientes = await clientesRepository.getAll();
       return NextResponse.json({ success: true, data: clientes });
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withFinanzasAuth(request, async (user) => {
     try {
       const body = await request.json();
       const { id, ...clienteData } = body;

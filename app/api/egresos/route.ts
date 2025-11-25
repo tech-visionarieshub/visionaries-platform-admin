@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/api/middleware';
+import { withFinanzasAuth } from '@/lib/api/middleware';
 import { egresosRepository } from '@/lib/repositories/egresos-repository';
 import type { Egreso } from '@/lib/mock-data/finanzas';
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withFinanzasAuth(request, async (user) => {
     try {
       const { searchParams } = new URL(request.url);
       const status = searchParams.get('status') as Egreso['status'] | null;
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async (user) => {
+  return withFinanzasAuth(request, async (user) => {
     try {
       const body = await request.json();
       const { id, ...egresoData } = body;

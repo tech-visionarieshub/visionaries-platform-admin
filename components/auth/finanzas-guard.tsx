@@ -20,9 +20,12 @@ export function FinanzasGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    if (user && !hasFinanzasAccess(user.email)) {
-      // Redirigir a la página principal si no tiene acceso
-      router.push('/')
+    // Si el usuario está cargado y no tiene acceso, redirigir inmediatamente
+    if (user) {
+      if (!hasFinanzasAccess(user.email)) {
+        console.log('[FinanzasGuard] Acceso denegado para:', user.email)
+        router.replace('/')
+      }
     }
   }, [user, router])
 
@@ -38,8 +41,11 @@ export function FinanzasGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Si no tiene acceso, mostrar mensaje de acceso denegado
-  if (!hasFinanzasAccess(user.email)) {
+  // Verificar acceso ANTES de renderizar cualquier contenido
+  // Esto previene condiciones de carrera
+  const hasAccess = hasFinanzasAccess(user.email)
+  
+  if (!hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center max-w-md p-8">
