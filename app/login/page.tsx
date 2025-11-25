@@ -77,7 +77,7 @@ export default function LoginPage() {
             </CardTitle>
             <CardDescription className="text-slate-400 mt-2 text-lg">
               Visionaries Tech
-            </CardDescription>
+          </CardDescription>
           </div>
         </CardHeader>
         
