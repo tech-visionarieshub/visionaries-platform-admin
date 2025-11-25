@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Search, Filter, Upload as UploadIcon, RefreshCw, CheckCircle2, XCircle, Clock, TestTube, Link as LinkIcon } from "lucide-react"
-import type { QATask, QATaskStatus } from "@/types/qa"
+import type { QATask, QATaskStatus, QATaskPriority } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
 import { QATaskEditor } from "./qa-task-editor"
 import { QAFileUploader } from "./qa-file-uploader"
@@ -24,6 +24,32 @@ const statusConfig: Record<QATaskStatus, { label: string; color: string; icon: t
   Cancelado: { label: "Cancelado", color: "bg-gray-100 text-gray-700", icon: XCircle },
 }
 
+const getPriorityColor = (priority?: QATaskPriority) => {
+  switch (priority) {
+    case "high":
+      return "bg-red-100 text-red-700 border-red-200"
+    case "medium":
+      return "bg-yellow-100 text-yellow-700 border-yellow-200"
+    case "low":
+      return "bg-green-100 text-green-700 border-green-200"
+    default:
+      return "bg-gray-100 text-gray-700 border-gray-200"
+  }
+}
+
+const getPriorityLabel = (priority?: QATaskPriority) => {
+  switch (priority) {
+    case "high":
+      return "Alta"
+    case "medium":
+      return "Media"
+    case "low":
+      return "Baja"
+    default:
+      return "Sin prioridad"
+  }
+}
+
 interface QASystemProps {
   projectId: string
 }
@@ -36,6 +62,7 @@ export function QASystem({ projectId }: QASystemProps) {
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [featureFilter, setFeatureFilter] = useState("all")
+  const [priorityFilter, setPriorityFilter] = useState("all")
   const [selectedTask, setSelectedTask] = useState<QATask | null>(null)
   const [uploaderOpen, setUploaderOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -97,7 +124,8 @@ export function QASystem({ projectId }: QASystemProps) {
       (featureFilter === "with-feature" && task.featureId) ||
       (featureFilter === "without-feature" && !task.featureId) ||
       (featureFilter !== "all" && featureFilter !== "with-feature" && featureFilter !== "without-feature" && task.featureId === featureFilter)
-    return matchesSearch && matchesStatus && matchesCategory && matchesFeature
+    const matchesPriority = priorityFilter === "all" || task.prioridad === priorityFilter
+    return matchesSearch && matchesStatus && matchesCategory && matchesFeature && matchesPriority
   })
 
   const metrics = (() => {
@@ -241,6 +269,18 @@ export function QASystem({ projectId }: QASystemProps) {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-40 h-9 text-sm">
+                <Filter className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Prioridad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las prioridades</SelectItem>
+                <SelectItem value="high">Alta</SelectItem>
+                <SelectItem value="medium">Media</SelectItem>
+                <SelectItem value="low">Baja</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               size="sm"
@@ -290,6 +330,11 @@ export function QASystem({ projectId }: QASystemProps) {
                           <Badge variant="outline" className="text-xs px-1.5 py-0">
                               {task.categoria}
                             </Badge>
+                            {task.prioridad && (
+                              <Badge variant="outline" className={`text-xs px-1.5 py-0 ${getPriorityColor(task.prioridad)}`}>
+                                {getPriorityLabel(task.prioridad)}
+                              </Badge>
+                            )}
                             {task.featureId && (
                               <Link href={`/projects/${projectId}/backlog`} onClick={(e) => e.stopPropagation()}>
                                 <Badge variant="secondary" className="text-xs px-1.5 py-0 cursor-pointer hover:bg-secondary/80">

@@ -20,6 +20,11 @@ export type QATaskType =
   | "QA"
   | "Bug"
 
+export type QATaskPriority = 
+  | "high"
+  | "medium"
+  | "low"
+
 export interface QAImage {
   url: string
   name: string
@@ -36,6 +41,7 @@ export interface QATask {
   comentarios: string
   imagenes: QAImage[]
   estado: QATaskStatus
+  prioridad?: QATaskPriority
   createdAt: Date
   updatedAt: Date
   createdBy: string

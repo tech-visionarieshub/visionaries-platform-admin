@@ -12,6 +12,7 @@ const updateTaskSchema = z.object({
   criterios_aceptacion: z.string().optional(),
   comentarios: z.string().optional(),
   estado: z.enum(['Pendiente', 'En Progreso', 'Completado', 'Bloqueado', 'Cancelado']).optional(),
+  prioridad: z.enum(['high', 'medium', 'low']).optional(),
   imagenes: z.array(z.object({
     url: z.string(),
     name: z.string(),
@@ -133,6 +134,24 @@ export async function PUT(
 
     const updateData: Partial<QATask> = { ...validatedData }
 
+    // Asegurar que el estado se incluya si está presente en el body
+    // Esto es importante porque el schema es opcional y podría no incluir el campo si no cambió
+    if (body.estado !== undefined && body.estado !== null) {
+      // Validar que el estado sea uno de los valores permitidos
+      const validStatuses = ['Pendiente', 'En Progreso', 'Completado', 'Bloqueado', 'Cancelado']
+      if (validStatuses.includes(body.estado)) {
+        updateData.estado = body.estado as QATask['estado']
+      }
+    }
+
+    console.log('[QA Task PUT] Actualizando tarea:', {
+      taskId,
+      updateData,
+      estadoFromBody: body.estado,
+      estadoInValidatedData: validatedData.estado,
+      estadoEnUpdateData: updateData.estado,
+    })
+
     if (updateData.imagenes) {
       updateData.imagenes = updateData.imagenes.map((img) => ({
         ...img,
@@ -141,6 +160,11 @@ export async function PUT(
     }
 
     const updatedTask = await qaTasksRepository.update(id, taskId, updateData)
+    
+    console.log('[QA Task PUT] Tarea actualizada:', {
+      taskId,
+      estadoGuardado: updatedTask.estado,
+    })
 
     return NextResponse.json({
       success: true,

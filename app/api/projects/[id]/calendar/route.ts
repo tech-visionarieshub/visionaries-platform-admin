@@ -43,24 +43,18 @@ export async function GET(
       // Obtener eventos sincronizados del proyecto
       const syncedEvents = await googleCalendarService.getSyncedEvents(projectId);
 
-      // Calcular rango de fechas: desde inicio del proyecto hasta 1 año en el futuro
-      let timeMin: string;
-      let timeMax: string;
+      // Calcular rango de fechas: desde 2 años atrás hasta 2 años en el futuro
+      // Esto asegura que se traigan todos los eventos relevantes
+      const now = new Date();
+      const twoYearsAgo = new Date(now);
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      const twoYearsFromNow = new Date(now);
+      twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
 
-      if (project.startDate) {
-        const startDate = new Date(project.startDate);
-        timeMin = startDate.toISOString();
-      } else {
-        // Si no hay fecha de inicio, usar fecha actual
-        timeMin = new Date().toISOString();
-      }
+      const timeMin = twoYearsAgo.toISOString();
+      const timeMax = twoYearsFromNow.toISOString();
 
-      // 1 año en el futuro desde hoy
-      const oneYearFromNow = new Date();
-      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-      timeMax = oneYearFromNow.toISOString();
-
-      // Obtener eventos de Google Calendar (desde inicio del proyecto hasta 1 año en el futuro)
+      // Obtener eventos de Google Calendar (desde 2 años atrás hasta 2 años en el futuro)
       // Aumentar maxResults para obtener más eventos
       console.log('[Calendar API] Obteniendo eventos desde:', timeMin, 'hasta:', timeMax);
       const googleEvents = await googleCalendarService.listEvents(timeMin, timeMax, 250);
@@ -91,11 +85,12 @@ export async function GET(
         );
       }
 
-      // Ordenar eventos del más reciente al más viejo (por fecha de inicio descendente)
+      // Ordenar eventos del más futuro al más pasado (por fecha de inicio descendente)
+      // Esto significa que los eventos futuros aparecen primero, luego los pasados
       events.sort((a, b) => {
         const dateA = new Date(a.start).getTime();
         const dateB = new Date(b.start).getTime();
-        return dateB - dateA; // Descendente: más reciente primero
+        return dateB - dateA; // Descendente: más futuro primero
       });
 
       return NextResponse.json({

@@ -18,6 +18,7 @@ const createTaskSchema = z.object({
   criterios_aceptacion: z.string().optional().default(''),
   comentarios: z.string().optional().default(''),
   estado: z.enum(['Pendiente', 'En Progreso', 'Completado', 'Bloqueado', 'Cancelado']).optional().default('Pendiente'),
+  prioridad: z.enum(['high', 'medium', 'low']).optional().default('medium'),
   imagenes: z.array(z.object({
     url: z.string(),
     name: z.string(),

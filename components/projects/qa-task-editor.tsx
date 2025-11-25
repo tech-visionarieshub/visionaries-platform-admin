@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Save, Sparkles, Upload, Download, Trash2, Image as ImageIcon, Link as LinkIcon, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import type { QATask, QATaskCategory, QATaskStatus, QATaskType, QAImage } from "@/types/qa"
+import type { QATask, QATaskCategory, QATaskStatus, QATaskType, QATaskPriority, QAImage } from "@/types/qa"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
 import { QAImageUploader } from "./qa-image-uploader"
 import { getFeatures } from "@/lib/api/features-api"
@@ -28,6 +28,7 @@ interface QATaskEditorProps {
 const CATEGORIES: QATaskCategory[] = ["Funcionalidad", "QA", "Bugs Generales", "Otra"]
 const STATUSES: QATaskStatus[] = ["Pendiente", "En Progreso", "Completado", "Bloqueado", "Cancelado"]
 const TYPES: QATaskType[] = ["Funcionalidad", "QA", "Bug"]
+const PRIORITIES: QATaskPriority[] = ["high", "medium", "low"]
 
 export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QATaskEditorProps) {
   const { toast } = useToast()
@@ -45,6 +46,7 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
     criterios_aceptacion: "",
     comentarios: "",
     estado: "Pendiente" as QATaskStatus,
+    prioridad: "medium" as QATaskPriority,
     imagenes: [] as QAImage[],
   }), [])
 
@@ -58,6 +60,7 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
         criterios_aceptacion: task.criterios_aceptacion,
         comentarios: task.comentarios,
         estado: task.estado,
+        prioridad: task.prioridad || "medium",
         imagenes: task.imagenes || [],
         featureId: task.featureId,
         featureTitle: task.featureTitle,
@@ -110,20 +113,32 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
         return
       }
 
+      // Asegurar que el estado siempre se incluya (usar el valor del formData o el valor por defecto)
+      const estadoToSend = formData.estado || task?.estado || "Pendiente"
+      
+      const requestBody = {
+        titulo: formData.titulo,
+        categoria: formData.categoria,
+        tipo: formData.tipo,
+        criterios_aceptacion: formData.criterios_aceptacion,
+        comentarios: formData.comentarios,
+        estado: estadoToSend, // Siempre incluir el estado
+        prioridad: formData.prioridad || "medium",
+        imagenes: formData.imagenes || [],
+        featureId: formData.featureId || undefined,
+        featureNote: formData.featureNote || undefined,
+      }
+
+      console.log('[QA Task Editor] Enviando actualización:', {
+        taskId: task.id,
+        requestBody,
+        estadoEnFormData: formData.estado,
+      })
+
       const response = await fetch(`/api/projects/${projectId}/qa-tasks/${task.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          titulo: formData.titulo,
-          categoria: formData.categoria,
-          tipo: formData.tipo,
-          criterios_aceptacion: formData.criterios_aceptacion,
-          comentarios: formData.comentarios,
-          estado: formData.estado,
-          imagenes: formData.imagenes || [],
-          featureId: formData.featureId || undefined,
-          featureNote: formData.featureNote || undefined,
-        }),
+        body: JSON.stringify(requestBody),
       })
       if (!response.ok) {
         const error = await response.json()
@@ -238,7 +253,7 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Categoría</Label>
               <Select
@@ -272,7 +287,9 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Estado</Label>
               <Select
@@ -286,6 +303,23 @@ export function QATaskEditor({ task, projectId, open, onOpenChange, onSave }: QA
                   {STATUSES.map(status => (
                     <SelectItem key={status} value={status}>{status}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Prioridad</Label>
+              <Select
+                value={formData.prioridad || "medium"}
+                onValueChange={(value: QATaskPriority) => setFormData(prev => ({ ...prev, prioridad: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una prioridad" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">Alta</SelectItem>
+                  <SelectItem value="medium">Media</SelectItem>
+                  <SelectItem value="low">Baja</SelectItem>
                 </SelectContent>
               </Select>
             </div>

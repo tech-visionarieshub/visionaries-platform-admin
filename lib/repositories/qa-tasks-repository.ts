@@ -96,10 +96,22 @@ export class QATasksRepository {
   ): Promise<QATask> {
     const docRef = this.getTasksCollection(projectId).doc(taskId)
     
+    // Filtrar campos undefined para evitar problemas con Firestore
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    )
+    
     const updateData = {
-      ...updates,
+      ...cleanUpdates,
       updatedAt: Timestamp.now(),
     }
+
+    console.log('[QATasksRepository] Actualizando tarea:', {
+      projectId,
+      taskId,
+      updateData,
+      estado: updateData.estado,
+    })
 
     await docRef.update(updateData)
 
@@ -107,6 +119,11 @@ export class QATasksRepository {
     if (!updated) {
       throw new Error('Tarea no encontrada después de actualizar')
     }
+
+    console.log('[QATasksRepository] Tarea actualizada exitosamente:', {
+      taskId,
+      estadoGuardado: updated.estado,
+    })
 
     return updated
   }
