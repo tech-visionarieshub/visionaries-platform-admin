@@ -581,7 +581,7 @@ export function TeamTasksList() {
 
       {/* Dialog de Detalles */}
       <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
-        <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="!max-w-[95vw] !w-[95vw] sm:!max-w-[90vw] md:!max-w-[85vw] lg:!max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className="font-mono text-xs text-muted-foreground">{selectedTask?.id}</span>
