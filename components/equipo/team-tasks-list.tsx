@@ -631,11 +631,21 @@ export function TeamTasksList() {
                     <div className="text-xs font-semibold text-muted-foreground mb-1">Fecha Límite</div>
                     <div className="text-sm flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5" />
-                      {new Date(selectedTask.dueDate).toLocaleDateString('es-ES', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
+                      {(() => {
+                        const d = typeof selectedTask.dueDate === 'string' 
+                          ? new Date(selectedTask.dueDate + 'T12:00:00') 
+                          : new Date(selectedTask.dueDate)
+                        // Ajustar a zona horaria local para evitar problemas
+                        const year = d.getFullYear()
+                        const month = d.getMonth()
+                        const day = d.getDate()
+                        const localDate = new Date(year, month, day)
+                        return localDate.toLocaleDateString('es-ES', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })
+                      })()}
                     </div>
                   </div>
                 )}

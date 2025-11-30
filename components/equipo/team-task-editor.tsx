@@ -73,6 +73,17 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
     }
   }
 
+  // Función para formatear fecha sin problemas de zona horaria
+  const formatDateForInput = (date: Date | string | undefined): string => {
+    if (!date) return ""
+    const d = typeof date === 'string' ? new Date(date) : date
+    // Usar métodos locales para evitar problemas de zona horaria
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   // Cargar datos de la tarea si está editando
   useEffect(() => {
     if (task) {
@@ -85,7 +96,7 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
         priority: task.priority || "medium",
         assignee: task.assignee || "",
         projectId: task.projectId || "",
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "",
+        dueDate: formatDateForInput(task.dueDate),
         estimatedHours: task.estimatedHours?.toString() || "",
         comentarios: task.comentarios || "",
       })
@@ -169,7 +180,7 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!max-w-[95vw] !w-[95vw] sm:!max-w-[90vw] md:!max-w-[85vw] lg:!max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{task ? "Editar Tarea" : "Nueva Tarea"}</DialogTitle>
           <DialogDescription>
