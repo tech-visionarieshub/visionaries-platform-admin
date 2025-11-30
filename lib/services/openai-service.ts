@@ -1115,23 +1115,30 @@ IMPORTANTE:
       ? transcript.substring(0, 80000) + '... [transcript truncado]'
       : transcript
 
-    const prompt = `Eres un experto en análisis de reuniones y gestión de tareas de equipo. Analiza el siguiente transcript de una reunión y extrae todas las tareas, pendientes y acciones mencionadas.
+    const prompt = `Eres un experto en análisis de correos, reuniones y gestión de tareas de equipo. Analiza el siguiente texto (puede ser un transcript de reunión, un correo electrónico, un resumen de propuestas, o cualquier documento con tareas pendientes) y extrae TODAS las tareas, pendientes y acciones mencionadas.
 
-TRANSCRIPT:
+TEXTO:
 ${transcriptToProcess}
 
-Para cada tarea, pendiente o acción mencionada en el transcript, genera una tarea con la siguiente estructura:
+Para cada tarea, pendiente o acción mencionada, genera una tarea con la siguiente estructura:
 
-1. Title: Nombre claro y conciso de la tarea basado en lo mencionado en el transcript
+1. Title: Nombre claro y conciso de la tarea. Si hay un cliente/proyecto específico, inclúyelo en el título. Ejemplos:
+   - "Preparar listado de funcionalidades - CTR"
+   - "Enviar documento de validación - CTR"
+   - "Revisar código existente - Transportes Americanos"
+   - "Capacitar equipo TI - Transportes Americanos"
 
-2. Description: Descripción detallada de lo que debe hacerse, incluyendo contexto de la conversación cuando sea relevante
+2. Description: Descripción detallada de lo que debe hacerse, incluyendo:
+   - Contexto del cliente/proyecto si aplica
+   - Detalles específicos mencionados
+   - Pasos o requisitos mencionados
 
 3. Category: Selecciona la categoría más apropiada de esta lista:
-   - "Propuestas": Tareas relacionadas con propuestas comerciales
+   - "Propuestas": Tareas relacionadas con propuestas comerciales, cotizaciones, validaciones con clientes, preparación de documentos comerciales
    - "Startups": Tareas relacionadas con startups
    - "Evolution": Tareas relacionadas con Evolution
    - "Pathway": Tareas relacionadas con Pathway
-   - "Desarrollo": Tareas de desarrollo técnico
+   - "Desarrollo": Tareas de desarrollo técnico, programación, implementación
    - "QA": Tareas de testing y calidad
    - "Portal Admin": Tareas del portal administrativo
    - "Aura": Tareas relacionadas con Aura
@@ -1142,17 +1149,26 @@ Para cada tarea, pendiente o acción mencionada en el transcript, genera una tar
    - "Otra": Si no encaja en ninguna categoría anterior (en este caso, incluye customCategory con una descripción)
 
 4. Priority: 
-   - "high" si se menciona como urgente, crítica, importante, prioritaria
-   - "low" si se menciona como opcional, nice-to-have, futuro
+   - "high" si se menciona como urgente, crítica, importante, prioritaria, o si es parte de proyectos prioritarios
+   - "low" si se menciona como opcional, nice-to-have, futuro, o proyecto adicional opcional
    - "medium" para todo lo demás
 
 5. Status: "pending" (todas empiezan aquí)
 
-6. Estimated Hours: Estima horas de trabajo basándote en la complejidad mencionada (mínimo 0.5h, máximo 40h, usar decimales como 1.5, 4.0)
+6. Estimated Hours: Estima horas de trabajo basándote en la complejidad mencionada:
+   - Tareas simples (enviar correo, revisar documento): 0.5-1h
+   - Tareas de preparación/revisión: 1-3h
+   - Tareas de desarrollo/implementación: 4-16h
+   - Proyectos completos: 20-40h
+   - Usa decimales como 1.5, 4.0, 8.5
 
 IMPORTANTE:
 - Extrae TODAS las tareas mencionadas, no solo las principales
-- Si se menciona algo como "necesitamos hacer...", "hay que...", "falta...", "pendiente...", "seguimiento a...", conviértelo en una tarea
+- Si hay múltiples proyectos/clientes, crea tareas separadas para cada uno
+- Identifica acciones como: "preparar", "enviar", "revisar", "validar", "confirmar", "seguimiento", "capacitar", "desplegar", "configurar", "diseñar", "revisar código", etc.
+- Si se menciona "pendiente", "falta", "necesita", "debe", "hay que", conviértelo en una tarea
+- Si hay enlaces a documentos/transcripts, menciona en la descripción que hay un documento relacionado
+- Si hay múltiples tareas relacionadas con un mismo proyecto, créalas como tareas separadas
 - Si no hay suficiente información para estimar horas, usa valores conservadores (1-2 horas)
 - Responde SOLO con un JSON válido en este formato exacto:
 {
@@ -1181,7 +1197,7 @@ IMPORTANTE:
           messages: [
             {
               role: 'system',
-              content: 'Eres un experto en análisis de reuniones y gestión de tareas de equipo. Responde SOLO con JSON válido, sin texto adicional.'
+              content: 'Eres un experto en análisis de correos, reuniones, resúmenes y gestión de tareas de equipo. Identifica todas las tareas, pendientes y acciones mencionadas, incluso si están en diferentes proyectos o clientes. Responde SOLO con JSON válido, sin texto adicional.'
             },
             {
               role: 'user',

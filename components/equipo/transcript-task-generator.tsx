@@ -241,9 +241,9 @@ export function TranscriptTaskGenerator({
           className="!max-w-[85vw] !w-[85vw] max-h-[95vh] overflow-y-auto overflow-x-hidden"
         >
           <DialogHeader>
-            <DialogTitle>Generar Tareas desde Transcript</DialogTitle>
+            <DialogTitle>Generar Tareas desde Transcript/Correo</DialogTitle>
             <DialogDescription>
-              Pega el transcript de una reunión y el sistema generará automáticamente las tareas mencionadas usando IA. Las tareas similares a las existentes se marcarán como posibles duplicados.
+              Pega un transcript de reunión, correo electrónico, resumen de propuestas o cualquier texto con tareas pendientes. El sistema generará automáticamente las tareas mencionadas usando IA. Las tareas similares a las existentes se marcarán como posibles duplicados.
             </DialogDescription>
           </DialogHeader>
 
@@ -252,7 +252,7 @@ export function TranscriptTaskGenerator({
             {currentStep === 'input' && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="transcript">Transcript de la Reunión</Label>
+                  <Label htmlFor="transcript">Transcript / Correo / Resumen</Label>
                   <Textarea
                     id="transcript"
                     value={transcript}
@@ -260,7 +260,7 @@ export function TranscriptTaskGenerator({
                       setTranscript(e.target.value)
                       setError(null)
                     }}
-                    placeholder="Pega aquí el transcript de la reunión..."
+                    placeholder="Pega aquí el transcript de reunión, correo electrónico, resumen de propuestas o cualquier texto con tareas pendientes..."
                     rows={12}
                     className="font-mono text-sm"
                     disabled={generating}
