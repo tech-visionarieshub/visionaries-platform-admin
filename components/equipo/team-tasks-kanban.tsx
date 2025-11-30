@@ -275,16 +275,15 @@ export function TeamTasksKanban({
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {statusColumns.map((column) => (
-          <div key={column.id} id={column.id}>
-            <KanbanColumn
-              column={column}
-              tasks={getTasksByStatus(column.id)}
-              users={users}
-              onTaskClick={onTaskClick}
-              onTaskEdit={onTaskEdit}
-              onTaskDelete={onTaskDelete}
-            />
-          </div>
+          <KanbanColumn
+            key={column.id}
+            column={column}
+            tasks={getTasksByStatus(column.id)}
+            users={users}
+            onTaskClick={onTaskClick}
+            onTaskEdit={onTaskEdit}
+            onTaskDelete={onTaskDelete}
+          />
         ))}
       </div>
 
