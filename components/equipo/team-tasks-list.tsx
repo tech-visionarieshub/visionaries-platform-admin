@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal, Calendar } from "lucide-react"
+import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal, Calendar, LayoutGrid, GanttChart, CalendarDays } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { getTeamTasks, updateTeamTask, deleteTeamTask, trackTeamTaskTime, type TeamTask } from "@/lib/api/team-tasks-api"
 import { getUsers, type User } from "@/lib/api/users-api"
@@ -16,6 +17,9 @@ import { getProjects } from "@/lib/api/projects-api"
 import type { TeamTaskStatus, TeamTaskPriority, TeamTaskCategory } from "@/types/team-task"
 import { TeamTaskEditor } from "./team-task-editor"
 import { TranscriptTaskGenerator } from "./transcript-task-generator"
+import { TeamTasksKanban } from "./team-tasks-kanban"
+import { TeamTasksGantt } from "./team-tasks-gantt"
+import { TeamTasksCalendar } from "./team-tasks-calendar"
 
 const statusConfig = {
   pending: { label: "Pendiente", color: "bg-gray-500" },
@@ -49,6 +53,7 @@ export function TeamTasksList() {
   const [showTranscriptGenerator, setShowTranscriptGenerator] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [projects, setProjects] = useState<Array<{ id: string; name: string; clientName?: string }>>([])
+  const [activeView, setActiveView] = useState<"table" | "kanban" | "gantt" | "calendar">("table")
 
   // Cargar tareas
   const loadTasks = useCallback(async () => {
@@ -363,8 +368,30 @@ export function TeamTasksList() {
         </div>
       </Card>
 
-      {/* Tabla de tareas */}
-      <Card className="p-2">
+      {/* Pestañas de vista */}
+      <Tabs value={activeView} onValueChange={(v) => setActiveView(v as typeof activeView)}>
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="table" className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Tabla
+          </TabsTrigger>
+          <TabsTrigger value="kanban" className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Kanban
+          </TabsTrigger>
+          <TabsTrigger value="gantt" className="flex items-center gap-2">
+            <GanttChart className="h-4 w-4" />
+            Cronograma
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Calendario
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="table" className="mt-4">
+          {/* Tabla de tareas */}
+          <Card className="p-2">
         {loading ? (
           <div className="p-8 text-center text-muted-foreground">Cargando tareas...</div>
         ) : filteredTasks.length === 0 ? (
@@ -567,6 +594,57 @@ export function TeamTasksList() {
           </div>
         )}
       </Card>
+        </TabsContent>
+
+        <TabsContent value="kanban" className="mt-4">
+          <TeamTasksKanban
+            tasks={filteredTasks}
+            users={users}
+            onTaskClick={(task) => {
+              setSelectedTask(task)
+              setShowTaskDetails(true)
+            }}
+            onTaskEdit={(task) => {
+              setTaskToEdit(task)
+              setShowTaskEditor(true)
+            }}
+            onTaskDelete={handleDelete}
+            onStatusChange={handleStatusChange}
+          />
+        </TabsContent>
+
+        <TabsContent value="gantt" className="mt-4">
+          <TeamTasksGantt
+            tasks={filteredTasks}
+            users={users}
+            onTaskClick={(task) => {
+              setSelectedTask(task)
+              setShowTaskDetails(true)
+            }}
+            onTaskEdit={(task) => {
+              setTaskToEdit(task)
+              setShowTaskEditor(true)
+            }}
+            onTaskDelete={handleDelete}
+          />
+        </TabsContent>
+
+        <TabsContent value="calendar" className="mt-4">
+          <TeamTasksCalendar
+            tasks={filteredTasks}
+            users={users}
+            onTaskClick={(task) => {
+              setSelectedTask(task)
+              setShowTaskDetails(true)
+            }}
+            onTaskEdit={(task) => {
+              setTaskToEdit(task)
+              setShowTaskEditor(true)
+            }}
+            onTaskDelete={handleDelete}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Dialogs */}
       <TeamTaskEditor
