@@ -55,6 +55,13 @@ const navigation = [
     href: "/projects",
   },
   {
+    name: "Equipo",
+    href: "/equipo",
+    submenu: [
+      { name: "Tareas Pendientes", href: "/equipo" },
+    ],
+  },
+  {
     name: "Reportes",
     href: "/reports",
   },

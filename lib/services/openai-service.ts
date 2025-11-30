@@ -1095,6 +1095,181 @@ IMPORTANTE:
       }))
     }
   }
+
+  /**
+   * Genera tareas del equipo desde un transcript de reunión usando IA
+   */
+  async generateTeamTasksFromTranscript(transcript: string): Promise<Array<{
+    title: string
+    description: string
+    category: 'Propuestas' | 'Startups' | 'Evolution' | 'Pathway' | 'Desarrollo' | 'QA' | 'Portal Admin' | 'Aura' | 'Redes Sociales' | 'Conferencias' | 'Inversión' | 'Pagos' | 'Otra'
+    customCategory?: string
+    priority: 'high' | 'medium' | 'low'
+    status: 'pending' | 'in-progress' | 'review' | 'completed' | 'cancelled'
+    estimatedHours: number
+  }>> {
+    const apiKey = await this.getApiKey()
+
+    // Truncar transcript a 80,000 caracteres para respetar límites de tokens
+    const transcriptToProcess = transcript.length > 80000 
+      ? transcript.substring(0, 80000) + '... [transcript truncado]'
+      : transcript
+
+    const prompt = `Eres un experto en análisis de reuniones y gestión de tareas de equipo. Analiza el siguiente transcript de una reunión y extrae todas las tareas, pendientes y acciones mencionadas.
+
+TRANSCRIPT:
+${transcriptToProcess}
+
+Para cada tarea, pendiente o acción mencionada en el transcript, genera una tarea con la siguiente estructura:
+
+1. Title: Nombre claro y conciso de la tarea basado en lo mencionado en el transcript
+
+2. Description: Descripción detallada de lo que debe hacerse, incluyendo contexto de la conversación cuando sea relevante
+
+3. Category: Selecciona la categoría más apropiada de esta lista:
+   - "Propuestas": Tareas relacionadas con propuestas comerciales
+   - "Startups": Tareas relacionadas con startups
+   - "Evolution": Tareas relacionadas con Evolution
+   - "Pathway": Tareas relacionadas con Pathway
+   - "Desarrollo": Tareas de desarrollo técnico
+   - "QA": Tareas de testing y calidad
+   - "Portal Admin": Tareas del portal administrativo
+   - "Aura": Tareas relacionadas con Aura
+   - "Redes Sociales": Tareas de redes sociales y marketing
+   - "Conferencias": Tareas relacionadas con conferencias y eventos
+   - "Inversión": Tareas relacionadas con inversión
+   - "Pagos": Tareas relacionadas con pagos y facturación
+   - "Otra": Si no encaja en ninguna categoría anterior (en este caso, incluye customCategory con una descripción)
+
+4. Priority: 
+   - "high" si se menciona como urgente, crítica, importante, prioritaria
+   - "low" si se menciona como opcional, nice-to-have, futuro
+   - "medium" para todo lo demás
+
+5. Status: "pending" (todas empiezan aquí)
+
+6. Estimated Hours: Estima horas de trabajo basándote en la complejidad mencionada (mínimo 0.5h, máximo 40h, usar decimales como 1.5, 4.0)
+
+IMPORTANTE:
+- Extrae TODAS las tareas mencionadas, no solo las principales
+- Si se menciona algo como "necesitamos hacer...", "hay que...", "falta...", "pendiente...", "seguimiento a...", conviértelo en una tarea
+- Si no hay suficiente información para estimar horas, usa valores conservadores (1-2 horas)
+- Responde SOLO con un JSON válido en este formato exacto:
+{
+  "tasks": [
+    {
+      "title": "Nombre de la Tarea",
+      "description": "Descripción detallada",
+      "category": "Desarrollo",
+      "customCategory": "Solo si category es 'Otra'",
+      "priority": "high|medium|low",
+      "status": "pending",
+      "estimatedHours": 2.0
+    }
+  ]
+}`
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un experto en análisis de reuniones y gestión de tareas de equipo. Responde SOLO con JSON válido, sin texto adicional.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.5,
+          max_tokens: 8000,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Error desconocido' }))
+        throw new Error(`OpenAI API error: ${error.error?.message || 'Error desconocido'}`)
+      }
+
+      const data: OpenAIResponse = await response.json()
+      const content = data.choices[0]?.message?.content
+
+      if (!content) {
+        throw new Error('No se recibió respuesta de OpenAI')
+      }
+
+      console.log('[OpenAI Service] Respuesta recibida de OpenAI para team tasks (primeros 1000 caracteres):', content.substring(0, 1000))
+
+      // Limpiar el contenido: remover markdown code blocks si existen
+      let cleanedContent = content.trim()
+      
+      // Remover ```json o ``` al inicio/final si existen
+      cleanedContent = cleanedContent.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '')
+      
+      // Buscar JSON en el contenido
+      let jsonMatch = cleanedContent.match(/\{[\s\S]*\}/)
+      
+      // Si no encuentra con el patrón simple, intentar buscar desde la primera llave
+      if (!jsonMatch) {
+        const firstBrace = cleanedContent.indexOf('{')
+        if (firstBrace !== -1) {
+          const lastBrace = cleanedContent.lastIndexOf('}')
+          if (lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonMatch = [cleanedContent.substring(firstBrace, lastBrace + 1)]
+          }
+        }
+      }
+
+      if (!jsonMatch) {
+        console.error('[OpenAI Service] Respuesta sin JSON válido. Contenido completo:', content)
+        throw new Error('Respuesta de OpenAI no contiene JSON válido. La respuesta fue: ' + content.substring(0, 200))
+      }
+
+      let parsed
+      try {
+        const jsonString = jsonMatch[0]
+        console.log('[OpenAI Service] Intentando parsear JSON (primeros 500 caracteres):', jsonString.substring(0, 500))
+        parsed = JSON.parse(jsonString)
+      } catch (parseError: any) {
+        console.error('[OpenAI Service] Error parseando JSON:', {
+          error: parseError.message,
+          jsonPreview: jsonMatch[0].substring(0, 1000),
+          fullContent: content,
+        })
+        throw new Error(`Error al parsear la respuesta JSON de OpenAI: ${parseError.message}. Respuesta recibida: ${content.substring(0, 300)}`)
+      }
+
+      const tasks = parsed.tasks || []
+
+      if (!Array.isArray(tasks) || tasks.length === 0) {
+        console.error('[OpenAI Service] No se generaron tareas. Respuesta:', parsed)
+        throw new Error('No se generaron tareas. Intenta con un transcript más detallado.')
+      }
+
+      // Validar y formatear tareas
+      const validCategories = ['Propuestas', 'Startups', 'Evolution', 'Pathway', 'Desarrollo', 'QA', 'Portal Admin', 'Aura', 'Redes Sociales', 'Conferencias', 'Inversión', 'Pagos', 'Otra']
+      
+      return tasks.map((t: any) => ({
+        title: t.title || 'Sin título',
+        description: t.description || '',
+        category: validCategories.includes(t.category) ? t.category : 'Otra',
+        customCategory: t.category === 'Otra' ? (t.customCategory || t.title) : undefined,
+        priority: ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium',
+        status: 'pending' as const,
+        estimatedHours: Math.max(0.5, Math.min(40, parseFloat(t.estimatedHours) || 1)),
+      }))
+    } catch (error: any) {
+      console.error('[OpenAI Service] Error generando tareas del equipo desde transcript:', error)
+      throw new Error(`Error al generar tareas: ${error.message}`)
+    }
+  }
 }
 
 export const openAIService = new OpenAIService()

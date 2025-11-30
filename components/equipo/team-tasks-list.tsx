@@ -1,0 +1,573 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { getTeamTasks, updateTeamTask, deleteTeamTask, trackTeamTaskTime, type TeamTask } from "@/lib/api/team-tasks-api"
+import { getUsers, type User } from "@/lib/api/users-api"
+import { getProjects } from "@/lib/api/projects-api"
+import type { TeamTaskStatus, TeamTaskPriority, TeamTaskCategory } from "@/types/team-task"
+import { TeamTaskEditor } from "./team-task-editor"
+import { TranscriptTaskGenerator } from "./transcript-task-generator"
+
+const statusConfig = {
+  pending: { label: "Pendiente", color: "bg-gray-500" },
+  "in-progress": { label: "En Progreso", color: "bg-purple-500" },
+  review: { label: "En Revisión", color: "bg-amber-500" },
+  completed: { label: "Completada", color: "bg-green-500" },
+  cancelled: { label: "Cancelada", color: "bg-red-500" },
+}
+
+const priorityConfig = {
+  high: { label: "Alta", color: "text-[#E02814] bg-[#E02814]/10" },
+  medium: { label: "Media", color: "text-[#F59E0B] bg-[#F59E0B]/10" },
+  low: { label: "Baja", color: "text-[#4BBAFF] bg-[#4BBAFF]/10" },
+}
+
+export function TeamTasksList() {
+  const { toast } = useToast()
+  
+  const [tasks, setTasks] = useState<TeamTask[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [filterPriority, setFilterPriority] = useState<string>("all")
+  const [filterAssignee, setFilterAssignee] = useState<string>("all")
+  const [filterProject, setFilterProject] = useState<string>("all")
+  const [filterCategory, setFilterCategory] = useState<string>("all")
+  const [selectedTask, setSelectedTask] = useState<TeamTask | null>(null)
+  const [showTaskEditor, setShowTaskEditor] = useState(false)
+  const [showTranscriptGenerator, setShowTranscriptGenerator] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; clientName?: string }>>([])
+
+  // Cargar tareas
+  const loadTasks = useCallback(async () => {
+    try {
+      setLoading(true)
+      const filters: {
+        status?: TeamTaskStatus
+        assignee?: string
+        projectId?: string
+        category?: TeamTaskCategory
+      } = {}
+
+      if (filterStatus !== 'all') filters.status = filterStatus as TeamTaskStatus
+      if (filterAssignee !== 'all') filters.assignee = filterAssignee
+      if (filterProject !== 'all') filters.projectId = filterProject
+      if (filterCategory !== 'all') filters.category = filterCategory as TeamTaskCategory
+
+      const data = await getTeamTasks(filters)
+      setTasks(data)
+    } catch (error: any) {
+      console.error('[TeamTasksList] Error loading tasks:', error)
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron cargar las tareas",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [filterStatus, filterAssignee, filterProject, filterCategory, toast])
+
+  useEffect(() => {
+    loadTasks()
+    loadUsers()
+    loadProjects()
+  }, [loadTasks])
+
+  const loadUsers = async () => {
+    try {
+      const usersList = await getUsers()
+      setUsers(usersList)
+    } catch (error: any) {
+      console.error('[TeamTasksList] Error loading users:', error)
+    }
+  }
+
+  const loadProjects = async () => {
+    try {
+      const projectsList = await getProjects()
+      setProjects(projectsList.map(p => ({
+        id: p.id,
+        name: p.name,
+        clientName: p.clientName,
+      })))
+    } catch (error: any) {
+      console.error('[TeamTasksList] Error loading projects:', error)
+    }
+  }
+
+  // Filtrar tareas por búsqueda
+  const filteredTasks = tasks.filter(task => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const matchesTitle = task.title.toLowerCase().includes(query)
+      const matchesDescription = task.description?.toLowerCase().includes(query)
+      const matchesCategory = (task.category === 'Otra' ? task.customCategory : task.category)?.toLowerCase().includes(query)
+      if (!matchesTitle && !matchesDescription && !matchesCategory) return false
+    }
+    return true
+  })
+
+  const handleTimeTracking = async (task: TeamTask, action: 'start' | 'pause' | 'complete') => {
+    try {
+      // Actualizar optimísticamente
+      if (action === 'start') {
+        setTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === task.id 
+              ? { ...t, startedAt: new Date(), status: 'in-progress' as TeamTaskStatus }
+              : t
+          )
+        )
+      } else if (action === 'pause') {
+        setTasks(prevTasks => 
+          prevTasks.map(t => {
+            if (t.id === task.id && t.startedAt) {
+              const startedAtDate = t.startedAt instanceof Date ? t.startedAt : new Date(t.startedAt)
+              const elapsedSeconds = Math.floor((new Date().getTime() - startedAtDate.getTime()) / 1000)
+              const currentAccumulated = t.accumulatedTime || 0
+              return {
+                ...t,
+                startedAt: undefined,
+                accumulatedTime: currentAccumulated + elapsedSeconds
+              }
+            }
+            return t
+          })
+        )
+      } else if (action === 'complete') {
+        const totalSeconds = task.accumulatedTime || 0
+        const actualHours = Math.round((totalSeconds / 3600) * 10) / 10
+        setTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === task.id 
+              ? { ...t, startedAt: undefined, actualHours, status: 'completed' as TeamTaskStatus }
+              : t
+          )
+        )
+      }
+      
+      const result = await trackTeamTaskTime(task.id, action)
+      
+      // Actualizar con la respuesta del servidor
+      if (result.task) {
+        setTasks(prevTasks => 
+          prevTasks.map(t => t.id === task.id ? { ...t, ...result.task } : t)
+        )
+      }
+      
+      toast({
+        title: action === 'start' ? 'Timer iniciado' : action === 'pause' ? 'Timer pausado' : 'Tarea completada',
+        description: result.message,
+      })
+    } catch (error: any) {
+      loadTasks()
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo ejecutar la acción",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleAssigneeChange = async (taskId: string, newAssignee: string) => {
+    try {
+      await updateTeamTask(taskId, { assignee: newAssignee === 'unassigned' ? undefined : newAssignee })
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.id === taskId ? { ...t, assignee: newAssignee === 'unassigned' ? undefined : newAssignee } : t
+        )
+      )
+      toast({
+        title: "Responsable actualizado",
+        description: "El responsable de la tarea ha sido actualizado",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el responsable",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleStatusChange = async (taskId: string, newStatus: TeamTaskStatus) => {
+    try {
+      await updateTeamTask(taskId, { status: newStatus })
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.id === taskId ? { ...t, status: newStatus } : t
+        )
+      )
+      toast({
+        title: "Estado actualizado",
+        description: "El estado de la tarea ha sido actualizado",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el estado",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDelete = async (taskId: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+      return
+    }
+
+    try {
+      await deleteTeamTask(taskId)
+      setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId))
+      toast({
+        title: "Tarea eliminada",
+        description: "La tarea ha sido eliminada correctamente",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la tarea",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const formatTime = (seconds: number | undefined) => {
+    if (!seconds) return '0h'
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`
+    }
+    return `${minutes}m`
+  }
+
+  const getCurrentTime = (task: TeamTask) => {
+    if (!task.startedAt) return null
+    const startedAtDate = task.startedAt instanceof Date 
+      ? task.startedAt 
+      : new Date(task.startedAt)
+    const elapsedSeconds = Math.floor((new Date().getTime() - startedAtDate.getTime()) / 1000)
+    return elapsedSeconds
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-[#0E0734]">Tareas del Equipo</h2>
+          <p className="text-sm text-muted-foreground">
+            {filteredTasks.length} tarea{filteredTasks.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            className="h-8 text-xs"
+            onClick={() => setShowTranscriptGenerator(true)}
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+            Generar desde Transcript
+          </Button>
+          <Button 
+            className="bg-[#4514F9] hover:bg-[#3810C7] h-8 text-xs"
+            onClick={() => {
+              setSelectedTask(null)
+              setShowTaskEditor(true)
+            }}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Nueva Tarea
+          </Button>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <Card className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div className="md:col-span-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar tareas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger>
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="pending">Pendiente</SelectItem>
+              <SelectItem value="in-progress">En Progreso</SelectItem>
+              <SelectItem value="review">En Revisión</SelectItem>
+              <SelectItem value="completed">Completada</SelectItem>
+              <SelectItem value="cancelled">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+            <SelectTrigger>
+              <SelectValue placeholder="Responsable" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {users.map(user => (
+                <SelectItem key={user.email} value={user.email}>
+                  {user.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger>
+              <SelectValue placeholder="Proyecto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {projects.map(project => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {['Propuestas', 'Startups', 'Evolution', 'Pathway', 'Desarrollo', 'QA', 'Portal Admin', 'Aura', 'Redes Sociales', 'Conferencias', 'Inversión', 'Pagos', 'Otra'].map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+
+      {/* Tabla de tareas */}
+      <Card className="p-2">
+        {loading ? (
+          <div className="p-8 text-center text-muted-foreground">Cargando tareas...</div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">No hay tareas que mostrar</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[400px]">Título</TableHead>
+                  <TableHead className="w-32">Categoría</TableHead>
+                  <TableHead className="w-40">Responsable</TableHead>
+                  <TableHead className="w-40">Proyecto</TableHead>
+                  <TableHead className="w-32">Estado</TableHead>
+                  <TableHead className="w-28">Prioridad</TableHead>
+                  <TableHead className="w-32">Horas</TableHead>
+                  <TableHead className="w-40">Tiempo</TableHead>
+                  <TableHead className="w-32">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTasks.map((task) => {
+                  const currentTime = getCurrentTime(task)
+                  const totalTime = (task.accumulatedTime || 0) + (currentTime || 0)
+                  const isRunning = !!task.startedAt
+
+                  return (
+                    <TableRow key={task.id}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="font-medium">{task.title}</div>
+                          {task.description && (
+                            <div className="text-xs text-muted-foreground line-clamp-1">
+                              {task.description}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {task.category === 'Otra' ? (task.customCategory || 'Otra') : task.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={task.assignee || 'unassigned'}
+                          onValueChange={(value) => handleAssigneeChange(task.id, value)}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-32">
+                            <SelectValue>
+                              {task.assignee 
+                                ? users.find(u => u.email === task.assignee)?.displayName || task.assignee
+                                : 'Sin asignar'}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Sin asignar</SelectItem>
+                            {users.map((user) => (
+                              <SelectItem key={user.email} value={user.email}>
+                                {user.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        {task.projectName ? (
+                          <span className="text-xs">{task.projectName}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={task.status}
+                          onValueChange={(value) => handleStatusChange(task.id, value as TeamTaskStatus)}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pendiente</SelectItem>
+                            <SelectItem value="in-progress">En Progreso</SelectItem>
+                            <SelectItem value="review">En Revisión</SelectItem>
+                            <SelectItem value="completed">Completada</SelectItem>
+                            <SelectItem value="cancelled">Cancelada</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`${priorityConfig[task.priority].color} text-xs px-1.5 py-0`} variant="outline">
+                          {priorityConfig[task.priority].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs">
+                          {task.actualHours ? (
+                            <span>{task.actualHours}h</span>
+                          ) : task.estimatedHours ? (
+                            <span className="text-muted-foreground">{task.estimatedHours}h est.</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {isRunning && (
+                            <div className="flex items-center gap-1 text-xs text-purple-600">
+                              <Clock className="h-3 w-3 animate-spin" />
+                              {formatTime(currentTime)}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            {!isRunning && task.status !== 'completed' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleTimeTracking(task, 'start')}
+                                title="Iniciar timer"
+                              >
+                                <Play className="h-3 w-3" />
+                              </Button>
+                            )}
+                            {isRunning && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleTimeTracking(task, 'pause')}
+                                title="Pausar timer"
+                              >
+                                <Pause className="h-3 w-3" />
+                              </Button>
+                            )}
+                            {task.status !== 'completed' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleTimeTracking(task, 'complete')}
+                                title="Completar tarea"
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground ml-1">
+                            {formatTime(totalTime)}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => {
+                              setSelectedTask(task)
+                              setShowTaskEditor(true)
+                            }}
+                            title="Editar tarea"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-destructive"
+                            onClick={() => handleDelete(task.id)}
+                            title="Eliminar tarea"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+
+      {/* Dialogs */}
+      <TeamTaskEditor
+        open={showTaskEditor}
+        onOpenChange={setShowTaskEditor}
+        task={selectedTask}
+        onSuccess={() => {
+          loadTasks()
+          setSelectedTask(null)
+        }}
+      />
+
+      <TranscriptTaskGenerator
+        open={showTranscriptGenerator}
+        onOpenChange={setShowTranscriptGenerator}
+        onGenerateComplete={() => {
+          loadTasks()
+        }}
+      />
+    </div>
+  )
+}
+
