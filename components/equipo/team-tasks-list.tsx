@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal } from "lucide-react"
+import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal, Calendar } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { getTeamTasks, updateTeamTask, deleteTeamTask, trackTeamTaskTime, type TeamTask } from "@/lib/api/team-tasks-api"
 import { getUsers, type User } from "@/lib/api/users-api"
@@ -42,7 +43,9 @@ export function TeamTasksList() {
   const [filterProject, setFilterProject] = useState<string>("all")
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [selectedTask, setSelectedTask] = useState<TeamTask | null>(null)
+  const [taskToEdit, setTaskToEdit] = useState<TeamTask | null>(null)
   const [showTaskEditor, setShowTaskEditor] = useState(false)
+  const [showTaskDetails, setShowTaskDetails] = useState(false)
   const [showTranscriptGenerator, setShowTranscriptGenerator] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [projects, setProjects] = useState<Array<{ id: string; name: string; clientName?: string }>>([])
@@ -283,7 +286,7 @@ export function TeamTasksList() {
           <Button 
             className="bg-[#4514F9] hover:bg-[#3810C7] h-8 text-xs"
             onClick={() => {
-              setSelectedTask(null)
+              setTaskToEdit(null)
               setShowTaskEditor(true)
             }}
           >
@@ -389,7 +392,19 @@ export function TeamTasksList() {
                   const isRunning = !!task.startedAt
 
                   return (
-                    <TableRow key={task.id}>
+                    <TableRow 
+                      key={task.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={(e) => {
+                        // No abrir detalles si se hace click en un botón o select
+                        const target = e.target as HTMLElement
+                        if (target.closest('button') || target.closest('[role="combobox"]') || target.closest('[role="option"]')) {
+                          return
+                        }
+                        setSelectedTask(task)
+                        setShowTaskDetails(true)
+                      }}
+                    >
                       <TableCell>
                         <div className="space-y-1">
                           <div className="font-medium">{task.title}</div>
@@ -521,8 +536,9 @@ export function TeamTasksList() {
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={() => {
-                              setSelectedTask(task)
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setTaskToEdit(task)
                               setShowTaskEditor(true)
                             }}
                             title="Editar tarea"
@@ -533,7 +549,10 @@ export function TeamTasksList() {
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 text-destructive"
-                            onClick={() => handleDelete(task.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(task.id)
+                            }}
                             title="Eliminar tarea"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -553,12 +572,144 @@ export function TeamTasksList() {
       <TeamTaskEditor
         open={showTaskEditor}
         onOpenChange={setShowTaskEditor}
-        task={selectedTask}
+        task={taskToEdit}
         onSuccess={() => {
           loadTasks()
-          setSelectedTask(null)
+          setTaskToEdit(null)
         }}
       />
+
+      {/* Dialog de Detalles */}
+      <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="font-mono text-xs text-muted-foreground">{selectedTask?.id}</span>
+              <span>{selectedTask?.title}</span>
+            </DialogTitle>
+            <DialogDescription>{selectedTask?.description || "Sin descripción"}</DialogDescription>
+          </DialogHeader>
+          {selectedTask && (
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Categoría</div>
+                  <Badge variant="outline" className="text-sm">
+                    {selectedTask.category === 'Otra' ? (selectedTask.customCategory || 'Otra') : selectedTask.category}
+                  </Badge>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Estado</div>
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${statusConfig[selectedTask.status]?.color || 'bg-gray-500'}`} />
+                    <span className="text-sm">{statusConfig[selectedTask.status]?.label || selectedTask.status}</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Prioridad</div>
+                  <Badge className={`${priorityConfig[selectedTask.priority].color} text-sm px-2 py-0.5`} variant="outline">
+                    {priorityConfig[selectedTask.priority].label}
+                  </Badge>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Responsable</div>
+                  <div className="text-sm flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    {selectedTask.assignee 
+                      ? users.find(u => u.email === selectedTask.assignee)?.displayName || selectedTask.assignee
+                      : 'Sin asignar'}
+                  </div>
+                </div>
+                {selectedTask.projectName && (
+                  <div>
+                    <div className="text-xs font-semibold text-muted-foreground mb-1">Proyecto</div>
+                    <div className="text-sm">{selectedTask.projectName}</div>
+                  </div>
+                )}
+                {selectedTask.dueDate && (
+                  <div>
+                    <div className="text-xs font-semibold text-muted-foreground mb-1">Fecha Límite</div>
+                    <div className="text-sm flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {new Date(selectedTask.dueDate).toLocaleDateString('es-ES', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Horas Estimadas</div>
+                  <div className="text-sm">
+                    {selectedTask.estimatedHours ? `${selectedTask.estimatedHours}h` : '-'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Horas Reales</div>
+                  <div className="text-sm">
+                    {selectedTask.actualHours ? `${selectedTask.actualHours}h` : '-'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Tiempo Acumulado</div>
+                  <div className="text-sm flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {formatTime((selectedTask.accumulatedTime || 0) + (getCurrentTime(selectedTask) || 0))}
+                  </div>
+                </div>
+              </div>
+
+              {selectedTask.description && (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Descripción</div>
+                  <div className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-md">
+                    {selectedTask.description}
+                  </div>
+                </div>
+              )}
+
+              {selectedTask.comentarios && (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Comentarios / Notas</div>
+                  <div className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-md">
+                    {selectedTask.comentarios}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="text-xs text-muted-foreground">
+                  Creada: {new Date(selectedTask.createdAt).toLocaleDateString('es-ES', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowTaskDetails(false)
+                      setTaskToEdit(selectedTask)
+                      setShowTaskEditor(true)
+                    }}
+                  >
+                    <Edit className="h-3.5 w-3.5 mr-1" />
+                    Editar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <TranscriptTaskGenerator
         open={showTranscriptGenerator}
