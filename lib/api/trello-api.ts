@@ -46,7 +46,7 @@ export async function getTrelloConnectionStatus(): Promise<{ connected: boolean 
       return { connected: false }
     }
 
-    // Intentar obtener boards (si falla, no está conectado)
+    // Intentar obtener estado de conexión
     const response = await fetch(`${API_BASE}/api/trello/status`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -54,11 +54,23 @@ export async function getTrelloConnectionStatus(): Promise<{ connected: boolean 
     })
 
     if (!response.ok) {
-      return { connected: false }
+      // Si es 401 o 403, definitivamente no está conectado
+      if (response.status === 401 || response.status === 403) {
+        return { connected: false }
+      }
+      // Para otros errores, intentar parsear la respuesta
+      try {
+        const data = await response.json()
+        return { connected: data.connected === true }
+      } catch {
+        return { connected: false }
+      }
     }
 
-    return { connected: true }
+    const data = await response.json()
+    return { connected: data.connected === true }
   } catch (error) {
+    console.error('[getTrelloConnectionStatus] Error:', error)
     return { connected: false }
   }
 }
@@ -133,4 +145,5 @@ export async function syncTrelloTasks(options?: {
     throw error
   }
 }
+
 

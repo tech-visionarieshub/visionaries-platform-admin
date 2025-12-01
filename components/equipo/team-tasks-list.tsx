@@ -93,7 +93,12 @@ export function TeamTasksList() {
     loadTasks()
     loadUsers()
     loadProjects()
-    checkTrelloConnection()
+    
+    // Verificar conexión de Trello
+    checkTrelloConnection().catch(() => {
+      // Si falla, asegurarse de que el estado sea false
+      setTrelloConnected(false)
+    })
 
     // Verificar si hay parámetros de callback de Trello en la URL
     const urlParams = new URLSearchParams(window.location.search)
@@ -102,11 +107,15 @@ export function TeamTasksList() {
         title: "Trello conectado",
         description: "Tu cuenta de Trello ha sido conectada exitosamente",
       })
-      checkTrelloConnection()
+      // Verificar conexión después de un pequeño delay para asegurar que los tokens estén guardados
+      setTimeout(() => {
+        checkTrelloConnection().catch(() => setTrelloConnected(false))
+      }, 500)
       // Limpiar URL
       window.history.replaceState({}, '', window.location.pathname)
     } else if (urlParams.get('trello_error')) {
       const error = urlParams.get('trello_error')
+      setTrelloConnected(false)
       toast({
         title: "Error conectando Trello",
         description: error === 'missing_params' 
@@ -509,7 +518,7 @@ export function TeamTasksList() {
                 variant="outline" 
                 className="h-8 text-xs"
                 onClick={handleSyncTrello}
-                disabled={syncingTrello || !trelloConnected}
+                disabled={syncingTrello}
               >
                 <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncingTrello ? 'animate-spin' : ''}`} />
                 {syncingTrello ? 'Sincronizando...' : 'Sincronizar Trello'}
