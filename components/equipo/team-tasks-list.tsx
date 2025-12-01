@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal, Calendar, LayoutGrid, GanttChart, CalendarDays } from "lucide-react"
+import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal, Calendar, LayoutGrid, GanttChart, CalendarDays, Copy } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { getTeamTasks, updateTeamTask, deleteTeamTask, trackTeamTaskTime, type TeamTask } from "@/lib/api/team-tasks-api"
+import { getTeamTasks, updateTeamTask, deleteTeamTask, trackTeamTaskTime, createTeamTask, type TeamTask } from "@/lib/api/team-tasks-api"
 import { getUsers, type User } from "@/lib/api/users-api"
 import { getProjects } from "@/lib/api/projects-api"
 import { connectTrello, disconnectTrello, syncTrelloTasks, getTrelloConnectionStatus } from "@/lib/api/trello-api"
@@ -296,6 +296,43 @@ export function TeamTasksList() {
       toast({
         title: "Error",
         description: error.message || "No se pudo eliminar la tarea",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDuplicate = async (task: TeamTask) => {
+    try {
+      // Crear una copia de la tarea con un título modificado
+      const duplicatedTask = {
+        title: `${task.title} (Copia)`,
+        description: task.description,
+        category: task.category,
+        customCategory: task.customCategory,
+        status: 'pending' as TeamTaskStatus, // La copia siempre empieza como pendiente
+        priority: task.priority,
+        assignee: task.assignee,
+        projectId: task.projectId,
+        projectName: task.projectName,
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        estimatedHours: task.estimatedHours,
+        comentarios: task.comentarios,
+        createdBy: task.createdBy, // Mantener el creador original o usar el actual
+      }
+
+      const newTask = await createTeamTask(duplicatedTask)
+      
+      // Recargar tareas
+      await loadTasks()
+      
+      toast({
+        title: "Tarea duplicada",
+        description: "La tarea ha sido duplicada correctamente",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo duplicar la tarea",
         variant: "destructive",
       })
     }
@@ -857,6 +894,18 @@ export function TeamTasksList() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDuplicate(task)
+                            }}
+                            title="Duplicar tarea"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
