@@ -260,6 +260,34 @@ export function TeamTasksList() {
     return `${minutes}m`
   }
 
+  // Función para formatear fecha sin problemas de zona horaria
+  const formatDate = (date: Date | string | undefined): string => {
+    if (!date) return '-'
+    const d = typeof date === 'string' ? new Date(date) : date
+    // Usar métodos locales para evitar problemas de zona horaria
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${day}/${month}/${year}`
+  }
+
+  // Función para calcular días de retraso
+  const getDaysOverdue = (dueDate: Date | string | undefined): number | null => {
+    if (!dueDate) return null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const due = typeof dueDate === 'string' 
+      ? new Date(dueDate + 'T12:00:00')
+      : new Date(dueDate)
+    due.setHours(0, 0, 0, 0)
+    
+    const diffTime = today.getTime() - due.getTime()
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    
+    return diffDays > 0 ? diffDays : null
+  }
+
   const getCurrentTime = (task: TeamTask) => {
     if (!task.startedAt) return null
     const startedAtDate = task.startedAt instanceof Date 
@@ -401,12 +429,14 @@ export function TeamTasksList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[400px]">Título</TableHead>
+                  <TableHead className="w-[300px]">Título</TableHead>
                   <TableHead className="w-32">Categoría</TableHead>
                   <TableHead className="w-40">Responsable</TableHead>
                   <TableHead className="w-40">Proyecto</TableHead>
                   <TableHead className="w-32">Estado</TableHead>
                   <TableHead className="w-28">Prioridad</TableHead>
+                  <TableHead className="w-32">Fecha Límite</TableHead>
+                  <TableHead className="w-32">Retraso</TableHead>
                   <TableHead className="w-32">Horas</TableHead>
                   <TableHead className="w-40">Tiempo</TableHead>
                   <TableHead className="w-32">Acciones</TableHead>
@@ -497,6 +527,31 @@ export function TeamTasksList() {
                         <Badge className={`${priorityConfig[task.priority].color} text-xs px-1.5 py-0`} variant="outline">
                           {priorityConfig[task.priority].label}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs">
+                          {task.dueDate ? (
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="h-3 w-3 text-muted-foreground" />
+                              <span>{formatDate(task.dueDate)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const daysOverdue = getDaysOverdue(task.dueDate)
+                          if (daysOverdue !== null && task.status !== 'completed' && task.status !== 'cancelled') {
+                            return (
+                              <Badge variant="destructive" className="text-xs">
+                                {daysOverdue} día{daysOverdue !== 1 ? 's' : ''} de retraso
+                              </Badge>
+                            )
+                          }
+                          return <span className="text-xs text-muted-foreground">-</span>
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="text-xs">
@@ -713,7 +768,7 @@ export function TeamTasksList() {
                         const d = typeof selectedTask.dueDate === 'string' 
                           ? new Date(selectedTask.dueDate + 'T12:00:00') 
                           : new Date(selectedTask.dueDate)
-                        // Ajustar a zona horaria local para evitar problemas
+                        // Usar métodos locales para evitar problemas de zona horaria
                         const year = d.getFullYear()
                         const month = d.getMonth()
                         const day = d.getDate()
@@ -723,6 +778,17 @@ export function TeamTasksList() {
                           month: 'long', 
                           day: 'numeric' 
                         })
+                      })()}
+                      {(() => {
+                        const daysOverdue = getDaysOverdue(selectedTask.dueDate)
+                        if (daysOverdue !== null && selectedTask.status !== 'completed' && selectedTask.status !== 'cancelled') {
+                          return (
+                            <Badge variant="destructive" className="text-xs ml-2">
+                              {daysOverdue} día{daysOverdue !== 1 ? 's' : ''} de retraso
+                            </Badge>
+                          )
+                        }
+                        return null
                       })()}
                     </div>
                   </div>

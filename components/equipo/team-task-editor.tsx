@@ -142,7 +142,11 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
         assignee: formData.assignee.trim() || undefined,
         projectId: formData.projectId.trim() || undefined,
         projectName: formData.projectId ? projects.find(p => p.id === formData.projectId)?.name : undefined,
-        dueDate: formData.dueDate ? new Date(formData.dueDate) : undefined,
+        dueDate: formData.dueDate ? (() => {
+          // Crear fecha en zona horaria local para evitar problemas
+          const [year, month, day] = formData.dueDate.split('-').map(Number)
+          return new Date(year, month - 1, day, 12, 0, 0) // Usar mediodía para evitar cambios de día
+        })() : undefined,
         estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
         comentarios: formData.comentarios.trim() || undefined,
         createdBy: user?.email || 'unknown',
