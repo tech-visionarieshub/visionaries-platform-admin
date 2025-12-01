@@ -7,6 +7,7 @@ import { getInternalFirestore } from '@/lib/firebase/admin-platform'
  * GET /api/trello/callback?oauth_token=...&oauth_verifier=...
  * 
  * Intercambia el verifier por access token y guarda los tokens del usuario
+ * Retorna una página HTML que comunica el resultado al popup padre
  */
 
 export async function GET(request: NextRequest) {
@@ -16,9 +17,27 @@ export async function GET(request: NextRequest) {
     const oauthVerifier = searchParams.get('oauth_verifier')
 
     if (!oauthToken || !oauthVerifier) {
-      return NextResponse.redirect(
-        new URL('/equipo?trello_error=missing_params', request.url).origin
-      )
+      return new NextResponse(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Trello OAuth</title>
+          </head>
+          <body>
+            <script>
+              window.opener.postMessage({
+                type: 'TRELLO_OAUTH_ERROR',
+                error: 'missing_params',
+                message: 'Faltan parámetros en la respuesta de Trello'
+              }, '*');
+              window.close();
+            </script>
+            <p>Faltan parámetros. Esta ventana se cerrará automáticamente.</p>
+          </body>
+        </html>
+      `, {
+        headers: { 'Content-Type': 'text/html' },
+      })
     }
 
     // Buscar request token en Firestore
@@ -29,9 +48,27 @@ export async function GET(request: NextRequest) {
       .get()
 
     if (tempDocs.empty) {
-      return NextResponse.redirect(
-        new URL('/equipo?trello_error=token_not_found', request.url).origin
-      )
+      return new NextResponse(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Trello OAuth</title>
+          </head>
+          <body>
+            <script>
+              window.opener.postMessage({
+                type: 'TRELLO_OAUTH_ERROR',
+                error: 'token_not_found',
+                message: 'No se encontró el token de autorización'
+              }, '*');
+              window.close();
+            </script>
+            <p>Token no encontrado. Esta ventana se cerrará automáticamente.</p>
+          </body>
+        </html>
+      `, {
+        headers: { 'Content-Type': 'text/html' },
+      })
     }
 
     const tempData = tempDocs.docs[0].data()
@@ -51,15 +88,51 @@ export async function GET(request: NextRequest) {
     // Eliminar request token temporal
     await tempDocs.docs[0].ref.delete()
 
-    // Redirigir a la página de equipo con mensaje de éxito
-    return NextResponse.redirect(
-      new URL('/equipo?trello_connected=true', request.url).origin
-    )
+    // Retornar página HTML que comunica éxito al popup padre
+    return new NextResponse(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Trello OAuth</title>
+        </head>
+        <body>
+          <script>
+            window.opener.postMessage({
+              type: 'TRELLO_OAUTH_SUCCESS',
+              message: 'Trello conectado exitosamente'
+            }, '*');
+            window.close();
+          </script>
+          <p>Autorización exitosa. Esta ventana se cerrará automáticamente.</p>
+        </body>
+      </html>
+    `, {
+      headers: { 'Content-Type': 'text/html' },
+    })
   } catch (error: any) {
     console.error('[Trello Callback] Error:', error)
-    return NextResponse.redirect(
-      new URL(`/equipo?trello_error=${encodeURIComponent(error.message)}`, request.url).origin
-    )
+    return new NextResponse(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Trello OAuth</title>
+        </head>
+        <body>
+          <script>
+            window.opener.postMessage({
+              type: 'TRELLO_OAUTH_ERROR',
+              error: '${error.name || 'unknown'}',
+              message: '${error.message || 'Error desconocido'}'
+            }, '*');
+            window.close();
+          </script>
+          <p>Error: ${error.message || 'Error desconocido'}. Esta ventana se cerrará automáticamente.</p>
+        </body>
+      </html>
+    `, {
+      headers: { 'Content-Type': 'text/html' },
+    })
   }
 }
+
 

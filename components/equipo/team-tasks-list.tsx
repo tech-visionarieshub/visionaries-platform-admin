@@ -99,35 +99,6 @@ export function TeamTasksList() {
       // Si falla, asegurarse de que el estado sea false
       setTrelloConnected(false)
     })
-
-    // Verificar si hay parámetros de callback de Trello en la URL
-    const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('trello_connected') === 'true') {
-      toast({
-        title: "Trello conectado",
-        description: "Tu cuenta de Trello ha sido conectada exitosamente",
-      })
-      // Verificar conexión después de un pequeño delay para asegurar que los tokens estén guardados
-      setTimeout(() => {
-        checkTrelloConnection().catch(() => setTrelloConnected(false))
-      }, 500)
-      // Limpiar URL
-      window.history.replaceState({}, '', window.location.pathname)
-    } else if (urlParams.get('trello_error')) {
-      const error = urlParams.get('trello_error')
-      setTrelloConnected(false)
-      toast({
-        title: "Error conectando Trello",
-        description: error === 'missing_params' 
-          ? 'Faltan parámetros en la respuesta de Trello'
-          : error === 'token_not_found'
-          ? 'No se encontró el token de autorización'
-          : `Error: ${error}`,
-        variant: "destructive",
-      })
-      // Limpiar URL
-      window.history.replaceState({}, '', window.location.pathname)
-    }
   }, [loadTasks, toast])
 
   const checkTrelloConnection = async () => {
@@ -449,8 +420,60 @@ export function TeamTasksList() {
   const handleConnectTrello = async () => {
     try {
       const { authUrl } = await connectTrello()
-      // Redirigir a Trello para autorización
-      window.location.href = authUrl
+      
+      // Abrir popup para autorización
+      const width = 600
+      const height = 700
+      const left = (window.screen.width - width) / 2
+      const top = (window.screen.height - height) / 2
+      
+      const popup = window.open(
+        authUrl,
+        'Trello OAuth',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      )
+
+      if (!popup) {
+        toast({
+          title: "Error",
+          description: "El navegador bloqueó la ventana emergente. Por favor permite popups para este sitio.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Escuchar mensajes del popup
+      const messageHandler = (event: MessageEvent) => {
+        // Verificar origen por seguridad (opcional, puede ser más estricto)
+        if (event.data.type === 'TRELLO_OAUTH_SUCCESS') {
+          window.removeEventListener('message', messageHandler)
+          popup.close()
+          toast({
+            title: "Trello conectado",
+            description: "Tu cuenta de Trello ha sido conectada exitosamente",
+          })
+          checkTrelloConnection()
+        } else if (event.data.type === 'TRELLO_OAUTH_ERROR') {
+          window.removeEventListener('message', messageHandler)
+          popup.close()
+          toast({
+            title: "Error conectando Trello",
+            description: event.data.message || "Error desconocido al conectar con Trello",
+            variant: "destructive",
+          })
+          setTrelloConnected(false)
+        }
+      }
+
+      window.addEventListener('message', messageHandler)
+
+      // Verificar si el popup se cerró manualmente
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed)
+          window.removeEventListener('message', messageHandler)
+        }
+      }, 1000)
     } catch (error: any) {
       toast({
         title: "Error",
