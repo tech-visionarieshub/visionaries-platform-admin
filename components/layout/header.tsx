@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/use-user"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useState } from "react"
+import { hasRouteAccess } from "@/lib/routes"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,6 +95,19 @@ export function Header() {
   }
 
   const canAccessFinanzas = hasFinanzasAccess(user?.email)
+  
+  // Verificar acceso a rutas basado en allowedRoutes
+  const checkRouteAccess = (href: string): boolean => {
+    if (!user) return false
+    if (user.superadmin) return true // Superadmin tiene acceso a todo
+    
+    const allowedRoutes = user.allowedRoutes || []
+    // Si no tiene allowedRoutes definido, tiene acceso a todo (comportamiento anterior)
+    if (allowedRoutes.length === 0) return true
+    
+    // Verificar si la ruta está permitida
+    return hasRouteAccess(allowedRoutes, href, user.email, { allowedRoutes })
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b bg-white shadow-sm">
@@ -109,7 +123,7 @@ export function Header() {
               <div className="p-6 border-b">
                 <Link href="/" className="flex flex-col" onClick={() => setMobileMenuOpen(false)}>
                   <span className="text-lg font-bold leading-tight tracking-tight text-[#0E0734]">VISIONARIES</span>
-                  <span className="text-xs font-medium leading-tight tracking-wide text-[#4514F9]">PLATFORM</span>
+                  <span className="text-xs font-medium leading-tight tracking-wide text-[#4514F9]">SUITE</span>
                 </Link>
               </div>
               <nav className="flex-1 overflow-y-auto p-4">
@@ -118,7 +132,8 @@ export function Header() {
                   const isExpanded = expandedSections.includes(item.name)
                   const hasSubmenu = item.submenu && item.submenu.length > 0
                   const isFinanzas = item.name === "Finanzas"
-                  const hasAccess = !isFinanzas || canAccessFinanzas
+                  const hasRoutePermission = checkRouteAccess(item.href)
+                  const hasAccess = hasRoutePermission && (!isFinanzas || canAccessFinanzas)
 
                   return (
                     <div key={item.name} className="mb-2">
@@ -189,7 +204,7 @@ export function Header() {
             VISIONARIES
           </span>
           <span className="text-[10px] md:text-xs font-medium leading-tight tracking-wide text-[#4514F9]">
-            PLATFORM
+            SUITE
           </span>
         </Link>
 
@@ -197,7 +212,8 @@ export function Header() {
           {navigation.map((item) => {
             const isActive = pathname.startsWith(item.href)
             const isFinanzas = item.name === "Finanzas"
-            const hasAccess = !isFinanzas || canAccessFinanzas
+            const hasRoutePermission = checkRouteAccess(item.href)
+            const hasAccess = hasRoutePermission && (!isFinanzas || canAccessFinanzas)
 
             return (
               <div key={item.name} className="group relative">
