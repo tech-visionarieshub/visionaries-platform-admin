@@ -74,10 +74,29 @@ firebase use visionaries-platform-admin
 npx tsx scripts/verify-firestore-connection.ts
 ```
 
+## Variables para Trello OAuth
+
+Estas variables se usan para la integración con Trello usando OAuth 1.0:
+
+```env
+TRELLO_API_KEY=tu_api_key_de_trello
+TRELLO_API_SECRET=tu_api_secret_de_trello
+TRELLO_CALLBACK_URL=https://tu-dominio.com/api/trello/callback
+```
+
+**Cómo obtenerlas:**
+1. Ve a: https://trello.com/app-key
+2. Copia tu API Key
+3. Registra una aplicación en la sección "Application" para obtener el API Secret
+4. Configura el callback URL en la aplicación de Trello
+
+**Nota:** También puedes configurar estas credenciales desde Settings en la plataforma (se guardan en Firestore en `config/trello`).
+
 ## Notas Importantes
 
 - **NUNCA** commits las variables de entorno al repositorio
 - Las variables `NEXT_PUBLIC_*` son públicas y se exponen al cliente
 - Las variables de service account son privadas y solo se usan en el servidor
 - En producción, usa variables de entorno del hosting provider (Vercel, etc.)
+- Las credenciales de Trello también pueden configurarse desde la UI en Settings
 

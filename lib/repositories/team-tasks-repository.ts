@@ -233,7 +233,25 @@ export class TeamTasksRepository {
 
     return similarTasks
   }
+
+  /**
+   * Busca una tarea por Trello Card ID
+   */
+  async findByTrelloCardId(trelloCardId: string): Promise<TeamTask | null> {
+    const snapshot = await this.getTeamTasksCollection()
+      .where('trelloCardId', '==', trelloCardId)
+      .limit(1)
+      .get()
+
+    if (snapshot.empty) {
+      return null
+    }
+
+    return this.fromFirestore(snapshot.docs[0])
+  }
 }
 
 export const teamTasksRepository = new TeamTasksRepository()
+
+
 

@@ -14,12 +14,14 @@ import { useToast } from "@/hooks/use-toast"
 import { getTeamTasks, updateTeamTask, deleteTeamTask, trackTeamTaskTime, type TeamTask } from "@/lib/api/team-tasks-api"
 import { getUsers, type User } from "@/lib/api/users-api"
 import { getProjects } from "@/lib/api/projects-api"
+import { connectTrello, disconnectTrello, syncTrelloTasks, getTrelloConnectionStatus } from "@/lib/api/trello-api"
 import type { TeamTaskStatus, TeamTaskPriority, TeamTaskCategory } from "@/types/team-task"
 import { TeamTaskEditor } from "./team-task-editor"
 import { TranscriptTaskGenerator } from "./transcript-task-generator"
 import { TeamTasksKanban } from "./team-tasks-kanban"
 import { TeamTasksGantt } from "./team-tasks-gantt"
 import { TeamTasksCalendar } from "./team-tasks-calendar"
+import { Link2, Link2Off, RefreshCw } from "lucide-react"
 
 const statusConfig = {
   pending: { label: "Pendiente", color: "bg-gray-500" },
@@ -54,6 +56,8 @@ export function TeamTasksList() {
   const [users, setUsers] = useState<User[]>([])
   const [projects, setProjects] = useState<Array<{ id: string; name: string; clientName?: string }>>([])
   const [activeView, setActiveView] = useState<"table" | "kanban" | "gantt" | "calendar">("table")
+  const [trelloConnected, setTrelloConnected] = useState(false)
+  const [syncingTrello, setSyncingTrello] = useState(false)
 
   // Cargar tareas
   const loadTasks = useCallback(async () => {
@@ -89,7 +93,42 @@ export function TeamTasksList() {
     loadTasks()
     loadUsers()
     loadProjects()
-  }, [loadTasks])
+    checkTrelloConnection()
+
+    // Verificar si hay parámetros de callback de Trello en la URL
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('trello_connected') === 'true') {
+      toast({
+        title: "Trello conectado",
+        description: "Tu cuenta de Trello ha sido conectada exitosamente",
+      })
+      checkTrelloConnection()
+      // Limpiar URL
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (urlParams.get('trello_error')) {
+      const error = urlParams.get('trello_error')
+      toast({
+        title: "Error conectando Trello",
+        description: error === 'missing_params' 
+          ? 'Faltan parámetros en la respuesta de Trello'
+          : error === 'token_not_found'
+          ? 'No se encontró el token de autorización'
+          : `Error: ${error}`,
+        variant: "destructive",
+      })
+      // Limpiar URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [loadTasks, toast])
+
+  const checkTrelloConnection = async () => {
+    try {
+      const status = await getTrelloConnectionStatus()
+      setTrelloConnected(status.connected)
+    } catch (error) {
+      setTrelloConnected(false)
+    }
+  }
 
   const loadUsers = async () => {
     try {
@@ -297,6 +336,65 @@ export function TeamTasksList() {
     return elapsedSeconds
   }
 
+  const handleConnectTrello = async () => {
+    try {
+      const { authUrl } = await connectTrello()
+      // Redirigir a Trello para autorización
+      window.location.href = authUrl
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo conectar con Trello",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDisconnectTrello = async () => {
+    if (!confirm('¿Estás seguro de que quieres desconectar tu cuenta de Trello?')) {
+      return
+    }
+
+    try {
+      await disconnectTrello()
+      setTrelloConnected(false)
+      toast({
+        title: "Desconectado",
+        description: "Tu cuenta de Trello ha sido desconectada",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo desconectar Trello",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSyncTrello = async () => {
+    try {
+      setSyncingTrello(true)
+      const result = await syncTrelloTasks()
+      
+      toast({
+        title: "Sincronización completada",
+        description: result.message,
+      })
+
+      // Recargar tareas
+      await loadTasks()
+      await checkTrelloConnection()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron sincronizar las tareas de Trello",
+        variant: "destructive",
+      })
+    } finally {
+      setSyncingTrello(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -308,6 +406,36 @@ export function TeamTasksList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {trelloConnected ? (
+            <>
+              <Button 
+                variant="outline" 
+                className="h-8 text-xs"
+                onClick={handleSyncTrello}
+                disabled={syncingTrello}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncingTrello ? 'animate-spin' : ''}`} />
+                {syncingTrello ? 'Sincronizando...' : 'Sincronizar Trello'}
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-8 text-xs"
+                onClick={handleDisconnectTrello}
+              >
+                <Link2Off className="h-3.5 w-3.5 mr-1" />
+                Desconectar Trello
+              </Button>
+            </>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="h-8 text-xs"
+              onClick={handleConnectTrello}
+            >
+              <Link2 className="h-3.5 w-3.5 mr-1" />
+              Conectar Trello
+            </Button>
+          )}
           <Button 
             variant="outline" 
             className="h-8 text-xs"

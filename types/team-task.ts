@@ -49,8 +49,11 @@ export interface TeamTask {
   startedAt?: Date
   accumulatedTime?: number
   comentarios?: string
+  trelloCardId?: string  // ID de la tarjeta de Trello para evitar duplicados
   createdAt: Date
   updatedAt: Date
   createdBy: string
 }
+
+
 
