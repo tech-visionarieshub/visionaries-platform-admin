@@ -371,6 +371,35 @@ export function TeamTasksList() {
     return elapsedSeconds
   }
 
+  // Función para generar un color único para cada responsable basado en su email
+  const getAssigneeColor = (email: string | undefined): string => {
+    if (!email) return 'bg-gray-200 text-gray-600'
+    
+    // Paleta de colores predefinida
+    const colors = [
+      'bg-blue-100 text-blue-700 border-blue-300',
+      'bg-green-100 text-green-700 border-green-300',
+      'bg-purple-100 text-purple-700 border-purple-300',
+      'bg-pink-100 text-pink-700 border-pink-300',
+      'bg-yellow-100 text-yellow-700 border-yellow-300',
+      'bg-indigo-100 text-indigo-700 border-indigo-300',
+      'bg-red-100 text-red-700 border-red-300',
+      'bg-teal-100 text-teal-700 border-teal-300',
+      'bg-orange-100 text-orange-700 border-orange-300',
+      'bg-cyan-100 text-cyan-700 border-cyan-300',
+      'bg-amber-100 text-amber-700 border-amber-300',
+      'bg-emerald-100 text-emerald-700 border-emerald-300',
+    ]
+    
+    // Generar un índice determinístico basado en el email
+    let hash = 0
+    for (let i = 0; i < email.length; i++) {
+      hash = email.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const index = Math.abs(hash) % colors.length
+    return colors[index]
+  }
+
   const handleConnectTrello = async () => {
     try {
       const { authUrl } = await connectTrello()
@@ -542,10 +571,10 @@ export function TeamTasksList() {
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger>
-              <SelectValue placeholder="Estado" />
+              <SelectValue placeholder={filterStatus === 'all' ? 'Todos los estados' : 'Estado'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos los estados</SelectItem>
               <SelectItem value="pending">Pendiente</SelectItem>
               <SelectItem value="in-progress">En Progreso</SelectItem>
               <SelectItem value="review">En Revisión</SelectItem>
@@ -555,10 +584,10 @@ export function TeamTasksList() {
           </Select>
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
             <SelectTrigger>
-              <SelectValue placeholder="Responsable" />
+              <SelectValue placeholder={filterAssignee === 'all' ? 'Todos los responsables' : 'Responsable'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos los responsables</SelectItem>
               {users.map(user => (
                 <SelectItem key={user.email} value={user.email}>
                   {user.displayName}
@@ -568,10 +597,10 @@ export function TeamTasksList() {
           </Select>
           <Select value={filterProject} onValueChange={setFilterProject}>
             <SelectTrigger>
-              <SelectValue placeholder="Proyecto" />
+              <SelectValue placeholder={filterProject === 'all' ? 'Todos los proyectos' : 'Proyecto'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos los proyectos</SelectItem>
               {projects.map(project => (
                 <SelectItem key={project.id} value={project.id}>
                   {project.name}
@@ -581,10 +610,10 @@ export function TeamTasksList() {
           </Select>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
             <SelectTrigger>
-              <SelectValue placeholder="Categoría" />
+              <SelectValue placeholder={filterCategory === 'all' ? 'Todas las categorías' : 'Categoría'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="all">Todas las categorías</SelectItem>
               {['Propuestas', 'Startups', 'Evolution', 'Pathway', 'Desarrollo', 'QA', 'Portal Admin', 'Aura', 'Redes Sociales', 'Conferencias', 'Inversión', 'Pagos', 'Otra'].map(cat => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
@@ -675,26 +704,34 @@ export function TeamTasksList() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={task.assignee || 'unassigned'}
-                          onValueChange={(value) => handleAssigneeChange(task.id, value)}
-                        >
-                          <SelectTrigger className="h-7 text-xs w-32">
-                            <SelectValue>
-                              {task.assignee 
-                                ? users.find(u => u.email === task.assignee)?.displayName || task.assignee
-                                : 'Sin asignar'}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">Sin asignar</SelectItem>
-                            {users.map((user) => (
-                              <SelectItem key={user.email} value={user.email}>
-                                {user.displayName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          {task.assignee && (
+                            <div className={`w-3 h-3 rounded-full border ${getAssigneeColor(task.assignee).split(' ')[0]}`} />
+                          )}
+                          <Select
+                            value={task.assignee || 'unassigned'}
+                            onValueChange={(value) => handleAssigneeChange(task.id, value)}
+                          >
+                            <SelectTrigger className={`h-7 text-xs w-32 ${task.assignee ? getAssigneeColor(task.assignee) : 'bg-gray-100 text-gray-600'}`}>
+                              <SelectValue>
+                                {task.assignee 
+                                  ? users.find(u => u.email === task.assignee)?.displayName || task.assignee
+                                  : 'Sin asignar'}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Sin asignar</SelectItem>
+                              {users.map((user) => (
+                                <SelectItem key={user.email} value={user.email}>
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${getAssigneeColor(user.email).split(' ')[0]}`} />
+                                    {user.displayName}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </TableCell>
                       <TableCell>
                         {task.projectName ? (
@@ -943,7 +980,10 @@ export function TeamTasksList() {
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Responsable</div>
-                  <div className="text-sm flex items-center gap-1.5">
+                  <div className={`text-sm flex items-center gap-1.5 px-2 py-1 rounded ${selectedTask.assignee ? getAssigneeColor(selectedTask.assignee) : 'bg-gray-100 text-gray-600'}`}>
+                    {selectedTask.assignee && (
+                      <div className={`w-2.5 h-2.5 rounded-full ${getAssigneeColor(selectedTask.assignee).split(' ')[0]}`} />
+                    )}
                     <User className="h-3.5 w-3.5" />
                     {selectedTask.assignee 
                       ? users.find(u => u.email === selectedTask.assignee)?.displayName || selectedTask.assignee
