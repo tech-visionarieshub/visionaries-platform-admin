@@ -164,8 +164,9 @@ export function TeamTasksList() {
     }
   }
 
-  // Filtrar tareas por búsqueda
+  // Filtrar tareas por búsqueda y filtros del cliente
   const filteredTasks = tasks.filter(task => {
+    // Filtro de búsqueda
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       const matchesTitle = task.title.toLowerCase().includes(query)
@@ -173,6 +174,19 @@ export function TeamTasksList() {
       const matchesCategory = (task.category === 'Otra' ? task.customCategory : task.category)?.toLowerCase().includes(query)
       if (!matchesTitle && !matchesDescription && !matchesCategory) return false
     }
+    
+    // Filtro de estado (aplicar también en cliente por si acaso)
+    if (filterStatus !== 'all' && task.status !== filterStatus) return false
+    
+    // Filtro de responsable
+    if (filterAssignee !== 'all' && task.assignee !== filterAssignee) return false
+    
+    // Filtro de proyecto
+    if (filterProject !== 'all' && task.projectId !== filterProject) return false
+    
+    // Filtro de categoría
+    if (filterCategory !== 'all' && task.category !== filterCategory) return false
+    
     return true
   })
 
@@ -421,11 +435,18 @@ export function TeamTasksList() {
   const getAssigneeColor = (email: string | undefined): string => {
     if (!email) return 'bg-gray-200 text-gray-600'
     
-    // Paleta de colores predefinida
+    // Colores específicos para usuarios conocidos
+    const emailLower = email.toLowerCase()
+    if (emailLower === 'gabypino@visionarieshub.com') {
+      return 'bg-purple-100 text-purple-700 border-purple-300'
+    }
+    if (emailLower === 'arelyibarra@visionarieshub.com') {
+      return 'bg-green-100 text-green-700 border-green-300'
+    }
+    
+    // Paleta de colores predefinida (sin morado y verde que ya están asignados)
     const colors = [
       'bg-blue-100 text-blue-700 border-blue-300',
-      'bg-green-100 text-green-700 border-green-300',
-      'bg-purple-100 text-purple-700 border-purple-300',
       'bg-pink-100 text-pink-700 border-pink-300',
       'bg-yellow-100 text-yellow-700 border-yellow-300',
       'bg-indigo-100 text-indigo-700 border-indigo-300',
