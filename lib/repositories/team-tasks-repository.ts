@@ -55,7 +55,7 @@ export class TeamTasksRepository {
       assignee: data.assignee,
       projectId: data.projectId,
       projectName: data.projectName,
-      dueDate: data.dueDate?.toDate?.() || (data.dueDate as Date | undefined),
+      dueDate: data.dueDate?.toDate?.() || (data.dueDate && !(data.dueDate instanceof Date) ? undefined : (data.dueDate as Date | undefined)),
       estimatedHours: data.estimatedHours,
       actualHours: data.actualHours,
       startedAt: data.startedAt?.toDate?.() || (data.startedAt as Date | undefined),

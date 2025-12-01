@@ -76,12 +76,33 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
   // Función para formatear fecha sin problemas de zona horaria
   const formatDateForInput = (date: Date | string | undefined): string => {
     if (!date) return ""
-    const d = typeof date === 'string' ? new Date(date) : date
-    // Usar métodos locales para evitar problemas de zona horaria
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
+    try {
+      let d: Date
+      if (typeof date === 'string') {
+        // Si es string, intentar parsearlo
+        d = new Date(date)
+        if (isNaN(d.getTime())) {
+          return ""
+        }
+      } else {
+        d = date
+      }
+      
+      // Verificar que la fecha sea válida
+      if (isNaN(d.getTime())) {
+        return ""
+      }
+      
+      // Usar métodos locales para evitar problemas de zona horaria
+      // Usar UTC para obtener la fecha correcta sin importar la zona horaria
+      const year = d.getUTCFullYear()
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(d.getUTCDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    } catch (error) {
+      console.error('[formatDateForInput] Error:', error)
+      return ""
+    }
   }
 
   // Cargar datos de la tarea si está editando
@@ -143,9 +164,10 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
         projectId: formData.projectId.trim() || undefined,
         projectName: formData.projectId ? projects.find(p => p.id === formData.projectId)?.name : undefined,
         dueDate: formData.dueDate ? (() => {
-          // Crear fecha en zona horaria local para evitar problemas
+          // Crear fecha en UTC para evitar problemas de zona horaria
+          // Usar mediodía UTC para evitar cambios de día al convertir
           const [year, month, day] = formData.dueDate.split('-').map(Number)
-          return new Date(year, month - 1, day, 12, 0, 0) // Usar mediodía para evitar cambios de día
+          return new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
         })() : undefined,
         estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
         comentarios: formData.comentarios.trim() || undefined,

@@ -302,29 +302,61 @@ export function TeamTasksList() {
   // Función para formatear fecha sin problemas de zona horaria
   const formatDate = (date: Date | string | undefined): string => {
     if (!date) return '-'
-    const d = typeof date === 'string' ? new Date(date) : date
-    // Usar métodos locales para evitar problemas de zona horaria
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${day}/${month}/${year}`
+    try {
+      let d: Date
+      if (typeof date === 'string') {
+        d = new Date(date)
+        if (isNaN(d.getTime())) {
+          return '-'
+        }
+      } else {
+        d = date
+        if (isNaN(d.getTime())) {
+          return '-'
+        }
+      }
+      
+      // Usar UTC para obtener la fecha correcta sin importar la zona horaria
+      const year = d.getUTCFullYear()
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(d.getUTCDate()).padStart(2, '0')
+      return `${day}/${month}/${year}`
+    } catch (error) {
+      console.error('[formatDate] Error:', error)
+      return '-'
+    }
   }
 
   // Función para calcular días de retraso
   const getDaysOverdue = (dueDate: Date | string | undefined): number | null => {
     if (!dueDate) return null
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    const due = typeof dueDate === 'string' 
-      ? new Date(dueDate + 'T12:00:00')
-      : new Date(dueDate)
-    due.setHours(0, 0, 0, 0)
-    
-    const diffTime = today.getTime() - due.getTime()
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-    
-    return diffDays > 0 ? diffDays : null
+    try {
+      let due: Date
+      if (typeof dueDate === 'string') {
+        due = new Date(dueDate)
+        if (isNaN(due.getTime())) {
+          return null
+        }
+      } else {
+        due = new Date(dueDate)
+        if (isNaN(due.getTime())) {
+          return null
+        }
+      }
+      
+      // Usar UTC para comparar fechas sin problemas de zona horaria
+      const today = new Date()
+      const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
+      const dueUTC = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate()))
+      
+      const diffTime = todayUTC.getTime() - dueUTC.getTime()
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      
+      return diffDays > 0 ? diffDays : null
+    } catch (error) {
+      console.error('[getDaysOverdue] Error:', error)
+      return null
+    }
   }
 
   const getCurrentTime = (task: TeamTask) => {
@@ -893,9 +925,18 @@ export function TeamTasksList() {
                     <div className="text-sm flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5" />
                       {(() => {
-                        const d = typeof selectedTask.dueDate === 'string' 
-                          ? new Date(selectedTask.dueDate + 'T12:00:00') 
-                          : new Date(selectedTask.dueDate)
+                        let d: Date
+                        if (typeof selectedTask.dueDate === 'string') {
+                          d = new Date(selectedTask.dueDate)
+                          if (isNaN(d.getTime())) {
+                            d = new Date()
+                          }
+                        } else {
+                          d = selectedTask.dueDate
+                          if (isNaN(d.getTime())) {
+                            d = new Date()
+                          }
+                        }
                         // Usar métodos locales para evitar problemas de zona horaria
                         const year = d.getFullYear()
                         const month = d.getMonth()
