@@ -99,6 +99,35 @@ export function TeamTasksList() {
       // Si falla, asegurarse de que el estado sea false
       setTrelloConnected(false)
     })
+
+    // Verificar si hay parámetros de callback de Trello en la URL (fallback si no se usa popup)
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('trello_connected') === 'true') {
+      toast({
+        title: "Trello conectado",
+        description: "Tu cuenta de Trello ha sido conectada exitosamente",
+      })
+      // Verificar conexión después de un pequeño delay para asegurar que los tokens estén guardados
+      setTimeout(() => {
+        checkTrelloConnection().catch(() => setTrelloConnected(false))
+      }, 500)
+      // Limpiar URL
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (urlParams.get('trello_error')) {
+      const error = urlParams.get('trello_error')
+      setTrelloConnected(false)
+      toast({
+        title: "Error conectando Trello",
+        description: error === 'missing_params' 
+          ? 'Faltan parámetros en la respuesta de Trello'
+          : error === 'token_not_found'
+          ? 'No se encontró el token de autorización'
+          : `Error: ${error}`,
+        variant: "destructive",
+      })
+      // Limpiar URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
   }, [loadTasks, toast])
 
   const checkTrelloConnection = async () => {
@@ -421,7 +450,7 @@ export function TeamTasksList() {
     try {
       const { authUrl } = await connectTrello()
       
-      // Abrir popup para autorización
+      // Abrir ventana emergente para OAuth
       const width = 600
       const height = 700
       const left = (window.screen.width - width) / 2
@@ -429,51 +458,62 @@ export function TeamTasksList() {
       
       const popup = window.open(
         authUrl,
-        'Trello OAuth',
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+        'Trello Authorization',
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
       )
 
       if (!popup) {
         toast({
-          title: "Error",
-          description: "El navegador bloqueó la ventana emergente. Por favor permite popups para este sitio.",
+          title: "Popup bloqueado",
+          description: "Por favor permite ventanas emergentes para este sitio e intenta nuevamente",
           variant: "destructive",
         })
         return
       }
 
       // Escuchar mensajes del popup
-      const messageHandler = (event: MessageEvent) => {
-        // Verificar origen por seguridad (opcional, puede ser más estricto)
-        if (event.data.type === 'TRELLO_OAUTH_SUCCESS') {
-          window.removeEventListener('message', messageHandler)
+      const messageListener = (event: MessageEvent) => {
+        // Verificar origen por seguridad
+        if (event.origin !== window.location.origin) {
+          return
+        }
+
+        if (event.data.type === 'trello_oauth_success') {
+          window.removeEventListener('message', messageListener)
           popup.close()
+          
           toast({
             title: "Trello conectado",
             description: "Tu cuenta de Trello ha sido conectada exitosamente",
           })
+          
+          // Verificar conexión y recargar
           checkTrelloConnection()
-        } else if (event.data.type === 'TRELLO_OAUTH_ERROR') {
-          window.removeEventListener('message', messageHandler)
+          loadTasks()
+        } else if (event.data.type === 'trello_oauth_error') {
+          window.removeEventListener('message', messageListener)
           popup.close()
+          
           toast({
             title: "Error conectando Trello",
-            description: event.data.message || "Error desconocido al conectar con Trello",
+            description: event.data.error || "Error desconocido",
             variant: "destructive",
           })
+          
           setTrelloConnected(false)
         }
       }
 
-      window.addEventListener('message', messageHandler)
+      window.addEventListener('message', messageListener)
 
       // Verificar si el popup se cerró manualmente
       const checkClosed = setInterval(() => {
         if (popup.closed) {
           clearInterval(checkClosed)
-          window.removeEventListener('message', messageHandler)
+          window.removeEventListener('message', messageListener)
         }
       }, 1000)
+
     } catch (error: any) {
       toast({
         title: "Error",

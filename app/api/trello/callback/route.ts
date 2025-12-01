@@ -7,7 +7,6 @@ import { getInternalFirestore } from '@/lib/firebase/admin-platform'
  * GET /api/trello/callback?oauth_token=...&oauth_verifier=...
  * 
  * Intercambia el verifier por access token y guarda los tokens del usuario
- * Retorna una página HTML que comunica el resultado al popup padre
  */
 
 export async function GET(request: NextRequest) {
@@ -17,27 +16,9 @@ export async function GET(request: NextRequest) {
     const oauthVerifier = searchParams.get('oauth_verifier')
 
     if (!oauthToken || !oauthVerifier) {
-      return new NextResponse(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Trello OAuth</title>
-          </head>
-          <body>
-            <script>
-              window.opener.postMessage({
-                type: 'TRELLO_OAUTH_ERROR',
-                error: 'missing_params',
-                message: 'Faltan parámetros en la respuesta de Trello'
-              }, '*');
-              window.close();
-            </script>
-            <p>Faltan parámetros. Esta ventana se cerrará automáticamente.</p>
-          </body>
-        </html>
-      `, {
-        headers: { 'Content-Type': 'text/html' },
-      })
+      return NextResponse.redirect(
+        new URL('/equipo?trello_error=missing_params', request.url).origin
+      )
     }
 
     // Buscar request token en Firestore
@@ -48,27 +29,9 @@ export async function GET(request: NextRequest) {
       .get()
 
     if (tempDocs.empty) {
-      return new NextResponse(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Trello OAuth</title>
-          </head>
-          <body>
-            <script>
-              window.opener.postMessage({
-                type: 'TRELLO_OAUTH_ERROR',
-                error: 'token_not_found',
-                message: 'No se encontró el token de autorización'
-              }, '*');
-              window.close();
-            </script>
-            <p>Token no encontrado. Esta ventana se cerrará automáticamente.</p>
-          </body>
-        </html>
-      `, {
-        headers: { 'Content-Type': 'text/html' },
-      })
+      return NextResponse.redirect(
+        new URL('/equipo?trello_error=token_not_found', request.url).origin
+      )
     }
 
     const tempData = tempDocs.docs[0].data()
@@ -88,49 +51,69 @@ export async function GET(request: NextRequest) {
     // Eliminar request token temporal
     await tempDocs.docs[0].ref.delete()
 
-    // Retornar página HTML que comunica éxito al popup padre
-    return new NextResponse(`
+    // Retornar página HTML que comunica el resultado al popup
+    const successHtml = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Trello OAuth</title>
+          <title>Trello Authorization</title>
         </head>
         <body>
           <script>
-            window.opener.postMessage({
-              type: 'TRELLO_OAUTH_SUCCESS',
-              message: 'Trello conectado exitosamente'
-            }, '*');
-            window.close();
+            // Comunicar éxito a la ventana padre
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'trello_oauth_success'
+              }, window.location.origin)
+              window.close()
+            } else {
+              // Si no hay ventana padre, redirigir
+              window.location.href = '${new URL('/equipo?trello_connected=true', request.url).origin}'
+            }
           </script>
-          <p>Autorización exitosa. Esta ventana se cerrará automáticamente.</p>
+          <p>Autorización exitosa. Esta ventana se cerrará automáticamente...</p>
         </body>
       </html>
-    `, {
-      headers: { 'Content-Type': 'text/html' },
+    `
+
+    return new NextResponse(successHtml, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
     })
   } catch (error: any) {
     console.error('[Trello Callback] Error:', error)
-    return new NextResponse(`
+    
+    // Retornar página HTML con error
+    const errorHtml = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Trello OAuth</title>
+          <title>Trello Authorization Error</title>
         </head>
         <body>
           <script>
-            window.opener.postMessage({
-              type: 'TRELLO_OAUTH_ERROR',
-              error: '${error.name || 'unknown'}',
-              message: '${error.message || 'Error desconocido'}'
-            }, '*');
-            window.close();
+            // Comunicar error a la ventana padre
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'trello_oauth_error',
+                error: ${JSON.stringify(error.message || 'Error desconocido')}
+              }, window.location.origin)
+              window.close()
+            } else {
+              // Si no hay ventana padre, redirigir
+              window.location.href = '${new URL(`/equipo?trello_error=${encodeURIComponent(error.message)}`, request.url).origin}'
+            }
           </script>
-          <p>Error: ${error.message || 'Error desconocido'}. Esta ventana se cerrará automáticamente.</p>
+          <p>Error en la autorización. Esta ventana se cerrará automáticamente...</p>
         </body>
       </html>
-    `, {
-      headers: { 'Content-Type': 'text/html' },
+    `
+
+    return new NextResponse(errorHtml, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
     })
   }
 }
