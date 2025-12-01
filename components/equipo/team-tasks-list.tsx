@@ -125,8 +125,11 @@ export function TeamTasksList() {
     try {
       const status = await getTrelloConnectionStatus()
       setTrelloConnected(status.connected)
+      return status.connected
     } catch (error) {
+      console.error('[checkTrelloConnection] Error:', error)
       setTrelloConnected(false)
+      return false
     }
   }
 
@@ -404,8 +407,31 @@ export function TeamTasksList() {
   }
 
   const handleSyncTrello = async () => {
+    // Verificar conexión antes de sincronizar
+    if (!trelloConnected) {
+      toast({
+        title: "Trello no conectado",
+        description: "Por favor conecta tu cuenta de Trello primero haciendo clic en 'Conectar Trello'",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setSyncingTrello(true)
+      
+      // Verificar conexión nuevamente antes de sincronizar
+      const status = await getTrelloConnectionStatus()
+      if (!status.connected) {
+        setTrelloConnected(false)
+        toast({
+          title: "Trello no conectado",
+          description: "Tu cuenta de Trello no está conectada. Por favor conéctala primero.",
+          variant: "destructive",
+        })
+        return
+      }
+
       const result = await syncTrelloTasks()
       
       toast({
@@ -417,11 +443,21 @@ export function TeamTasksList() {
       await loadTasks()
       await checkTrelloConnection()
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "No se pudieron sincronizar las tareas de Trello",
-        variant: "destructive",
-      })
+      // Si el error es que no está conectado, actualizar el estado
+      if (error.message?.includes('No tienes una cuenta de Trello conectada')) {
+        setTrelloConnected(false)
+        toast({
+          title: "Trello no conectado",
+          description: "Por favor conecta tu cuenta de Trello primero haciendo clic en 'Conectar Trello'",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "No se pudieron sincronizar las tareas de Trello",
+          variant: "destructive",
+        })
+      }
     } finally {
       setSyncingTrello(false)
     }
@@ -444,7 +480,7 @@ export function TeamTasksList() {
                 variant="outline" 
                 className="h-8 text-xs"
                 onClick={handleSyncTrello}
-                disabled={syncingTrello}
+                disabled={syncingTrello || !trelloConnected}
               >
                 <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncingTrello ? 'animate-spin' : ''}`} />
                 {syncingTrello ? 'Sincronizando...' : 'Sincronizar Trello'}
@@ -453,6 +489,7 @@ export function TeamTasksList() {
                 variant="outline" 
                 className="h-8 text-xs"
                 onClick={handleDisconnectTrello}
+                disabled={syncingTrello}
               >
                 <Link2Off className="h-3.5 w-3.5 mr-1" />
                 Desconectar Trello

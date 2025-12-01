@@ -38,8 +38,15 @@ export async function GET(request: NextRequest) {
         connected: true,
         boardId: userTokens.boardId,
       })
-    } catch (error) {
+    } catch (error: any) {
       // Si falla, el token puede haber expirado o sido revocado
+      console.error('[Trello Status] Error verificando token:', error)
+      // Eliminar tokens inválidos
+      try {
+        await trelloService.deleteUserTokens(userId)
+      } catch (deleteError) {
+        console.error('[Trello Status] Error eliminando tokens:', deleteError)
+      }
       return NextResponse.json({
         connected: false,
         error: 'Token inválido o expirado',
@@ -53,4 +60,5 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
 
