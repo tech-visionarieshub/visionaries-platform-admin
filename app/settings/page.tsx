@@ -97,6 +97,7 @@ export default function SettingsPage() {
     toggl: "••••••••••••••••",
     googleDrive: "••••••••••••••••",
     googleCalendar: "••••••••••••••••",
+    gmail: "••••••••••••••••",
     brevo: "••••••••••••••••",
     firebase: "••••••••••••••••",
     openai: "••••••••••••••••",
@@ -109,6 +110,7 @@ export default function SettingsPage() {
     toggl: false,
     googleDrive: false,
     googleCalendar: false,
+    gmail: false,
     brevo: false,
     firebase: false,
     openai: false,
@@ -411,6 +413,54 @@ export default function SettingsPage() {
           variant: "destructive",
         })
       }
+    } else if (key === "gmail") {
+      // Manejar Gmail Service Account JSON
+      if (!apiKeys.gmail || apiKeys.gmail === "••••••••••••••••") {
+        toast({
+          title: "Error",
+          description: "Por favor ingresa el Service Account JSON de Gmail",
+          variant: "destructive",
+        })
+        return
+      }
+
+      try {
+        // Validar que sea JSON válido
+        JSON.parse(apiKeys.gmail)
+      } catch (e) {
+        toast({
+          title: "Error",
+          description: "El JSON proporcionado no es válido",
+          variant: "destructive",
+        })
+        return
+      }
+
+      try {
+        const { saveGmailConfig } = await import("@/lib/api/gmail-api")
+        const data = await saveGmailConfig(apiKeys.gmail)
+        
+        toast({
+          title: "Gmail configurado",
+          description: data.message || "El Service Account de Gmail se ha guardado correctamente.",
+        })
+        loadGmailConfig()
+      } catch (error: any) {
+        console.error("Error guardando Service Account de Gmail:", error)
+        let errorMessage = "No se pudo guardar la configuración de Gmail"
+        
+        if (error.message?.includes("permisos") || error.message?.includes("403")) {
+          errorMessage = "No tienes permisos para guardar el Service Account. Solo los superadmins o usuarios internos pueden configurar Gmail."
+        } else if (error.message) {
+          errorMessage = error.message
+        }
+        
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
     } else if (key === "googleCalendar") {
       // Manejar Google Calendar Service Account JSON
       try {
@@ -565,6 +615,23 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error("Error cargando configuración de GitHub:", error)
+    }
+  }
+
+  // Cargar configuración de Gmail al inicializar
+  const loadGmailConfig = async () => {
+    try {
+      const { getGmailConfig } = await import("@/lib/api/gmail-api")
+      const config = await getGmailConfig()
+      
+      if (config.configured && config.maskedInfo) {
+        const maskedValue = config.usingCalendarConfig 
+          ? `(Usando configuración de Google Calendar) ${config.maskedInfo.client_email}`
+          : `•••••••••••••••• (${config.maskedInfo.client_email})`
+        setApiKeys(prev => ({ ...prev, gmail: maskedValue }))
+      }
+    } catch (error) {
+      console.error("Error cargando configuración de Gmail:", error)
     }
   }
 
@@ -1356,6 +1423,63 @@ export default function SettingsPage() {
                 </div>
               </div>
               <Button onClick={() => handleSaveApiKey("googleDrive", apiKeys.googleDrive)}>Guardar</Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Gmail API</CardTitle>
+              <CardDescription>Envía emails usando Gmail API. Puede usar las mismas credenciales de Google Calendar.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="gmail-credentials">Service Account JSON</Label>
+                <div className="flex gap-2">
+                  <Textarea
+                    id="gmail-credentials"
+                    className="font-mono text-xs"
+                    rows={6}
+                    value={apiKeys.gmail}
+                    onChange={(e) => setApiKeys({ ...apiKeys, gmail: e.target.value })}
+                    placeholder="Pega el contenido del JSON aquí (o deja vacío para usar Google Calendar)"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Si no configuras Gmail específicamente, se usarán las credenciales de Google Calendar automáticamente.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => handleSaveApiKey("gmail", apiKeys.gmail)}>Guardar</Button>
+                <Button 
+                  variant="outline" 
+                  onClick={async () => {
+                    try {
+                      const { verifyGmailConnection } = await import("@/lib/api/gmail-api")
+                      const status = await verifyGmailConnection()
+                      if (status.connected) {
+                        toast({
+                          title: "Gmail conectado",
+                          description: `Conectado como: ${status.email}`,
+                        })
+                      } else {
+                        toast({
+                          title: "Error de conexión",
+                          description: status.error || "No se pudo conectar con Gmail",
+                          variant: "destructive",
+                        })
+                      }
+                    } catch (error: any) {
+                      toast({
+                        title: "Error",
+                        description: error.message || "Error al verificar conexión",
+                        variant: "destructive",
+                      })
+                    }
+                  }}
+                >
+                  Verificar Conexión
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
