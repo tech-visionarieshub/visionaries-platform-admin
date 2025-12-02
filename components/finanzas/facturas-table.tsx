@@ -185,48 +185,49 @@ export function FacturasTable() {
                     <TableCell className="py-1 text-xs break-words">
                       {new Date(factura.fechaVencimiento).toLocaleDateString("es-MX")}
                     </TableCell>
-                <TableCell className="py-1 text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    {factura.pdfUrl && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => window.open(factura.pdfUrl, "_blank")}
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    {factura.status !== "Cancelada" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={() => handleSendFactura(factura)}
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                        </Button>
-                        {factura.requiereComplemento && factura.status === "Pagada" && (
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                            <Receipt className="h-3.5 w-3.5" />
+                    <TableCell className="py-1 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {factura.pdfUrl && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => window.open(factura.pdfUrl, "_blank")}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive"
-                          onClick={() => handleCancelFactura(factura.id)}
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+                        {factura.status !== "Cancelada" && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleSendFactura(factura)}
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                            </Button>
+                            {factura.requiereComplemento && factura.status === "Pagada" && (
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                <Receipt className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive"
+                              onClick={() => handleCancelFactura(factura.id)}
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
         </Table>
         </div>
       </div>

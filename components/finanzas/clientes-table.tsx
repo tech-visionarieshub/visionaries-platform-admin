@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +14,6 @@ import { getClientes, getCotizaciones, updateCliente, createCliente } from "@/li
 import { getCotizaciones as getCotizacionesAPI } from "@/lib/api/cotizaciones-api"
 import { getProjects } from "@/lib/api/projects-api"
 import Link from "next/link"
-import { useEffect, useMemo } from "react"
 import type { Cliente } from "@/lib/api/finanzas-api"
 import type { Project } from "@/lib/mock-data/projects"
 import { CargarClientesDialog } from "./cargar-clientes-dialog"
@@ -272,16 +271,16 @@ export function ClientesTable() {
       {/* Table */}
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-full">
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="w-[15%]">Empresa</TableHead>
-                <TableHead className="w-[18%]">Razón Social</TableHead>
-                <TableHead className="w-[10%]">RFC</TableHead>
-                <TableHead className="w-[12%]">Cotizaciones</TableHead>
-                <TableHead className="w-[15%]">Persona Cobranza</TableHead>
-                <TableHead className="w-[18%]">Correo Cobranza</TableHead>
-                <TableHead className="w-[12%] text-right">Acciones</TableHead>
+                <TableHead className="min-w-[150px]">Empresa</TableHead>
+                <TableHead className="min-w-[180px]">Razón Social</TableHead>
+                <TableHead className="min-w-[120px]">RFC</TableHead>
+                <TableHead className="min-w-[120px]">Cotizaciones</TableHead>
+                <TableHead className="min-w-[150px]">Persona Cobranza</TableHead>
+                <TableHead className="min-w-[200px]">Correo Cobranza</TableHead>
+                <TableHead className="min-w-[100px] text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -296,39 +295,39 @@ export function ClientesTable() {
                   const stats = getClienteStats(cliente.id)
                   return (
                     <TableRow key={cliente.id}>
-                      <TableCell className="font-medium break-words text-wrap">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <span className="break-words">{cliente.empresa}</span>
+                      <TableCell className="font-medium">
+                        <div className="flex items-start gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          <span>{cliente.empresa}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm break-words text-wrap">{cliente.razonSocial}</TableCell>
+                      <TableCell className="text-sm">{cliente.razonSocial}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="font-mono text-xs break-words">
+                        <Badge variant="outline" className="font-mono text-xs">
                           {cliente.rfc}
                         </Badge>
                       </TableCell>
-                      <TableCell className="break-words text-wrap">
+                      <TableCell>
                         {stats.total > 0 ? (
                           <Link
                             href={`/cotizaciones?cliente=${cliente.id}`}
                             className="flex items-center gap-1.5 text-sm hover:underline"
                           >
                             <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                            <span className="font-medium break-words">
+                            <span className="font-medium">
                               {stats.aceptadas}/{stats.total}
                             </span>
-                            <span className="text-xs text-muted-foreground break-words">cotizaciones</span>
+                            <span className="text-xs text-muted-foreground">cotizaciones</span>
                           </Link>
                         ) : (
                           <span className="text-xs text-muted-foreground">Sin cotizaciones</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm break-words text-wrap">{cliente.personaCobranza}</TableCell>
-                      <TableCell className="break-words text-wrap">
-                        <div className="flex items-center gap-1 text-sm">
-                          <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <span className="break-words">{cliente.correoCobranza}</span>
+                      <TableCell className="text-sm">{cliente.personaCobranza}</TableCell>
+                      <TableCell>
+                        <div className="flex items-start gap-1 text-sm">
+                          <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          <span>{cliente.correoCobranza}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
