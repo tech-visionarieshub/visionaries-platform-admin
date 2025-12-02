@@ -269,9 +269,15 @@ export type Egreso = {
   tipo: "Variable" | "Fijo"
   mes: string
   status: "Pagado" | "Pendiente" | "Cancelado"
+  tipoEgreso?: "basadoEnHoras" | "otro"
+  facturaUrl?: string
+  comprobanteUrl?: string
+  facturaFileName?: string
+  comprobanteFileName?: string
+  fechaPago?: string
+  // Campos legacy para compatibilidad
   factura?: string
   comprobante?: string
-  fechaPago?: string
 }
 
 export const mockEgresos: Egreso[] = [

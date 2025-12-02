@@ -96,8 +96,12 @@ export async function deleteComplemento(id: string): Promise<void> {
 // Egresos
 const EGRESOS_BASE = '/api/egresos';
 
-export async function getEgresos(params?: { status?: Egreso['status']; tipo?: Egreso['tipo']; mes?: string; categoria?: string; lineaNegocio?: string }): Promise<Egreso[]> {
+export async function getEgresos(params?: { status?: Egreso['status']; tipo?: Egreso['tipo']; mes?: string; categoria?: string; lineaNegocio?: string; tipoEgreso?: 'basadoEnHoras' | 'otro' }): Promise<Egreso[]> {
   return apiGet<Egreso[]>(EGRESOS_BASE, params as Record<string, string>);
+}
+
+export async function getEgresosBasadosEnHoras(): Promise<Egreso[]> {
+  return apiGet<Egreso[]>(EGRESOS_BASE, { tipoEgreso: 'basadoEnHoras' });
 }
 
 export async function getEgresoById(id: string): Promise<Egreso> {

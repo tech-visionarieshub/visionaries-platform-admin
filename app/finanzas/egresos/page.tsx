@@ -1,14 +1,17 @@
-import { EgresosTable } from "@/components/finanzas/egresos-table"
+import { EgresosBasadosEnHorasTable } from "@/components/finanzas/egresos-basados-en-horas-table"
+import { FinanzasGuard } from "@/components/auth/finanzas-guard"
 
 export default function EgresosPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Egresos</h2>
-        <p className="text-muted-foreground">Control de gastos y egresos de la empresa</p>
-      </div>
+    <FinanzasGuard>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Egresos Basados en Horas</h2>
+          <p className="text-muted-foreground">Control de gastos y egresos basados en horas trabajadas</p>
+        </div>
 
-      <EgresosTable />
-    </div>
+        <EgresosBasadosEnHorasTable />
+      </div>
+    </FinanzasGuard>
   )
 }

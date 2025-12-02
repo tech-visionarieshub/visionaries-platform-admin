@@ -12,9 +12,12 @@ export async function GET(request: NextRequest) {
       const mes = searchParams.get('mes');
       const categoria = searchParams.get('categoria');
       const lineaNegocio = searchParams.get('lineaNegocio');
+      const tipoEgreso = searchParams.get('tipoEgreso') as 'basadoEnHoras' | 'otro' | null;
 
       let egresos;
-      if (status) {
+      if (tipoEgreso === 'basadoEnHoras') {
+        egresos = await egresosRepository.getBasadosEnHoras();
+      } else if (status) {
         egresos = await egresosRepository.getByStatus(status);
       } else if (tipo) {
         egresos = await egresosRepository.getByTipo(tipo);
