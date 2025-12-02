@@ -313,20 +313,20 @@ export function EgresosTable() {
       {/* Table */}
       <div className="rounded-md border overflow-hidden">
         <div className="overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[18%]">Concepto</TableHead>
-                <TableHead className="w-[10%]">Categoría</TableHead>
-                <TableHead className="w-[12%]">Cliente</TableHead>
-                <TableHead className="w-[10%]">Equipo</TableHead>
-                <TableHead className="w-[8%]">Tipo</TableHead>
-                <TableHead className="w-[8%]">Mes</TableHead>
-                <TableHead className="text-right w-[8%]">Subtotal</TableHead>
-                <TableHead className="text-right w-[8%]">IVA</TableHead>
-                <TableHead className="text-right w-[8%]">Total</TableHead>
-                <TableHead className="w-[8%]">Status</TableHead>
-                <TableHead className="text-right w-[10%]">Acciones</TableHead>
+                <TableHead className="min-w-[180px]">Concepto</TableHead>
+                <TableHead className="min-w-[120px]">Categoría</TableHead>
+                <TableHead className="min-w-[150px]">Cliente</TableHead>
+                <TableHead className="min-w-[120px]">Equipo</TableHead>
+                <TableHead className="min-w-[100px]">Tipo</TableHead>
+                <TableHead className="min-w-[100px]">Mes</TableHead>
+                <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
+                <TableHead className="text-right min-w-[100px]">IVA</TableHead>
+                <TableHead className="text-right min-w-[100px]">Total</TableHead>
+                <TableHead className="min-w-[100px]">Status</TableHead>
+                <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -339,16 +339,16 @@ export function EgresosTable() {
               ) : (
                 filteredEgresos.map((egreso) => (
                   <TableRow key={egreso.id}>
-                    <TableCell className="font-medium break-words">{egreso.concepto}</TableCell>
-                    <TableCell className="break-words">{egreso.categoria}</TableCell>
-                    <TableCell className="break-words">{egreso.empresa}</TableCell>
-                    <TableCell className="break-words">{egreso.equipo}</TableCell>
-                    <TableCell className="break-words">{getTipoBadge(egreso.tipo)}</TableCell>
-                    <TableCell className="break-words">{egreso.mes}</TableCell>
+                    <TableCell className="font-medium">{egreso.concepto}</TableCell>
+                    <TableCell>{egreso.categoria}</TableCell>
+                    <TableCell>{egreso.empresa}</TableCell>
+                    <TableCell>{egreso.equipo}</TableCell>
+                    <TableCell>{getTipoBadge(egreso.tipo)}</TableCell>
+                    <TableCell>{egreso.mes}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
                     <TableCell className="text-right font-medium whitespace-nowrap">${egreso.total.toLocaleString("es-MX")}</TableCell>
-                    <TableCell className="break-words">{getStatusBadge(egreso.status)}</TableCell>
+                    <TableCell>{getStatusBadge(egreso.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       {egreso.factura && (

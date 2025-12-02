@@ -168,19 +168,19 @@ export function ComplementosTable() {
       {/* Tabla */}
       <div className="rounded-md border overflow-hidden">
         <div className="overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-full">
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[8%]">Folio</TableHead>
-              <TableHead className="w-[15%]">Empresa</TableHead>
-              <TableHead className="w-[10%]">RFC</TableHead>
-              <TableHead className="w-[12%]">Monto</TableHead>
-              <TableHead className="w-[12%]">Forma Pago</TableHead>
-              <TableHead className="w-[12%]">Fecha Pago</TableHead>
-              <TableHead className="w-[12%]">No. Operación</TableHead>
-              <TableHead className="w-[10%]">Status</TableHead>
-              <TableHead className="w-[9%]">Mes</TableHead>
-              <TableHead className="w-[10%] text-right">Acciones</TableHead>
+              <TableHead className="min-w-[100px]">Folio</TableHead>
+              <TableHead className="min-w-[150px]">Empresa</TableHead>
+              <TableHead className="min-w-[120px]">RFC</TableHead>
+              <TableHead className="min-w-[120px]">Monto</TableHead>
+              <TableHead className="min-w-[120px]">Forma Pago</TableHead>
+              <TableHead className="min-w-[120px]">Fecha Pago</TableHead>
+              <TableHead className="min-w-[120px]">No. Operación</TableHead>
+              <TableHead className="min-w-[100px]">Status</TableHead>
+              <TableHead className="min-w-[100px]">Mes</TableHead>
+              <TableHead className="min-w-[100px] text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -193,17 +193,17 @@ export function ComplementosTable() {
             ) : (
               filteredComplementos.map((complemento) => (
                 <TableRow key={complemento.id}>
-                  <TableCell className="font-mono text-xs break-words">{complemento.folioFactura}</TableCell>
-                  <TableCell className="font-medium break-words">{complemento.empresa}</TableCell>
-                  <TableCell className="font-mono text-xs break-words">{complemento.rfcReceptor}</TableCell>
-                  <TableCell className="font-semibold break-words">
+                  <TableCell className="font-mono text-xs">{complemento.folioFactura}</TableCell>
+                  <TableCell className="font-medium">{complemento.empresa}</TableCell>
+                  <TableCell className="font-mono text-xs">{complemento.rfcReceptor}</TableCell>
+                  <TableCell className="font-semibold">
                     {complemento.moneda} ${complemento.montoPago.toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-xs break-words">{complemento.formaPago}</TableCell>
-                  <TableCell className="text-xs break-words">
+                  <TableCell className="text-xs">{complemento.formaPago}</TableCell>
+                  <TableCell className="text-xs">
                     {new Date(complemento.fechaPago).toLocaleDateString("es-MX")}
                   </TableCell>
-                  <TableCell className="font-mono text-xs break-words">{complemento.numeroOperacion}</TableCell>
+                  <TableCell className="font-mono text-xs">{complemento.numeroOperacion}</TableCell>
                   <TableCell>
                     <Badge
                       variant={complemento.status === "Activo" ? "default" : "secondary"}

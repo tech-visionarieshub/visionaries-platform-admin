@@ -277,52 +277,53 @@ export function EgresosBasadosEnHorasTable() {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border w-full">
-        <Table className="w-full table-fixed">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[10%]">Línea de negocio</TableHead>
-              <TableHead className="w-[8%]">Categoría</TableHead>
-              <TableHead className="w-[10%]">Empresa</TableHead>
-              <TableHead className="w-[8%]">Equipo</TableHead>
-              <TableHead className="w-[15%]">Concepto</TableHead>
-              <TableHead className="w-[6%] text-right">Subtotal</TableHead>
-              <TableHead className="w-[6%] text-right">IVA</TableHead>
-              <TableHead className="w-[6%] text-right">Total</TableHead>
-              <TableHead className="w-[6%]">Tipo</TableHead>
-              <TableHead className="w-[8%]">Mes</TableHead>
-              <TableHead className="w-[6%]">Status</TableHead>
-              <TableHead className="w-[5%]">Factura</TableHead>
-              <TableHead className="w-[5%]">Comprobante</TableHead>
-              <TableHead className="w-[7%]">Fecha pago</TableHead>
-              <TableHead className="w-[5%] text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredEgresos.length === 0 ? (
+      <div className="rounded-md border w-full overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table className="w-full">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={15} className="text-center py-8">
-                  No se encontraron egresos basados en horas
-                </TableCell>
+                <TableHead className="min-w-[100px]">Línea de negocio</TableHead>
+                <TableHead className="min-w-[100px]">Categoría</TableHead>
+                <TableHead className="min-w-[120px]">Empresa</TableHead>
+                <TableHead className="min-w-[100px]">Equipo</TableHead>
+                <TableHead className="min-w-[150px]">Concepto</TableHead>
+                <TableHead className="min-w-[90px] text-right">Subtotal</TableHead>
+                <TableHead className="min-w-[90px] text-right">IVA</TableHead>
+                <TableHead className="min-w-[90px] text-right">Total</TableHead>
+                <TableHead className="min-w-[80px]">Tipo</TableHead>
+                <TableHead className="min-w-[100px]">Mes</TableHead>
+                <TableHead className="min-w-[90px]">Status</TableHead>
+                <TableHead className="min-w-[70px]">Factura</TableHead>
+                <TableHead className="min-w-[100px]">Comprobante</TableHead>
+                <TableHead className="min-w-[100px]">Fecha pago</TableHead>
+                <TableHead className="min-w-[80px] text-right">Acciones</TableHead>
               </TableRow>
-            ) : (
-              filteredEgresos.map((egreso) => {
-                const facturaUrl = egreso.facturaUrl || egreso.factura
-                const comprobanteUrl = egreso.comprobanteUrl || egreso.comprobante
-                
-                return (
-                  <TableRow key={egreso.id}>
-                    <TableCell className="break-words text-wrap">{egreso.lineaNegocio || '-'}</TableCell>
-                    <TableCell className="break-words text-wrap">{egreso.categoria || '-'}</TableCell>
-                    <TableCell className="break-words text-wrap">{egreso.empresa || '-'}</TableCell>
-                    <TableCell className="break-words text-wrap">{egreso.equipo || '-'}</TableCell>
-                    <TableCell className="break-words text-wrap font-medium">{egreso.concepto || '-'}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap font-medium">${egreso.total.toLocaleString("es-MX")}</TableCell>
-                    <TableCell className="text-wrap">{getTipoBadge(egreso.tipo)}</TableCell>
-                    <TableCell className="text-wrap">{egreso.mes || '-'}</TableCell>
-                    <TableCell className="text-wrap">{getStatusBadge(egreso.status)}</TableCell>
+            </TableHeader>
+            <TableBody>
+              {filteredEgresos.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={15} className="text-center py-8">
+                    No se encontraron egresos basados en horas
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredEgresos.map((egreso) => {
+                  const facturaUrl = egreso.facturaUrl || egreso.factura
+                  const comprobanteUrl = egreso.comprobanteUrl || egreso.comprobante
+                  
+                  return (
+                    <TableRow key={egreso.id}>
+                      <TableCell>{egreso.lineaNegocio || '-'}</TableCell>
+                      <TableCell>{egreso.categoria || '-'}</TableCell>
+                      <TableCell>{egreso.empresa || '-'}</TableCell>
+                      <TableCell>{egreso.equipo || '-'}</TableCell>
+                      <TableCell className="font-medium">{egreso.concepto || '-'}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap font-medium">${egreso.total.toLocaleString("es-MX")}</TableCell>
+                      <TableCell>{getTipoBadge(egreso.tipo)}</TableCell>
+                      <TableCell>{egreso.mes || '-'}</TableCell>
+                      <TableCell>{getStatusBadge(egreso.status)}</TableCell>
                     <TableCell className="text-center">
                       {facturaUrl ? (
                         <Button
@@ -353,18 +354,19 @@ export function EgresosBasadosEnHorasTable() {
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-wrap">{egreso.fechaPago || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)} className="h-8 w-8">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+                      <TableCell>{egreso.fechaPago || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)} className="h-8 w-8">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Upload Dialog */}
