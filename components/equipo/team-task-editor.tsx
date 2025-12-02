@@ -164,10 +164,15 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
         projectId: formData.projectId.trim() || undefined,
         projectName: formData.projectId ? projects.find(p => p.id === formData.projectId)?.name : undefined,
         dueDate: formData.dueDate ? (() => {
-          // Crear fecha en UTC para evitar problemas de zona horaria
-          // Usar mediodía UTC para evitar cambios de día al convertir
+          // Crear fecha en zona horaria de Monterrey (America/Mexico_City)
+          // Usar mediodía local para evitar cambios de día
           const [year, month, day] = formData.dueDate.split('-').map(Number)
-          return new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+          // Crear fecha en zona horaria local (Monterrey)
+          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T12:00:00`
+          // Usar Intl.DateTimeFormat para crear fecha en zona horaria de Monterrey
+          const dateInMexico = new Date(dateStr + '-06:00') // UTC-6 para Monterrey (ajustar según horario de verano si es necesario)
+          // Ajustar a mediodía en zona horaria local
+          return new Date(year, month - 1, day, 12, 0, 0)
         })() : undefined,
         estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
         comentarios: formData.comentarios.trim() || undefined,

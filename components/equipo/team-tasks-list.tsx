@@ -362,7 +362,7 @@ export function TeamTasksList() {
     return `${minutes}m`
   }
 
-  // Función para formatear fecha sin problemas de zona horaria
+  // Función para formatear fecha usando zona horaria de Monterrey, México
   const formatDate = (date: Date | string | undefined): string => {
     if (!date) return '-'
     try {
@@ -379,10 +379,20 @@ export function TeamTasksList() {
         }
       }
       
-      // Usar UTC para obtener la fecha correcta sin importar la zona horaria
-      const year = d.getUTCFullYear()
-      const month = String(d.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(d.getUTCDate()).padStart(2, '0')
+      // Formatear fecha usando zona horaria de Monterrey (America/Mexico_City)
+      const timeZone = 'America/Mexico_City'
+      const formatter = new Intl.DateTimeFormat('es-MX', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      
+      const parts = formatter.formatToParts(d)
+      const day = parts.find(p => p.type === 'day')?.value || ''
+      const month = parts.find(p => p.type === 'month')?.value || ''
+      const year = parts.find(p => p.type === 'year')?.value || ''
+      
       return `${day}/${month}/${year}`
     } catch (error) {
       console.error('[formatDate] Error:', error)
@@ -390,14 +400,13 @@ export function TeamTasksList() {
     }
   }
 
-  // Función para calcular días de retraso
+  // Función para calcular días de retraso usando zona horaria de Monterrey, México
   const getDaysOverdue = (dueDate: Date | string | undefined): number | null => {
     if (!dueDate) return null
     try {
       let due: Date
       if (typeof dueDate === 'string') {
-        // Si es string, puede ser ISO string o fecha en formato YYYY-MM-DD
-        // Intentar parsear como ISO primero
+        // Si es string, parsearlo como fecha local
         due = new Date(dueDate)
         if (isNaN(due.getTime())) {
           return null
@@ -409,26 +418,23 @@ export function TeamTasksList() {
         }
       }
       
-      // Obtener fecha de hoy en UTC (solo año, mes, día, sin hora)
-      const today = new Date()
-      const todayYear = today.getUTCFullYear()
-      const todayMonth = today.getUTCMonth()
-      const todayDay = today.getUTCDate()
+      // Obtener fecha actual en zona horaria de Monterrey (America/Mexico_City)
+      const now = new Date()
+      const timeZone = 'America/Mexico_City'
       
-      // Obtener fecha límite en UTC (solo año, mes, día, sin hora)
-      const dueYear = due.getUTCFullYear()
-      const dueMonth = due.getUTCMonth()
-      const dueDay = due.getUTCDate()
+      // Convertir ambas fechas a la zona horaria de Monterrey y obtener solo la fecha (sin hora)
+      const todayInMexico = new Date(now.toLocaleString('en-US', { timeZone }))
+      const dueInMexico = new Date(due.toLocaleString('en-US', { timeZone }))
       
-      // Crear fechas UTC a mediodía para comparación precisa
-      const todayUTC = new Date(Date.UTC(todayYear, todayMonth, todayDay, 12, 0, 0))
-      const dueUTC = new Date(Date.UTC(dueYear, dueMonth, dueDay, 12, 0, 0))
+      // Obtener solo la fecha (año, mes, día) sin considerar la hora
+      const todayDate = new Date(todayInMexico.getFullYear(), todayInMexico.getMonth(), todayInMexico.getDate())
+      const dueDateOnly = new Date(dueInMexico.getFullYear(), dueInMexico.getMonth(), dueInMexico.getDate())
       
       // Calcular diferencia en días
-      const diffTime = todayUTC.getTime() - dueUTC.getTime()
+      const diffTime = todayDate.getTime() - dueDateOnly.getTime()
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
       
-      // Solo retornar retraso si es mayor a 0 (si hoy es la fecha límite o es futuro, no hay retraso)
+      // Solo retornar si hay retraso (diferencia positiva)
       return diffDays > 0 ? diffDays : null
     } catch (error) {
       console.error('[getDaysOverdue] Error:', error)
@@ -1170,12 +1176,10 @@ export function TeamTasksList() {
                             d = new Date()
                           }
                         }
-                        // Usar métodos locales para evitar problemas de zona horaria
-                        const year = d.getFullYear()
-                        const month = d.getMonth()
-                        const day = d.getDate()
-                        const localDate = new Date(year, month, day)
-                        return localDate.toLocaleDateString('es-ES', { 
+                        // Formatear usando zona horaria de Monterrey (America/Mexico_City)
+                        const timeZone = 'America/Mexico_City'
+                        return d.toLocaleDateString('es-MX', { 
+                          timeZone,
                           year: 'numeric', 
                           month: 'long', 
                           day: 'numeric' 
