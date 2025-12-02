@@ -437,7 +437,7 @@ export function EgresosBasadosEnHorasTable() {
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Select
-                            value={egreso.clienteId || ""}
+                            value={egreso.clienteId || "sin-cliente"}
                             onValueChange={(value) => handleUpdateCliente(egreso.id, value === "sin-cliente" ? undefined : value)}
                             disabled={loadingClientes}
                           >
