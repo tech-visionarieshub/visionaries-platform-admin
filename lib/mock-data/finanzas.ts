@@ -278,6 +278,10 @@ export type Egreso = {
   // Campos legacy para compatibilidad
   factura?: string
   comprobante?: string
+  // Campos de interconexión con clientes y proyectos
+  clienteId?: string  // ID del cliente si se encuentra
+  proyectoIds?: string[]  // IDs de proyectos asociados
+  empresaNormalizada?: string  // Nombre de empresa sin emojis para referencia
 }
 
 export const mockEgresos: Egreso[] = [

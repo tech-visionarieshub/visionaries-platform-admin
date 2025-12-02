@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withFinanzasAuth } from '@/lib/api/middleware';
-import { egresosRepository } from '@/lib/repositories/egresos-repository';
+import { egresosRepository, type EgresoEntity } from '@/lib/repositories/egresos-repository';
+import { clientesRepository, type ClienteEntity } from '@/lib/repositories/clientes-repository';
+import { projectsRepository, type ProjectEntity } from '@/lib/repositories/projects-repository';
 import { extractGoogleDriveFileId, downloadFileFromGoogleDrive, isValidGoogleDriveUrl, getMimeTypeFromFileName } from '@/lib/utils/google-drive-utils';
 import { uploadFileToStorage } from '@/lib/utils/storage-utils';
+import { normalizeEmpresa, normalizeEmpresaForMatching } from '@/lib/utils/normalize-empresa';
 import type { Egreso } from '@/lib/mock-data/finanzas';
 import Papa from 'papaparse';
 
@@ -124,9 +127,148 @@ function normalizeFechaPago(fecha: string): string | undefined {
     return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
   }
   
+  // Formato DD-MMM-YYYY (ej: "15-ene-2024")
+  const formato3 = fechaTrimmed.match(/(\d{1,2})[\-](\w{3})[\-](\d{4})/i);
+  if (formato3) {
+    const [, dia, mesStr, año] = formato3;
+    const mesesMap: Record<string, string> = {
+      'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12',
+    };
+    const mes = mesesMap[mesStr.toLowerCase()];
+    if (mes) {
+      return `${año}-${mes}-${dia.padStart(2, '0')}`;
+    }
+  }
+  
   // Si no se puede parsear, retornar undefined
   console.warn(`No se pudo normalizar la fecha: ${fechaTrimmed}`);
   return undefined;
+}
+
+/**
+ * Busca un cliente por empresa normalizada (case-insensitive, matching flexible)
+ */
+function matchEmpresaWithCliente(
+  empresaNormalizada: string,
+  clientes: ClienteEntity[]
+): ClienteEntity | null {
+  if (!empresaNormalizada) return null;
+  
+  const empresaMatch = normalizeEmpresaForMatching(empresaNormalizada);
+  
+  // Buscar match exacto (case-insensitive)
+  for (const cliente of clientes) {
+    const clienteEmpresaMatch = normalizeEmpresaForMatching(cliente.empresa);
+    if (clienteEmpresaMatch === empresaMatch) {
+      return cliente;
+    }
+  }
+  
+  // Buscar match parcial (empresa del egreso contiene nombre del cliente o viceversa)
+  for (const cliente of clientes) {
+    const clienteEmpresaMatch = normalizeEmpresaForMatching(cliente.empresa);
+    if (
+      empresaMatch.includes(clienteEmpresaMatch) ||
+      clienteEmpresaMatch.includes(empresaMatch)
+    ) {
+      return cliente;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Busca proyectos asociados a una empresa
+ */
+function findProyectosForEmpresa(
+  empresaNormalizada: string,
+  clienteId: string | undefined,
+  proyectosPorClienteId: Map<string, ProjectEntity[]>,
+  proyectosPorNombreCliente: Map<string, ProjectEntity[]>
+): string[] {
+  const proyectoIds: string[] = [];
+  
+  // Si hay clienteId, buscar proyectos por clientId
+  if (clienteId) {
+    const proyectos = proyectosPorClienteId.get(clienteId) || [];
+    proyectoIds.push(...proyectos.map(p => p.id));
+  }
+  
+  // Buscar proyectos por nombre de cliente (normalizado)
+  const empresaMatch = normalizeEmpresaForMatching(empresaNormalizada);
+  for (const [clientName, proyectos] of proyectosPorNombreCliente.entries()) {
+    const clientNameMatch = normalizeEmpresaForMatching(clientName);
+    if (clientNameMatch === empresaMatch || clientNameMatch.includes(empresaMatch) || empresaMatch.includes(clientNameMatch)) {
+      proyectoIds.push(...proyectos.map(p => p.id));
+    }
+  }
+  
+  // Eliminar duplicados
+  return Array.from(new Set(proyectoIds));
+}
+
+/**
+ * Crea un hash único para detectar duplicados
+ */
+function createEgresoHash(egreso: {
+  empresaNormalizada: string;
+  concepto: string;
+  mes: string;
+  fechaPago?: string;
+}): string {
+  const fecha = egreso.fechaPago || '';
+  return `${egreso.empresaNormalizada}|${egreso.concepto}|${egreso.mes}|${fecha}`;
+}
+
+/**
+ * Encuentra un egreso duplicado
+ */
+function findDuplicateEgreso(
+  egresoData: {
+    empresaNormalizada: string;
+    concepto: string;
+    mes: string;
+    fechaPago?: string;
+  },
+  existingEgresos: EgresoEntity[]
+): EgresoEntity | null {
+  const hash = createEgresoHash(egresoData);
+  const hashMatch = normalizeEmpresaForMatching(egresoData.empresaNormalizada);
+  
+  for (const egreso of existingEgresos) {
+    const existingHash = createEgresoHash({
+      empresaNormalizada: egreso.empresaNormalizada || egreso.empresa,
+      concepto: egreso.concepto,
+      mes: egreso.mes,
+      fechaPago: egreso.fechaPago,
+    });
+    
+    // Match exacto
+    if (existingHash === hash) {
+      return egreso;
+    }
+    
+    // Match con diferencia de fecha < 3 días
+    if (
+      egresoData.concepto === egreso.concepto &&
+      egresoData.mes === egreso.mes &&
+      normalizeEmpresaForMatching(egreso.empresaNormalizada || egreso.empresa) === hashMatch &&
+      egresoData.fechaPago &&
+      egreso.fechaPago
+    ) {
+      const fecha1 = new Date(egresoData.fechaPago);
+      const fecha2 = new Date(egreso.fechaPago);
+      const diffDays = Math.abs((fecha1.getTime() - fecha2.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 3) {
+        return egreso;
+      }
+    }
+  }
+  
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -191,10 +333,68 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Cargar todos los datos necesarios UNA VEZ al inicio
+      console.log('[Upload Historical] Cargando datos de referencia...');
+      const [clientes, proyectos, egresosExistentes] = await Promise.all([
+        clientesRepository.getAll(),
+        projectsRepository.getAll(),
+        egresosRepository.getAll(),
+      ]);
+      
+      console.log(`[Upload Historical] Cargados: ${clientes.length} clientes, ${proyectos.length} proyectos, ${egresosExistentes.length} egresos existentes`);
+      
+      // Crear mapas/indexes para búsqueda rápida
+      const clientesMap = new Map<string, ClienteEntity>();
+      for (const cliente of clientes) {
+        const empresaNormalizada = normalizeEmpresaForMatching(cliente.empresa);
+        if (!clientesMap.has(empresaNormalizada)) {
+          clientesMap.set(empresaNormalizada, cliente);
+        }
+      }
+      
+      const proyectosPorClienteId = new Map<string, ProjectEntity[]>();
+      const proyectosPorNombreCliente = new Map<string, ProjectEntity[]>();
+      for (const proyecto of proyectos) {
+        // Por clientId
+        if (proyecto.clientId) {
+          if (!proyectosPorClienteId.has(proyecto.clientId)) {
+            proyectosPorClienteId.set(proyecto.clientId, []);
+          }
+          proyectosPorClienteId.get(proyecto.clientId)!.push(proyecto);
+        }
+        
+        // Por nombre de cliente
+        if (proyecto.client) {
+          const clientNameMatch = normalizeEmpresaForMatching(proyecto.client);
+          if (!proyectosPorNombreCliente.has(clientNameMatch)) {
+            proyectosPorNombreCliente.set(clientNameMatch, []);
+          }
+          proyectosPorNombreCliente.get(clientNameMatch)!.push(proyecto);
+        }
+      }
+      
+      // Mapa de egresos existentes para detección de duplicados
+      const egresosMap = new Map<string, EgresoEntity>();
+      for (const egreso of egresosExistentes) {
+        const hash = createEgresoHash({
+          empresaNormalizada: egreso.empresaNormalizada || egreso.empresa,
+          concepto: egreso.concepto,
+          mes: egreso.mes,
+          fechaPago: egreso.fechaPago,
+        });
+        egresosMap.set(hash, egreso);
+      }
+
       const results = {
         success: 0,
         errors: 0,
-        details: [] as Array<{ row: number; success: boolean; message: string; egresoId?: string }>,
+        created: 0,
+        updated: 0,
+        withCliente: 0,
+        withProyectos: 0,
+        empresasSinCliente: new Set<string>(),
+        empresasSinConexion: new Set<string>(),
+        details: [] as Array<{ row: number; success: boolean; message: string; egresoId?: string; updated?: boolean }>,
       };
 
       // Procesar cada fila
@@ -260,11 +460,47 @@ export async function POST(request: NextRequest) {
             return value.trim();
           };
 
+          // Normalizar empresa (remover emojis)
+          const empresaOriginal = normalizeText(row.Empresa || '');
+          const empresaNormalizada = normalizeEmpresa(empresaOriginal);
+          const empresaMatch = normalizeEmpresaForMatching(empresaNormalizada);
+
+          // Buscar cliente
+          let clienteId: string | undefined;
+          let proyectoIds: string[] = [];
+          
+          try {
+            const cliente = matchEmpresaWithCliente(empresaNormalizada, clientes);
+            if (cliente) {
+              clienteId = cliente.id;
+              results.withCliente++;
+            } else {
+              results.empresasSinCliente.add(empresaNormalizada);
+            }
+            
+            // Buscar proyectos
+            proyectoIds = findProyectosForEmpresa(
+              empresaNormalizada,
+              clienteId,
+              proyectosPorClienteId,
+              proyectosPorNombreCliente
+            );
+            
+            if (proyectoIds.length > 0) {
+              results.withProyectos++;
+            } else if (!clienteId) {
+              results.empresasSinConexion.add(empresaNormalizada);
+            }
+          } catch (error: any) {
+            console.error(`Error en vinculación para fila ${rowNumber}:`, error);
+            // Continuar aunque falle la vinculación
+          }
+
           // Crear objeto egreso con todos los campos normalizados
           const egresoData: Omit<Egreso, 'id'> = {
             lineaNegocio: normalizeText(row['Línea de negocio'] || ''),
             categoria: normalizeText(row.Categoría || ''),
-            empresa: normalizeText(row.Empresa || ''),
+            empresa: empresaOriginal, // Mantener original para referencia
             equipo: normalizeText(row.Equipo || ''),
             concepto: normalizeText(row.Concepto || ''),
             subtotal,
@@ -275,11 +511,55 @@ export async function POST(request: NextRequest) {
             status: statusFinal as 'Pagado' | 'Pendiente' | 'Cancelado',
             tipoEgreso: 'basadoEnHoras',
             fechaPago: normalizeFechaPago(row['Fecha pago'] || ''),
+            // Campos de interconexión
+            empresaNormalizada,
+            clienteId,
+            proyectoIds: proyectoIds.length > 0 ? proyectoIds : undefined,
           };
 
-          // Crear egreso primero para obtener el ID
-          const egreso = await egresosRepository.create(egresoData);
-          const egresoId = egreso.id;
+          // Verificar si existe duplicado
+          const duplicate = findDuplicateEgreso(
+            {
+              empresaNormalizada,
+              concepto: egresoData.concepto,
+              mes: egresoData.mes,
+              fechaPago: egresoData.fechaPago,
+            },
+            egresosExistentes
+          );
+
+          let egreso: EgresoEntity;
+          let egresoId: string;
+          let isUpdate = false;
+
+          if (duplicate) {
+            // Actualizar egreso existente
+            isUpdate = true;
+            egresoId = duplicate.id;
+            
+            // Preservar archivos existentes si no se proporcionan nuevos
+            const updates: Partial<EgresoEntity> = {
+              ...egresoData,
+              // Preservar archivos si ya existen y no se están actualizando
+              facturaUrl: duplicate.facturaUrl || egresoData.facturaUrl,
+              comprobanteUrl: duplicate.comprobanteUrl || egresoData.comprobanteUrl,
+              facturaFileName: duplicate.facturaFileName || egresoData.facturaFileName,
+              comprobanteFileName: duplicate.comprobanteFileName || egresoData.comprobanteFileName,
+              // Preservar conexiones existentes si no se encontraron nuevas
+              clienteId: egresoData.clienteId || duplicate.clienteId,
+              proyectoIds: egresoData.proyectoIds || duplicate.proyectoIds,
+            };
+            
+            egreso = await egresosRepository.update(egresoId, updates);
+            results.updated++;
+          } else {
+            // Crear nuevo egreso
+            egreso = await egresosRepository.create(egresoData);
+            egresoId = egreso.id;
+            results.created++;
+            // Agregar a la lista de egresos existentes para evitar duplicados en el mismo batch
+            egresosExistentes.push(egreso);
+          }
 
           // Procesar factura si existe
           if (row.Factura && row.Factura.trim() !== '') {
@@ -345,8 +625,9 @@ export async function POST(request: NextRequest) {
           results.details.push({
             row: rowNumber,
             success: true,
-            message: 'Egreso creado exitosamente',
+            message: isUpdate ? 'Egreso actualizado exitosamente (duplicado encontrado)' : 'Egreso creado exitosamente',
             egresoId,
+            updated: isUpdate,
           });
         } catch (error: any) {
           results.errors++;
@@ -364,6 +645,12 @@ export async function POST(request: NextRequest) {
           total: records.length,
           success: results.success,
           errors: results.errors,
+          created: results.created,
+          updated: results.updated,
+          withCliente: results.withCliente,
+          withProyectos: results.withProyectos,
+          empresasSinCliente: Array.from(results.empresasSinCliente),
+          empresasSinConexion: Array.from(results.empresasSinConexion),
         },
         details: results.details,
       });

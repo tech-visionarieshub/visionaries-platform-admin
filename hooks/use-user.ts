@@ -12,6 +12,7 @@ interface User {
   role: UserRole
   avatar?: string
   superadmin?: boolean
+  allowedRoutes?: string[]
 }
 
 interface UserStore {

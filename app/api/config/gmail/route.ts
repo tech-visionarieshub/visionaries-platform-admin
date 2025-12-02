@@ -33,19 +33,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener configuración de Firestore
+    // Obtener configuración de Firestore (primero Gmail, luego fallback a Google Calendar)
     const db = getInternalFirestore();
-    const configDoc = await db.collection('config').doc('googleCalendar').get();
+    let configDoc = await db.collection('config').doc('gmail').get();
+
+    // Si no existe configuración de Gmail, usar la de Google Calendar como fallback
+    if (!configDoc.exists) {
+      configDoc = await db.collection('config').doc('googleCalendar').get();
+    }
 
     if (!configDoc.exists) {
       return NextResponse.json({
         configured: false,
         serviceAccountJson: null,
+        usingCalendarConfig: false,
       });
     }
 
     const data = configDoc.data();
     const serviceAccountJson = data?.serviceAccountJson;
+    const usingCalendarConfig = configDoc.id === 'googleCalendar';
 
     // Enmascarar información sensible (mostrar solo project_id y client_email parcial)
     let maskedInfo = null;
@@ -68,9 +75,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       configured: !!serviceAccountJson,
       maskedInfo,
+      usingCalendarConfig,
     });
   } catch (error: any) {
-    console.error('[Google Calendar Config GET] Error:', error);
+    console.error('[Gmail Config GET] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al obtener configuración' },
       { status: 500 }
@@ -85,7 +93,7 @@ export async function POST(request: NextRequest) {
     try {
       deps = await getDeps();
     } catch (e: any) {
-      console.error('[Google Calendar Config POST] Error cargando dependencias:', e);
+      console.error('[Gmail Config POST] Error cargando dependencias:', e);
       return NextResponse.json(
         { error: 'Error interno: Fallo al cargar dependencias de Firebase. ' + e.message },
         { status: 500 }
@@ -106,7 +114,7 @@ export async function POST(request: NextRequest) {
     try {
       decoded = await verifyIdToken(token);
     } catch (e: any) {
-      console.error('[Google Calendar Config POST] Error verificando token:', e);
+      console.error('[Gmail Config POST] Error verificando token:', e);
       return NextResponse.json(
         { error: 'Token inválido o expirado. ' + e.message },
         { status: 401 }
@@ -118,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // Permitir a superadmins o usuarios con acceso interno
     if (!isSuperAdmin && !hasInternalAccess) {
-      console.error('[Google Calendar Config POST] Usuario sin permisos:', {
+      console.error('[Gmail Config POST] Usuario sin permisos:', {
         email: decoded.email,
         superadmin: decoded.superadmin,
         internal: decoded.internal,
@@ -127,7 +135,7 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         { 
-          error: 'Solo superadmins o usuarios con acceso interno pueden configurar Google Calendar',
+          error: 'Solo superadmins o usuarios con acceso interno pueden configurar Gmail',
           details: `Email: ${decoded.email}, Superadmin: ${decoded.superadmin}, Internal: ${decoded.internal}`
         },
         { status: 403 }
@@ -182,14 +190,14 @@ export async function POST(request: NextRequest) {
     try {
         db = getInternalFirestore();
     } catch (e: any) {
-        console.error('[Google Calendar Config POST] Error obteniendo Firestore:', e);
+        console.error('[Gmail Config POST] Error obteniendo Firestore:', e);
         return NextResponse.json(
             { error: 'Error de configuración de base de datos: ' + e.message },
             { status: 500 }
         );
     }
 
-    await db.collection('config').doc('googleCalendar').set({
+    await db.collection('config').doc('gmail').set({
       serviceAccountJson: parsedJson, // Guardar como objeto, no como string
       updatedAt: new Date(),
       updatedBy: decoded.email,
@@ -197,24 +205,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Service Account de Google Calendar guardado exitosamente',
+      message: 'Service Account de Gmail guardado exitosamente',
     });
   } catch (error: any) {
-    console.error('[Google Calendar Config POST] Error:', error);
+    console.error('[Gmail Config POST] Error:', error);
     return NextResponse.json(
       { error: error.message || 'Error al guardar configuración' },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
 
 
 
