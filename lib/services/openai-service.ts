@@ -772,30 +772,66 @@ The report must use bullets for all lists. Format example:
       let cleaned = jsonString
       
       // Método 1: Escapar caracteres de control dentro de strings JSON
-      // Usar una expresión regular más robusta para encontrar strings
-      cleaned = cleaned.replace(/"([^"\\]|\\.)*"/g, (match) => {
-        // Dentro de un string JSON, escapar caracteres de control
-        return match
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t')
-          .replace(/[\x00-\x1F\x7F]/g, (char) => {
-            const code = char.charCodeAt(0)
-            return `\\u${code.toString(16).padStart(4, '0')}`
-          })
-      })
+      // Procesar el JSON carácter por carácter para identificar strings correctamente
+      let inString = false
+      let escaped = false
+      let result = ''
       
-      // Método 2: Si aún falla, limpieza más agresiva
+      for (let i = 0; i < cleaned.length; i++) {
+        const char = cleaned[i]
+        
+        if (escaped) {
+          result += char
+          escaped = false
+          continue
+        }
+        
+        if (char === '\\') {
+          result += char
+          escaped = true
+          continue
+        }
+        
+        if (char === '"') {
+          inString = !inString
+          result += char
+          continue
+        }
+        
+        if (inString) {
+          // Dentro de un string, escapar caracteres de control
+          if (char === '\n') {
+            result += '\\n'
+          } else if (char === '\r') {
+            result += '\\r'
+          } else if (char === '\t') {
+            result += '\\t'
+          } else if (char.charCodeAt(0) >= 0x00 && char.charCodeAt(0) <= 0x1F) {
+            // Otros caracteres de control
+            const code = char.charCodeAt(0)
+            result += `\\u${code.toString(16).padStart(4, '0')}`
+          } else {
+            result += char
+          }
+        } else {
+          // Fuera de strings, mantener el carácter
+          result += char
+        }
+      }
+      
+      cleaned = result
+      
+      // Método 2: Si aún falla, intentar parsear con la versión limpiada
       try {
         JSON.parse(cleaned)
         return cleaned
       } catch {
-        // Limpieza agresiva: eliminar caracteres de control fuera de strings
+        // Método 3: Limpieza más agresiva - eliminar caracteres de control problemáticos
         cleaned = jsonString
           .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Eliminar caracteres de control excepto \n, \r, \t
-          .replace(/\n(?![^"]*"[^"]*:)/g, ' ') // Reemplazar \n fuera de strings con espacio
-          .replace(/\r(?![^"]*"[^"]*:)/g, ' ') // Reemplazar \r fuera de strings con espacio
-          .replace(/\t(?![^"]*"[^"]*:)/g, ' ') // Reemplazar \t fuera de strings con espacio
+          .replace(/\n/g, ' ') // Reemplazar saltos de línea con espacios
+          .replace(/\r/g, ' ') // Reemplazar retornos de carro con espacios
+          .replace(/\t/g, ' ') // Reemplazar tabs con espacios
           .replace(/\s+/g, ' ') // Normalizar espacios múltiples
       }
       
