@@ -37,6 +37,7 @@ export function EgresosBasadosEnHorasTable() {
   const [empresaFilter, setEmpresaFilter] = useState<string>("all")
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [isNuevoEgresoDialogOpen, setIsNuevoEgresoDialogOpen] = useState(false)
+  const [generandoAutomaticos, setGenerandoAutomaticos] = useState(false)
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: 'factura' | 'comprobante' } | null>(null)
 
   useEffect(() => {
@@ -302,6 +303,23 @@ export function EgresosBasadosEnHorasTable() {
             <Button onClick={() => setIsNuevoEgresoDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Egreso
+            </Button>
+            <Button 
+              onClick={handleGenerarAutomaticos} 
+              variant="outline"
+              disabled={generandoAutomaticos}
+            >
+              {generandoAutomaticos ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Generar Automáticos
+                </>
+              )}
             </Button>
             <Button onClick={() => setIsUploadDialogOpen(true)} variant="outline">
               <Upload className="mr-2 h-4 w-4" />
