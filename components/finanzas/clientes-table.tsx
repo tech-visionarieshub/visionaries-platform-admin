@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Edit, Trash2, Mail, Building2, FileText } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Mail, Building2, FileText, Upload } from "lucide-react"
 import { getClientes, getCotizaciones } from "@/lib/api/finanzas-api"
 import { getCotizaciones as getCotizacionesAPI } from "@/lib/api/cotizaciones-api"
 import Link from "next/link"
 import { useEffect } from "react"
 import type { Cliente } from "@/lib/api/finanzas-api"
+import { CargarClientesDialog } from "./cargar-clientes-dialog"
 
 export function ClientesTable() {
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -23,6 +24,7 @@ export function ClientesTable() {
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -64,7 +66,7 @@ export function ClientesTable() {
       cliente.rfc.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleEdit = (cliente: (typeof mockClientes)[0]) => {
+  const handleEdit = (cliente: Cliente) => {
     setSelectedCliente(cliente)
     setIsEditing(true)
     setIsDialogOpen(true)
@@ -74,6 +76,15 @@ export function ClientesTable() {
     setSelectedCliente(null)
     setIsEditing(false)
     setIsDialogOpen(true)
+  }
+
+  const handleRefresh = async () => {
+    try {
+      const clientesData = await getClientes()
+      setClientes(clientesData)
+    } catch (err: any) {
+      console.error('Error refreshing clientes:', err)
+    }
   }
 
   return (
@@ -89,10 +100,16 @@ export function ClientesTable() {
             className="pl-8 h-9"
           />
         </div>
-        <Button onClick={handleNew} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo Cliente
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setIsUploadDialogOpen(true)} size="sm" variant="outline">
+            <Upload className="h-4 w-4 mr-1" />
+            Cargar CSV
+          </Button>
+          <Button onClick={handleNew} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo Cliente
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -298,6 +315,13 @@ export function ClientesTable() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Upload Dialog */}
+      <CargarClientesDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        onSuccess={handleRefresh}
+      />
     </div>
   )
 }

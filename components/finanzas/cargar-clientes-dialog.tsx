@@ -13,28 +13,29 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { Upload, FileText, Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { Upload, FileText, Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
 
 interface UploadResult {
   row: number
   success: boolean
   message: string
-  egresoId?: string
+  clienteId?: string
 }
 
-interface CargarHistoricoDialogProps {
+interface CargarClientesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
 }
 
-export function CargarHistoricoDialog({
+export function CargarClientesDialog({
   open,
   onOpenChange,
   onSuccess,
-}: CargarHistoricoDialogProps) {
+}: CargarClientesDialogProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -42,6 +43,7 @@ export function CargarHistoricoDialog({
     total: number
     success: number
     errors: number
+    skipped: number
     details: UploadResult[]
   } | null>(null)
 
@@ -77,7 +79,7 @@ export function CargarHistoricoDialog({
       const formData = new FormData()
       formData.append("csv", csvFile)
 
-      const response = await fetch("/api/egresos/upload-historical", {
+      const response = await fetch("/api/clientes/upload-historical", {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -96,12 +98,13 @@ export function CargarHistoricoDialog({
         total: data.summary.total,
         success: data.summary.success,
         errors: data.summary.errors,
+        skipped: data.summary.skipped,
         details: data.details,
       })
 
-      if (data.summary.errors === 0) {
+      if (data.summary.errors === 0 && data.summary.skipped === 0) {
         toast.success(
-          `✅ ${data.summary.success} egresos cargados exitosamente`
+          `✅ ${data.summary.success} clientes cargados exitosamente`
         )
         if (onSuccess) {
           onSuccess()
@@ -114,9 +117,13 @@ export function CargarHistoricoDialog({
           setProgress(0)
         }, 2000)
       } else {
-        toast.warning(
-          `⚠️ ${data.summary.success} exitosos, ${data.summary.errors} con errores`
-        )
+        const message = [
+          data.summary.success > 0 && `${data.summary.success} exitosos`,
+          data.summary.skipped > 0 && `${data.summary.skipped} omitidos`,
+          data.summary.errors > 0 && `${data.summary.errors} con errores`,
+        ].filter(Boolean).join(', ')
+        
+        toast.warning(`⚠️ ${message}`)
         if (data.summary.success > 0 && onSuccess) {
           onSuccess()
         }
@@ -142,10 +149,9 @@ export function CargarHistoricoDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Cargar Histórico de Egresos</DialogTitle>
+          <DialogTitle>Cargar Clientes desde CSV</DialogTitle>
           <DialogDescription>
-            Sube un archivo CSV con el histórico de egresos basados en horas.
-            Las columnas de Factura y Comprobante deben contener URLs de Google Drive.
+            Sube un archivo CSV con los datos de los clientes. Los campos vacíos o con "-" serán tratados como opcionales.
           </DialogDescription>
         </DialogHeader>
 
@@ -169,9 +175,10 @@ export function CargarHistoricoDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              El CSV debe tener las columnas: Línea de negocio, Categoría, Empresa,
-              Equipo, Concepto, Subtotal, IVA, Total, Tipo, Mes, Status, Factura,
-              Comprobante, Fecha pago
+              El CSV debe tener las columnas: Empresa, Persona Cobranza, Correo Cobranza,
+              CC Cobranza, Cuenta de pago, Datos de pago, Razón Social, RFC, CP, Fiscal Regime,
+              UsoCFDI, Calle, Colonia, Localidad, No. Exterior, No. Interior, Municipio,
+              Estado, Pais
             </p>
           </div>
 
@@ -190,10 +197,18 @@ export function CargarHistoricoDialog({
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold">Resultados de la carga</h4>
                 <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1 text-green-600">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>{results.success} exitosos</span>
-                  </div>
+                  {results.success > 0 && (
+                    <div className="flex items-center gap-1 text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>{results.success} exitosos</span>
+                    </div>
+                  )}
+                  {results.skipped > 0 && (
+                    <div className="flex items-center gap-1 text-yellow-600">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>{results.skipped} omitidos</span>
+                    </div>
+                  )}
                   {results.errors > 0 && (
                     <div className="flex items-center gap-1 text-red-600">
                       <XCircle className="h-4 w-4" />
@@ -203,18 +218,22 @@ export function CargarHistoricoDialog({
                 </div>
               </div>
 
-              {results.errors > 0 && (
+              {(results.errors > 0 || results.skipped > 0) && (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  <p className="text-sm font-medium text-red-600">Errores:</p>
+                  <p className="text-sm font-medium">Detalles:</p>
                   {results.details
                     .filter((r) => !r.success)
                     .map((result, idx) => (
-                      <div
+                      <Alert
                         key={idx}
-                        className="text-xs p-2 bg-red-50 rounded border border-red-200"
+                        variant={result.message.includes('ya existe') ? 'default' : 'destructive'}
+                        className="text-xs"
                       >
-                        <strong>Fila {result.row}:</strong> {result.message}
-                      </div>
+                        <AlertCircle className="h-3 w-3" />
+                        <AlertDescription>
+                          <strong>Fila {result.row}:</strong> {result.message}
+                        </AlertDescription>
+                      </Alert>
                     ))}
                 </div>
               )}
@@ -242,7 +261,7 @@ export function CargarHistoricoDialog({
             ) : (
               <>
                 <Upload className="mr-2 h-4 w-4" />
-                Cargar Histórico
+                Cargar Clientes
               </>
             )}
           </Button>

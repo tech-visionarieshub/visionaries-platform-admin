@@ -41,6 +41,39 @@ export class ClientesRepository extends BaseRepository<ClienteEntity> {
       (ref) => ref.where('empresa', '==', empresa),
     ]);
   }
+
+  /**
+   * Crea múltiples clientes en batch
+   */
+  async bulkCreate(clientes: Array<Omit<ClienteEntity, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ClienteEntity[]> {
+    try {
+      const batch = this.db.batch();
+      const createdClientes: ClienteEntity[] = [];
+
+      for (const cliente of clientes) {
+        const docRef = this.getCollection().doc();
+        const firestoreData = this.toFirestore(cliente as Partial<ClienteEntity>);
+        batch.set(docRef, firestoreData);
+        
+        // Guardar referencia para obtener después
+        createdClientes.push({
+          id: docRef.id,
+          ...cliente,
+        } as ClienteEntity);
+      }
+
+      await batch.commit();
+
+      // Obtener los documentos creados
+      const results = await Promise.all(
+        createdClientes.map(cliente => this.getById(cliente.id))
+      );
+
+      return results.filter((cliente): cliente is ClienteEntity => cliente !== null);
+    } catch (error: any) {
+      throw new Error(`Error creating bulk clientes: ${error.message}`);
+    }
+  }
 }
 
 export const clientesRepository = new ClientesRepository();
