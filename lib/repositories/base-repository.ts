@@ -43,10 +43,18 @@ export class BaseRepository<T extends BaseEntity> {
 
   /**
    * Convierte un objeto a formato Firestore (convierte timestamps)
+   * Remueve campos undefined para evitar errores de Firestore
    */
   protected toFirestore(data: Partial<T>): any {
     const { id, ...rest } = data as any;
     const firestoreData: any = { ...rest };
+
+    // Remover campos undefined
+    Object.keys(firestoreData).forEach(key => {
+      if (firestoreData[key] === undefined) {
+        delete firestoreData[key];
+      }
+    });
 
     // Si createdAt no existe, agregarlo
     if (!firestoreData.createdAt) {
