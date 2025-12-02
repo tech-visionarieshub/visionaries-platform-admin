@@ -123,9 +123,17 @@ export function EgresosBasadosEnHorasTable() {
     return Array.from(new Set(egresos.map((e) => e.status).filter(Boolean))).sort()
   }, [egresos])
 
+  // Filtrar por año en curso por defecto
+  const añoActual = new Date().getFullYear()
+  
   const filteredEgresos = useMemo(() => {
     const filtered = egresos.filter((egreso) => {
       const empresaNormalizada = egreso.empresaNormalizada || normalizeEmpresa(egreso.empresa || '')
+      
+      // Filtrar por año en curso (extraer año del mes)
+      const mesDate = parseMesToDate(egreso.mes || '')
+      const matchesAño = mesDate.getFullYear() === añoActual
+      
       const matchesSearch =
         egreso.concepto.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (egreso.empresa || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -138,7 +146,7 @@ export function EgresosBasadosEnHorasTable() {
       // Comparar con empresa normalizada en el filtro
       const matchesEmpresa = empresaFilter === "all" || empresaNormalizada === empresaFilter
 
-      return matchesSearch && matchesStatus && matchesTipo && matchesMes && matchesCategoria && matchesEmpresa
+      return matchesAño && matchesSearch && matchesStatus && matchesTipo && matchesMes && matchesCategoria && matchesEmpresa
     })
     
     // Ordenar por mes (más actual primero)
@@ -147,7 +155,7 @@ export function EgresosBasadosEnHorasTable() {
       const dateB = parseMesToDate(b.mes || '')
       return dateB.getTime() - dateA.getTime() // Más reciente primero
     })
-  }, [egresos, searchTerm, statusFilter, tipoFilter, mesFilter, categoriaFilter, empresaFilter])
+  }, [egresos, searchTerm, statusFilter, tipoFilter, mesFilter, categoriaFilter, empresaFilter, añoActual])
 
   const handleDeleteEgreso = async (id: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este egreso?")) {
