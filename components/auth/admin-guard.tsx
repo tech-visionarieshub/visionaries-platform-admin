@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/hooks/use-user"
 import { isAdmin } from "@/lib/routes"
@@ -14,16 +14,19 @@ export function AdminGuard({ children, sectionName = "esta sección" }: AdminGua
   const { user } = useUser()
   const router = useRouter()
 
+  // Calcular si el usuario es admin de forma memoizada
+  const userIsAdmin = useMemo(() => {
+    if (!user) return false
+    return isAdmin(user.email, { role: user.role, superadmin: user.superadmin }, user.role)
+  }, [user])
+
   useEffect(() => {
     // Si el usuario está cargado y no es admin, redirigir inmediatamente
-    if (user) {
-      const userIsAdmin = isAdmin(user.email, { role: user.role, superadmin: user.superadmin }, user.role)
-      if (!userIsAdmin) {
-        console.log('[AdminGuard] Acceso denegado para usuario no admin:', user.email)
-        router.replace('/')
-      }
+    if (user && !userIsAdmin) {
+      console.log('[AdminGuard] Acceso denegado para usuario no admin:', user.email)
+      router.replace('/')
     }
-  }, [user, router])
+  }, [user, userIsAdmin, router])
 
   // Si no hay usuario aún, mostrar loading
   if (!user) {
@@ -38,7 +41,6 @@ export function AdminGuard({ children, sectionName = "esta sección" }: AdminGua
   }
 
   // Verificar acceso ANTES de renderizar cualquier contenido
-  const userIsAdmin = isAdmin(user.email, { role: user.role, superadmin: user.superadmin }, user.role)
   
   if (!userIsAdmin) {
     return (

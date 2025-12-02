@@ -298,6 +298,24 @@ export function requiresAdminAccess(path: string): boolean {
 }
 
 /**
+ * Verifica si un usuario es superadmin
+ * IMPORTANTE: Esta función debe estar definida antes de isAdmin
+ */
+export function isSuperAdmin(email?: string, claims?: Record<string, any>): boolean {
+  // Verificar por email específico
+  if (email === 'adminplatform@visionarieshub.com') {
+    return true
+  }
+  
+  // Verificar por custom claim
+  if (claims?.superadmin === true) {
+    return true
+  }
+  
+  return false
+}
+
+/**
  * Verifica si un usuario es admin (incluye superadmin)
  */
 export function isAdmin(email?: string, claims?: Record<string, any>, role?: string): boolean {
@@ -308,23 +326,6 @@ export function isAdmin(email?: string, claims?: Record<string, any>, role?: str
   
   // Verificar por role
   if (role === 'admin' || claims?.role === 'admin') {
-    return true
-  }
-  
-  return false
-}
-
-/**
- * Verifica si un usuario es superadmin
- */
-export function isSuperAdmin(email?: string, claims?: Record<string, any>): boolean {
-  // Verificar por email específico
-  if (email === 'adminplatform@visionarieshub.com') {
-    return true
-  }
-  
-  // Verificar por custom claim
-  if (claims?.superadmin === true) {
     return true
   }
   
