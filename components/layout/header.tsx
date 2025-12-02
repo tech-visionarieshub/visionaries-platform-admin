@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/use-user"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useState } from "react"
-import { hasRouteAccess, requiresAdminAccess, isAdmin } from "@/lib/routes"
+import { hasRouteAccess } from "@/lib/routes"
+import { requiresAdminAccess } from "@/lib/auth-utils"
 import {
   DropdownMenu,
   DropdownMenuContent,

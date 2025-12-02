@@ -1,9 +1,8 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/hooks/use-user"
-import { isAdmin } from "@/lib/routes"
 
 interface AdminGuardProps {
   children: React.ReactNode
@@ -14,11 +13,8 @@ export function AdminGuard({ children, sectionName = "esta sección" }: AdminGua
   const { user } = useUser()
   const router = useRouter()
 
-  // Calcular si el usuario es admin de forma memoizada
-  const userIsAdmin = useMemo(() => {
-    if (!user) return false
-    return isAdmin(user.email, { role: user.role, superadmin: user.superadmin }, user.role)
-  }, [user])
+  // Verificación simple inline: superadmin o role === 'admin'
+  const userIsAdmin = user?.superadmin === true || user?.role === 'admin'
 
   useEffect(() => {
     // Si el usuario está cargado y no es admin, redirigir inmediatamente

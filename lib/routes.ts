@@ -3,6 +3,12 @@
  * Organizadas por categorías para facilitar la selección
  */
 
+/**
+ * Importar funciones de autenticación desde auth-utils
+ * Esto evita problemas de inicialización de módulos
+ */
+import { isSuperAdmin, isAdmin, requiresAdminAccess } from './auth-utils'
+
 export interface PortalRoute {
   path: string
   label: string
@@ -283,54 +289,6 @@ export function routeMatches(pattern: string, actualPath: string): boolean {
  * Estas rutas no requieren estar en allowedRoutes
  */
 const ALWAYS_ALLOWED_ROUTES = ['/settings', '/login', '/']
-
-/**
- * Rutas que requieren ser admin (no solo superadmin)
- * Estas rutas están completamente bloqueadas para usuarios que no son admin
- */
-const ADMIN_ONLY_ROUTES = ['/crm', '/finanzas', '/cotizaciones', '/reports']
-
-/**
- * Verifica si una ruta requiere ser admin
- */
-export function requiresAdminAccess(path: string): boolean {
-  return ADMIN_ONLY_ROUTES.some(adminRoute => path.startsWith(adminRoute))
-}
-
-/**
- * Verifica si un usuario es superadmin
- * IMPORTANTE: Esta función debe estar definida antes de isAdmin
- */
-export function isSuperAdmin(email?: string, claims?: Record<string, any>): boolean {
-  // Verificar por email específico
-  if (email === 'adminplatform@visionarieshub.com') {
-    return true
-  }
-  
-  // Verificar por custom claim
-  if (claims?.superadmin === true) {
-    return true
-  }
-  
-  return false
-}
-
-/**
- * Verifica si un usuario es admin (incluye superadmin)
- */
-export function isAdmin(email?: string, claims?: Record<string, any>, role?: string): boolean {
-  // Superadmin siempre es admin
-  if (isSuperAdmin(email, claims)) {
-    return true
-  }
-  
-  // Verificar por role
-  if (role === 'admin' || claims?.role === 'admin') {
-    return true
-  }
-  
-  return false
-}
 
 /**
  * Verifica si un usuario tiene acceso a una ruta específica
