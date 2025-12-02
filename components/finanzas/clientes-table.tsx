@@ -172,18 +172,53 @@ export function ClientesTable() {
   }
 
   const handleSave = async () => {
-    if (!formData.empresa || !formData.razonSocial || !formData.rfc) {
-      toast.error("Por favor completa los campos requeridos: Empresa, Razón Social y RFC")
+    // Validar solo los campos requeridos: RFC, Empresa, Razón Social, Persona Cobranza y Correo Cobranza
+    const camposRequeridos = []
+    if (!formData.rfc?.trim()) camposRequeridos.push("RFC")
+    if (!formData.empresa?.trim()) camposRequeridos.push("Empresa")
+    if (!formData.razonSocial?.trim()) camposRequeridos.push("Razón Social")
+    if (!formData.personaCobranza?.trim()) camposRequeridos.push("Persona Cobranza")
+    if (!formData.correoCobranza?.trim()) camposRequeridos.push("Correo Cobranza")
+
+    if (camposRequeridos.length > 0) {
+      toast.error(`Por favor completa los campos requeridos: ${camposRequeridos.join(", ")}`)
       return
     }
 
     setIsSaving(true)
     try {
+      // Preparar datos: solo enviar campos que tengan valor (no enviar strings vacíos)
+      const datosParaEnviar: any = {
+        empresa: formData.empresa?.trim(),
+        razonSocial: formData.razonSocial?.trim(),
+        rfc: formData.rfc?.trim(),
+        personaCobranza: formData.personaCobranza?.trim(),
+        correoCobranza: formData.correoCobranza?.trim(),
+      }
+
+      // Agregar campos opcionales solo si tienen valor
+      if (formData.ccCobranza?.trim()) datosParaEnviar.ccCobranza = formData.ccCobranza.trim()
+      if (formData.cuentaPago?.trim()) datosParaEnviar.cuentaPago = formData.cuentaPago.trim()
+      if (formData.datosPago?.trim()) datosParaEnviar.datosPago = formData.datosPago.trim()
+      if (formData.cp?.trim()) datosParaEnviar.cp = formData.cp.trim()
+      if (formData.regimenFiscal?.trim()) datosParaEnviar.regimenFiscal = formData.regimenFiscal.trim()
+      if (formData.usoCFDI?.trim()) datosParaEnviar.usoCFDI = formData.usoCFDI.trim()
+      if (formData.calle?.trim()) datosParaEnviar.calle = formData.calle.trim()
+      if (formData.colonia?.trim()) datosParaEnviar.colonia = formData.colonia.trim()
+      if (formData.localidad?.trim()) datosParaEnviar.localidad = formData.localidad.trim()
+      if (formData.noExterior?.trim()) datosParaEnviar.noExterior = formData.noExterior.trim()
+      if (formData.noInterior?.trim()) datosParaEnviar.noInterior = formData.noInterior.trim()
+      if (formData.municipio?.trim()) datosParaEnviar.municipio = formData.municipio.trim()
+      if (formData.estado?.trim()) datosParaEnviar.estado = formData.estado.trim()
+      if (formData.pais?.trim()) datosParaEnviar.pais = formData.pais.trim()
+
+      console.log('[Clientes] Enviando datos:', datosParaEnviar)
+
       if (isEditing && selectedCliente) {
-        await updateCliente(selectedCliente.id, formData)
+        await updateCliente(selectedCliente.id, datosParaEnviar)
         toast.success("Cliente actualizado exitosamente")
       } else {
-        await createCliente(formData as Omit<Cliente, 'id'>)
+        await createCliente(datosParaEnviar as Omit<Cliente, 'id'>)
         toast.success("Cliente creado exitosamente")
       }
       setIsDialogOpen(false)
@@ -431,19 +466,21 @@ export function ClientesTable() {
               <h3 className="text-sm font-semibold mb-3">Información General</h3>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="empresa">Empresa</Label>
+              <Label htmlFor="empresa">Empresa <span className="text-red-500">*</span></Label>
               <Input 
                 id="empresa" 
                 value={formData.empresa || ''} 
                 onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+                placeholder="Nombre de la empresa"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="razonSocial">Razón Social</Label>
+              <Label htmlFor="razonSocial">Razón Social <span className="text-red-500">*</span></Label>
               <Input 
                 id="razonSocial" 
                 value={formData.razonSocial || ''} 
                 onChange={(e) => setFormData({ ...formData, razonSocial: e.target.value })}
+                placeholder="Razón social completa"
               />
             </div>
 
@@ -452,12 +489,13 @@ export function ClientesTable() {
               <h3 className="text-sm font-semibold mb-3">Datos Fiscales</h3>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rfc">RFC</Label>
+              <Label htmlFor="rfc">RFC <span className="text-red-500">*</span></Label>
               <Input 
                 id="rfc" 
                 value={formData.rfc || ''} 
                 onChange={(e) => setFormData({ ...formData, rfc: e.target.value })}
                 className="font-mono" 
+                placeholder="RFC del cliente"
               />
             </div>
             <div className="space-y-2">
@@ -583,20 +621,22 @@ export function ClientesTable() {
               <h3 className="text-sm font-semibold mb-3">Datos de Cobranza</h3>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="personaCobranza">Persona Cobranza</Label>
+              <Label htmlFor="personaCobranza">Persona Cobranza <span className="text-red-500">*</span></Label>
               <Input 
                 id="personaCobranza" 
                 value={formData.personaCobranza || ''} 
                 onChange={(e) => setFormData({ ...formData, personaCobranza: e.target.value })}
+                placeholder="Nombre de la persona de contacto"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="correoCobranza">Correo Cobranza</Label>
+              <Label htmlFor="correoCobranza">Correo Cobranza <span className="text-red-500">*</span></Label>
               <Input 
                 id="correoCobranza" 
                 type="email" 
                 value={formData.correoCobranza || ''} 
                 onChange={(e) => setFormData({ ...formData, correoCobranza: e.target.value })}
+                placeholder="correo@ejemplo.com"
               />
             </div>
             <div className="space-y-2">
