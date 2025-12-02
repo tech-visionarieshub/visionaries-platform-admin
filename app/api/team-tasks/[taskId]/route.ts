@@ -108,15 +108,42 @@ export async function PUT(
     const body = await request.json()
     const validatedData = updateTeamTaskSchema.parse(body)
 
+    // Obtener la tarea existente para comparar cambios
+    const existingTask = await teamTasksRepository.getById(taskId)
+    if (!existingTask) {
+      return NextResponse.json(
+        { error: 'Tarea no encontrada' },
+        { status: 404 }
+      )
+    }
+
     // Si la categoría es "Otra" pero no hay customCategory, mantener el existente o usar título
     if (validatedData.category === 'Otra' && !validatedData.customCategory) {
-      const existingTask = await teamTasksRepository.getById(taskId)
-      if (existingTask && !existingTask.customCategory) {
+      if (!existingTask.customCategory) {
         validatedData.customCategory = existingTask.title
       }
     }
 
     const updatedTask = await teamTasksRepository.update(taskId, validatedData)
+
+    // Enviar email si el assignee cambió y es diferente al creador
+    const newAssignee = validatedData.assignee !== undefined ? validatedData.assignee : existingTask.assignee
+    const oldAssignee = existingTask.assignee
+    const creatorEmail = existingTask.createdBy
+
+    if (newAssignee && newAssignee !== oldAssignee && newAssignee !== creatorEmail) {
+      try {
+        const { sendTaskAssignedEmail } = await import('@/lib/services/team-task-email-service')
+        // Enviar email en background (no esperar respuesta)
+        sendTaskAssignedEmail(updatedTask, newAssignee, creatorEmail).catch(error => {
+          console.error('[Team Tasks API] Error enviando email de notificación:', error)
+          // No fallar la actualización de la tarea si el email falla
+        })
+      } catch (error) {
+        console.error('[Team Tasks API] Error importando servicio de email:', error)
+        // No fallar la actualización de la tarea si el email falla
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -177,4 +204,6 @@ export async function DELETE(
     )
   }
 }
+
+
 

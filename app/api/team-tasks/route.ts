@@ -113,11 +113,29 @@ export async function POST(request: NextRequest) {
       validatedData.customCategory = validatedData.title
     }
 
+    const creatorEmail = decoded.email || 'unknown'
+    const assigneeEmail = validatedData.assignee || creatorEmail
+
     const task = await teamTasksRepository.create({
       ...validatedData,
-      createdBy: decoded.email || 'unknown',
-      assignee: validatedData.assignee || decoded.email || undefined,
+      createdBy: creatorEmail,
+      assignee: assigneeEmail || undefined,
     })
+
+    // Enviar email si el assignee es diferente al creador
+    if (assigneeEmail && assigneeEmail !== creatorEmail) {
+      try {
+        const { sendTaskAssignedEmail } = await import('@/lib/services/team-task-email-service')
+        // Enviar email en background (no esperar respuesta)
+        sendTaskAssignedEmail(task, assigneeEmail, creatorEmail).catch(error => {
+          console.error('[Team Tasks API] Error enviando email de notificación:', error)
+          // No fallar la creación de la tarea si el email falla
+        })
+      } catch (error) {
+        console.error('[Team Tasks API] Error importando servicio de email:', error)
+        // No fallar la creación de la tarea si el email falla
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -137,4 +155,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
 
