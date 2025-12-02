@@ -249,14 +249,14 @@ export function EgresosBasadosEnHorasTable() {
       {/* Summary Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-lg border p-4">
-          <div className="text-sm text-muted-foreground">Total Egresos</div>
+          <div className="text-sm text-muted-foreground">Total Egresos {añoActual}</div>
           <div className="text-2xl font-bold">${totalEgresos.toLocaleString("es-MX")}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {filteredEgresos.length} egreso{filteredEgresos.length !== 1 ? "s" : ""}
           </div>
         </div>
         <div className="rounded-lg border p-4">
-          <div className="text-sm text-muted-foreground">Pagado</div>
+          <div className="text-sm text-muted-foreground">Pagado {añoActual}</div>
           <div className="text-2xl font-bold text-green-600">${totalPagado.toLocaleString("es-MX")}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {filteredEgresos.filter((e) => e.status === "Pagado").length} egreso
@@ -264,7 +264,7 @@ export function EgresosBasadosEnHorasTable() {
           </div>
         </div>
         <div className="rounded-lg border p-4">
-          <div className="text-sm text-muted-foreground">Pendiente</div>
+          <div className="text-sm text-muted-foreground">Pendiente {añoActual}</div>
           <div className="text-2xl font-bold text-orange-600">${totalPendiente.toLocaleString("es-MX")}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {filteredEgresos.filter((e) => e.status === "Pendiente").length} egreso
