@@ -220,6 +220,55 @@ export function EgresosBasadosEnHorasTable() {
     return cliente?.empresa || ""
   }
 
+  const handleOpenLinkDialog = (egresoId: string, tipo: 'factura' | 'comprobante', currentUrl?: string) => {
+    setLinkDialog({ open: true, egresoId, tipo })
+    setLinkUrl(currentUrl || "")
+  }
+
+  const handleSaveLink = async () => {
+    if (!linkDialog) return
+
+    const url = linkUrl.trim()
+    if (!url) {
+      toast.error("Por favor ingresa una URL válida")
+      return
+    }
+
+    // Validar que sea una URL válida
+    try {
+      new URL(url)
+    } catch {
+      toast.error("Por favor ingresa una URL válida (debe comenzar con http:// o https://)")
+      return
+    }
+
+    setSavingLink(true)
+    try {
+      await updateEgreso(linkDialog.egresoId, {
+        [linkDialog.tipo === 'factura' ? 'facturaUrl' : 'comprobanteUrl']: url,
+      })
+
+      // Actualizar estado local
+      setEgresos(egresos.map(e => 
+        e.id === linkDialog.egresoId 
+          ? { 
+              ...e, 
+              [linkDialog.tipo === 'factura' ? 'facturaUrl' : 'comprobanteUrl']: url 
+            }
+          : e
+      ))
+
+      toast.success(`${linkDialog.tipo === 'factura' ? 'Factura' : 'Comprobante'} actualizado exitosamente`)
+      setLinkDialog(null)
+      setLinkUrl("")
+    } catch (error: any) {
+      console.error("Error saving link:", error)
+      toast.error(error.message || "Error al guardar el link")
+    } finally {
+      setSavingLink(false)
+    }
+  }
+
   const handleRefresh = async () => {
     setLoading(true)
     try {
