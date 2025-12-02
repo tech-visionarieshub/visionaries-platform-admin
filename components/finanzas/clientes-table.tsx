@@ -9,14 +9,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Plus, Edit, Trash2, Mail, Building2, FileText, Upload } from "lucide-react"
-import { getClientes, getCotizaciones } from "@/lib/api/finanzas-api"
+import { getClientes, getCotizaciones, updateCliente, createCliente } from "@/lib/api/finanzas-api"
 import { getCotizaciones as getCotizacionesAPI } from "@/lib/api/cotizaciones-api"
 import { getProjects } from "@/lib/api/projects-api"
 import Link from "next/link"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { Cliente } from "@/lib/api/finanzas-api"
 import type { Project } from "@/lib/mock-data/projects"
 import { CargarClientesDialog } from "./cargar-clientes-dialog"
+import { toast } from "sonner"
 
 export function ClientesTable() {
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -28,6 +29,8 @@ export function ClientesTable() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
+  const [formData, setFormData] = useState<Partial<Cliente>>({})
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -99,13 +102,40 @@ export function ClientesTable() {
   const handleEdit = (cliente: Cliente) => {
     setSelectedCliente(cliente)
     setIsEditing(true)
+    setFormData(cliente)
     setIsDialogOpen(true)
   }
 
   const handleNew = () => {
     setSelectedCliente(null)
     setIsEditing(false)
+    setFormData({})
     setIsDialogOpen(true)
+  }
+
+  const handleSave = async () => {
+    if (!formData.empresa || !formData.razonSocial || !formData.rfc) {
+      toast.error("Por favor completa los campos requeridos: Empresa, Razón Social y RFC")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      if (isEditing && selectedCliente) {
+        await updateCliente(selectedCliente.id, formData)
+        toast.success("Cliente actualizado exitosamente")
+      } else {
+        await createCliente(formData as Omit<Cliente, 'id'>)
+        toast.success("Cliente creado exitosamente")
+      }
+      setIsDialogOpen(false)
+      await handleRefresh()
+    } catch (error: any) {
+      console.error('Error saving cliente:', error)
+      toast.error(error.message || "Error al guardar el cliente")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleRefresh = async () => {
@@ -238,11 +268,19 @@ export function ClientesTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="empresa">Empresa</Label>
-              <Input id="empresa" defaultValue={selectedCliente?.empresa} />
+              <Input 
+                id="empresa" 
+                value={formData.empresa || ''} 
+                onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="razonSocial">Razón Social</Label>
-              <Input id="razonSocial" defaultValue={selectedCliente?.razonSocial} />
+              <Input 
+                id="razonSocial" 
+                value={formData.razonSocial || ''} 
+                onChange={(e) => setFormData({ ...formData, razonSocial: e.target.value })}
+              />
             </div>
 
             {/* Datos Fiscales */}
@@ -251,15 +289,27 @@ export function ClientesTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="rfc">RFC</Label>
-              <Input id="rfc" defaultValue={selectedCliente?.rfc} className="font-mono" />
+              <Input 
+                id="rfc" 
+                value={formData.rfc || ''} 
+                onChange={(e) => setFormData({ ...formData, rfc: e.target.value })}
+                className="font-mono" 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="cp">Código Postal</Label>
-              <Input id="cp" defaultValue={selectedCliente?.cp} />
+              <Input 
+                id="cp" 
+                value={formData.cp || ''} 
+                onChange={(e) => setFormData({ ...formData, cp: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="regimenFiscal">Régimen Fiscal</Label>
-              <Select defaultValue={selectedCliente?.regimenFiscal}>
+              <Select 
+                value={formData.regimenFiscal || ''} 
+                onValueChange={(value) => setFormData({ ...formData, regimenFiscal: value })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar régimen" />
                 </SelectTrigger>
@@ -278,7 +328,10 @@ export function ClientesTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="usoCFDI">Uso CFDI</Label>
-              <Select defaultValue={selectedCliente?.usoCFDI}>
+              <Select 
+                value={formData.usoCFDI || ''} 
+                onValueChange={(value) => setFormData({ ...formData, usoCFDI: value })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar uso" />
                 </SelectTrigger>
@@ -298,27 +351,67 @@ export function ClientesTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="calle">Calle</Label>
-              <Input id="calle" defaultValue={selectedCliente?.calle} />
+              <Input 
+                id="calle" 
+                value={formData.calle || ''} 
+                onChange={(e) => setFormData({ ...formData, calle: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="colonia">Colonia</Label>
-              <Input id="colonia" defaultValue={selectedCliente?.colonia} />
+              <Input 
+                id="colonia" 
+                value={formData.colonia || ''} 
+                onChange={(e) => setFormData({ ...formData, colonia: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="noExterior">No. Exterior</Label>
-              <Input id="noExterior" defaultValue={selectedCliente?.noExterior} />
+              <Input 
+                id="noExterior" 
+                value={formData.noExterior || ''} 
+                onChange={(e) => setFormData({ ...formData, noExterior: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="noInterior">No. Interior</Label>
-              <Input id="noInterior" defaultValue={selectedCliente?.noInterior} />
+              <Input 
+                id="noInterior" 
+                value={formData.noInterior || ''} 
+                onChange={(e) => setFormData({ ...formData, noInterior: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="municipio">Municipio</Label>
-              <Input id="municipio" defaultValue={selectedCliente?.municipio} />
+              <Input 
+                id="municipio" 
+                value={formData.municipio || ''} 
+                onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
-              <Input id="estado" defaultValue={selectedCliente?.estado} />
+              <Input 
+                id="estado" 
+                value={formData.estado || ''} 
+                onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="localidad">Localidad</Label>
+              <Input 
+                id="localidad" 
+                value={formData.localidad || ''} 
+                onChange={(e) => setFormData({ ...formData, localidad: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pais">País</Label>
+              <Input 
+                id="pais" 
+                value={formData.pais || 'MÉXICO'} 
+                onChange={(e) => setFormData({ ...formData, pais: e.target.value })}
+              />
             </div>
 
             {/* Datos de Cobranza */}
@@ -327,31 +420,55 @@ export function ClientesTable() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="personaCobranza">Persona Cobranza</Label>
-              <Input id="personaCobranza" defaultValue={selectedCliente?.personaCobranza} />
+              <Input 
+                id="personaCobranza" 
+                value={formData.personaCobranza || ''} 
+                onChange={(e) => setFormData({ ...formData, personaCobranza: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="correoCobranza">Correo Cobranza</Label>
-              <Input id="correoCobranza" type="email" defaultValue={selectedCliente?.correoCobranza} />
+              <Input 
+                id="correoCobranza" 
+                type="email" 
+                value={formData.correoCobranza || ''} 
+                onChange={(e) => setFormData({ ...formData, correoCobranza: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ccCobranza">CC Cobranza</Label>
-              <Input id="ccCobranza" type="email" defaultValue={selectedCliente?.ccCobranza} />
+              <Input 
+                id="ccCobranza" 
+                type="email" 
+                value={formData.ccCobranza || ''} 
+                onChange={(e) => setFormData({ ...formData, ccCobranza: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="cuentaPago">Cuenta de Pago</Label>
-              <Input id="cuentaPago" defaultValue={selectedCliente?.cuentaPago} />
+              <Input 
+                id="cuentaPago" 
+                value={formData.cuentaPago || ''} 
+                onChange={(e) => setFormData({ ...formData, cuentaPago: e.target.value })}
+              />
             </div>
             <div className="col-span-2 space-y-2">
               <Label htmlFor="datosPago">Datos de Pago (CLABE, Cuenta, etc.)</Label>
-              <Input id="datosPago" defaultValue={selectedCliente?.datosPago} />
+              <Input 
+                id="datosPago" 
+                value={formData.datosPago || ''} 
+                onChange={(e) => setFormData({ ...formData, datosPago: e.target.value })}
+              />
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
               Cancelar
             </Button>
-            <Button onClick={() => setIsDialogOpen(false)}>{isEditing ? "Guardar Cambios" : "Crear Cliente"}</Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? "Guardando..." : isEditing ? "Guardar Cambios" : "Crear Cliente"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

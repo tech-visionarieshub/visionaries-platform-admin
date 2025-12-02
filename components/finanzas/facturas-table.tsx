@@ -140,43 +140,51 @@ export function FacturasTable() {
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="h-8 text-xs">Folio</TableHead>
-              <TableHead className="h-8 text-xs">Empresa</TableHead>
-              <TableHead className="h-8 text-xs">RFC</TableHead>
-              <TableHead className="h-8 text-xs">Conceptos</TableHead>
-              <TableHead className="h-8 text-xs text-right">Subtotal</TableHead>
-              <TableHead className="h-8 text-xs text-right">IVA</TableHead>
-              <TableHead className="h-8 text-xs text-right">Total</TableHead>
-              <TableHead className="h-8 text-xs">Status</TableHead>
-              <TableHead className="h-8 text-xs">Mes</TableHead>
-              <TableHead className="h-8 text-xs">Vencimiento</TableHead>
-              <TableHead className="h-8 text-xs text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredFacturas.map((factura) => (
-              <TableRow key={factura.id} className="h-10">
-                <TableCell className="py-1 text-xs font-mono">{factura.folio}</TableCell>
-                <TableCell className="py-1 text-xs">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{factura.empresa}</span>
-                    <span className="text-muted-foreground text-[10px]">{factura.razonSocial}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-1 text-xs font-mono">{factura.rfc}</TableCell>
-                <TableCell className="py-1 text-xs max-w-[200px] truncate">{factura.conceptos}</TableCell>
-                <TableCell className="py-1 text-xs text-right">{formatCurrency(factura.subtotal)}</TableCell>
-                <TableCell className="py-1 text-xs text-right">{formatCurrency(factura.iva)}</TableCell>
-                <TableCell className="py-1 text-xs text-right font-medium">{formatCurrency(factura.total)}</TableCell>
-                <TableCell className="py-1">{getStatusBadge(factura.status)}</TableCell>
-                <TableCell className="py-1 text-xs">{factura.mesFacturacion}</TableCell>
-                <TableCell className="py-1 text-xs">
-                  {new Date(factura.fechaVencimiento).toLocaleDateString("es-MX")}
-                </TableCell>
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table className="w-full table-fixed">
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="h-8 text-xs w-[8%]">Folio</TableHead>
+                <TableHead className="h-8 text-xs w-[15%]">Empresa</TableHead>
+                <TableHead className="h-8 text-xs w-[10%]">RFC</TableHead>
+                <TableHead className="h-8 text-xs w-[18%]">Conceptos</TableHead>
+                <TableHead className="h-8 text-xs text-right w-[8%]">Subtotal</TableHead>
+                <TableHead className="h-8 text-xs text-right w-[8%]">IVA</TableHead>
+                <TableHead className="h-8 text-xs text-right w-[8%]">Total</TableHead>
+                <TableHead className="h-8 text-xs w-[8%]">Status</TableHead>
+                <TableHead className="h-8 text-xs w-[8%]">Mes</TableHead>
+                <TableHead className="h-8 text-xs w-[9%]">Vencimiento</TableHead>
+                <TableHead className="h-8 text-xs text-right w-[10%]">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredFacturas.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    No se encontraron facturas
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredFacturas.map((factura) => (
+                  <TableRow key={factura.id}>
+                    <TableCell className="py-1 text-xs font-mono break-words">{factura.folio}</TableCell>
+                    <TableCell className="py-1 text-xs break-words">
+                      <div className="flex flex-col">
+                        <span className="font-medium break-words">{factura.empresa}</span>
+                        <span className="text-muted-foreground text-[10px] break-words">{factura.razonSocial}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-1 text-xs font-mono break-words">{factura.rfc}</TableCell>
+                    <TableCell className="py-1 text-xs break-words">{factura.conceptos}</TableCell>
+                    <TableCell className="py-1 text-xs text-right whitespace-nowrap">{formatCurrency(factura.subtotal)}</TableCell>
+                    <TableCell className="py-1 text-xs text-right whitespace-nowrap">{formatCurrency(factura.iva)}</TableCell>
+                    <TableCell className="py-1 text-xs text-right font-medium whitespace-nowrap">{formatCurrency(factura.total)}</TableCell>
+                    <TableCell className="py-1 break-words">{getStatusBadge(factura.status)}</TableCell>
+                    <TableCell className="py-1 text-xs break-words">{factura.mesFacturacion}</TableCell>
+                    <TableCell className="py-1 text-xs break-words">
+                      {new Date(factura.fechaVencimiento).toLocaleDateString("es-MX")}
+                    </TableCell>
                 <TableCell className="py-1 text-right">
                   <div className="flex items-center justify-end gap-1">
                     {factura.pdfUrl && (
@@ -220,6 +228,7 @@ export function FacturasTable() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <div className="text-xs text-muted-foreground">
