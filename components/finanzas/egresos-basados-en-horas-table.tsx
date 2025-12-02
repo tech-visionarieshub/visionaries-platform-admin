@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit } from "lucide-react"
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
+import { apiPost } from "@/lib/api/client"
 import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
 import { DashboardMensual } from "./dashboard-mensual"
@@ -292,19 +293,13 @@ export function EgresosBasadosEnHorasTable() {
 
     setGenerandoAutomaticos(true)
     try {
-      const response = await fetch('/api/egresos/generar-automaticos-todos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Error al generar egresos automáticos')
-      }
-
-      const result = await response.json()
+      const result = await apiPost<{
+        success: boolean
+        mensaje?: string
+        creados?: number
+        totalEgresos?: any[]
+        resumenPorPersona?: Array<{ persona: string; creados: number }>
+      }>('/api/egresos/generar-automaticos-todos', {})
       
       if (result.totalEgresos && result.totalEgresos.length > 0) {
         toast.success(`Se generaron ${result.totalEgresos.length} egresos automáticos`)
