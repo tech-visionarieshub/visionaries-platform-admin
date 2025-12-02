@@ -25,12 +25,14 @@ interface CSVRow {
 
 /**
  * Normaliza el formato del mes
- * Convierte diferentes formatos a un formato estándar: "Mes Año" (ej: "Enero 2025")
+ * Convierte diferentes formatos a un formato estándar: "Mes Año" (ej: "Diciembre 2025")
+ * Maneja casos como: "Diciembre25", "Diciembre 25", "Diciembre2025", "Diciembre 2025", etc.
  */
 function normalizeMes(mes: string): string {
   if (!mes || mes.trim() === '') return '';
   
-  const mesLower = mes.trim().toLowerCase();
+  const mesTrimmed = mes.trim();
+  const mesLower = mesTrimmed.toLowerCase();
   
   // Mapeo de meses en español
   const mesesMap: Record<string, string> = {
@@ -51,15 +53,80 @@ function normalizeMes(mes: string): string {
   // Buscar el mes en el string
   for (const [mesKey, mesValue] of Object.entries(mesesMap)) {
     if (mesLower.includes(mesKey)) {
-      // Extraer el año si existe
-      const añoMatch = mes.match(/\d{4}/);
-      const año = añoMatch ? añoMatch[0] : new Date().getFullYear().toString();
+      // Extraer el año - buscar 4 dígitos (año completo) o 2 dígitos (año corto)
+      let año = '';
+      
+      // Primero intentar encontrar año de 4 dígitos (2025, 2024, etc.)
+      const año4Digitos = mesTrimmed.match(/\d{4}/);
+      if (año4Digitos) {
+        año = año4Digitos[0];
+      } else {
+        // Si no hay 4 dígitos, buscar 2 dígitos al final (25, 24, etc.)
+        const año2Digitos = mesTrimmed.match(/(\d{2})$/);
+        if (año2Digitos) {
+          const añoCorto = parseInt(año2Digitos[1]);
+          // Si es menor a 50, asumir 20XX, si es mayor, asumir 19XX
+          año = añoCorto < 50 ? `20${año2Digitos[1]}` : `19${año2Digitos[1]}`;
+        } else {
+          // Si no hay año, usar el año actual
+          año = new Date().getFullYear().toString();
+        }
+      }
+      
       return `${mesValue} ${año}`;
     }
   }
   
-  // Si no se encuentra, retornar el valor original
-  return mes.trim();
+  // Si no se encuentra ningún mes conocido, intentar extraer año y retornar normalizado
+  const añoMatch = mesTrimmed.match(/\d{4}/) || mesTrimmed.match(/(\d{2})$/);
+  if (añoMatch) {
+    let año = '';
+    if (añoMatch[0].length === 4) {
+      año = añoMatch[0];
+    } else {
+      const añoCorto = parseInt(añoMatch[0]);
+      año = añoCorto < 50 ? `20${añoMatch[0]}` : `19${añoMatch[0]}`;
+    }
+    // Retornar con el año pero sin el mes (mejor que nada)
+    return `${mesTrimmed} ${año}`;
+  }
+  
+  // Si no se encuentra nada, retornar el valor original normalizado
+  return mesTrimmed;
+}
+
+/**
+ * Normaliza la fecha de pago
+ * Convierte diferentes formatos a formato estándar: "YYYY-MM-DD"
+ */
+function normalizeFechaPago(fecha: string): string | undefined {
+  if (!fecha || fecha.trim() === '' || fecha.trim() === '-') return undefined;
+  
+  const fechaTrimmed = fecha.trim();
+  
+  // Si ya está en formato YYYY-MM-DD, retornarlo
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fechaTrimmed)) {
+    return fechaTrimmed;
+  }
+  
+  // Intentar parsear diferentes formatos
+  // Formato DD/MM/YYYY o DD-MM-YYYY
+  const formato1 = fechaTrimmed.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (formato1) {
+    const [, dia, mes, año] = formato1;
+    return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+  }
+  
+  // Formato YYYY/MM/DD o YYYY-MM-DD
+  const formato2 = fechaTrimmed.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (formato2) {
+    const [, año, mes, dia] = formato2;
+    return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+  }
+  
+  // Si no se puede parsear, retornar undefined
+  console.warn(`No se pudo normalizar la fecha: ${fechaTrimmed}`);
+  return undefined;
 }
 
 export async function POST(request: NextRequest) {
@@ -187,21 +254,27 @@ export async function POST(request: NextRequest) {
             throw new Error('El campo Concepto es requerido');
           }
 
-          // Crear objeto egreso
+          // Normalizar y limpiar todos los campos de texto
+          const normalizeText = (value: string): string => {
+            if (!value || value.trim() === '' || value.trim() === '-') return '';
+            return value.trim();
+          };
+
+          // Crear objeto egreso con todos los campos normalizados
           const egresoData: Omit<Egreso, 'id'> = {
-            lineaNegocio: (row['Línea de negocio'] || '').trim() || '',
-            categoria: (row.Categoría || '').trim() || '',
-            empresa: (row.Empresa || '').trim() || '',
-            equipo: (row.Equipo || '').trim() || '',
-            concepto: (row.Concepto || '').trim(),
+            lineaNegocio: normalizeText(row['Línea de negocio'] || ''),
+            categoria: normalizeText(row.Categoría || ''),
+            empresa: normalizeText(row.Empresa || ''),
+            equipo: normalizeText(row.Equipo || ''),
+            concepto: normalizeText(row.Concepto || ''),
             subtotal,
             iva,
             total,
             tipo: tipoFinal as 'Variable' | 'Fijo',
-            mes: normalizeMes((row.Mes || '').trim()),
+            mes: normalizeMes(normalizeText(row.Mes || '')),
             status: statusFinal as 'Pagado' | 'Pendiente' | 'Cancelado',
             tipoEgreso: 'basadoEnHoras',
-            fechaPago: (row['Fecha pago'] || '').trim() || undefined,
+            fechaPago: normalizeFechaPago(row['Fecha pago'] || ''),
           };
 
           // Crear egreso primero para obtener el ID
