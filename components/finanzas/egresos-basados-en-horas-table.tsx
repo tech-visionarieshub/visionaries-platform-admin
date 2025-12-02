@@ -51,11 +51,11 @@ export function EgresosBasadosEnHorasTable() {
   }, [])
 
   const uniqueCategorias = useMemo(() => {
-    return Array.from(new Set(egresos.map((e) => e.categoria))).sort()
+    return Array.from(new Set(egresos.map((e) => e.categoria).filter(Boolean))).sort()
   }, [egresos])
 
   const uniqueEmpresas = useMemo(() => {
-    return Array.from(new Set(egresos.map((e) => e.empresa))).sort()
+    return Array.from(new Set(egresos.map((e) => e.empresa).filter(Boolean))).sort()
   }, [egresos])
 
   const filteredEgresos = egresos.filter((egreso) => {
@@ -183,14 +183,14 @@ export function EgresosBasadosEnHorasTable() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Todas" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {uniqueCategorias.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {uniqueCategorias.filter(cat => cat && cat.trim() !== '').map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
             </Select>
           </div>
 
@@ -200,14 +200,14 @@ export function EgresosBasadosEnHorasTable() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {uniqueEmpresas.map((emp) => (
-                  <SelectItem key={emp} value={emp}>
-                    {emp}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {uniqueEmpresas.filter(emp => emp && emp.trim() !== '').map((emp) => (
+                    <SelectItem key={emp} value={emp}>
+                      {emp}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
             </Select>
           </div>
 
