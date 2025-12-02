@@ -69,6 +69,17 @@ export function ClientesTable() {
     return { total, aceptadas, valorTotal }
   }
 
+  // Verificar si un cliente tiene proyectos activos
+  const clienteTieneProyectosActivos = useMemo(() => {
+    const map = new Map<string, boolean>()
+    proyectos.forEach((proyecto) => {
+      if (proyecto.status !== "Finalizado" && proyecto.clientId) {
+        map.set(proyecto.clientId, true)
+      }
+    })
+    return map
+  }, [proyectos])
+
   // Calcular métricas del dashboard
   const dashboardMetrics = useMemo(() => {
     const totalClientes = clientes.length
@@ -92,17 +103,6 @@ export function ClientesTable() {
       valorTotalCotizaciones,
     }
   }, [clientes, cotizaciones, clienteTieneProyectosActivos])
-
-  // Verificar si un cliente tiene proyectos activos
-  const clienteTieneProyectosActivos = useMemo(() => {
-    const map = new Map<string, boolean>()
-    proyectos.forEach((proyecto) => {
-      if (proyecto.status !== "Finalizado" && proyecto.clientId) {
-        map.set(proyecto.clientId, true)
-      }
-    })
-    return map
-  }, [proyectos])
 
   const filteredClientes = useMemo(() => {
     let filtered = clientes.filter(
