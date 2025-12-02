@@ -426,33 +426,36 @@ export async function POST(request: NextRequest) {
         const rowNumber = i + 2; // +2 porque la primera fila es el header y empezamos desde 1
 
         try {
-          // Convertir valores numéricos (manejar valores vacíos o "-")
-          const subtotalStr = (row.Subtotal || '').toString().replace(/,/g, '').trim();
-          const ivaStr = (row.IVA || '').toString().replace(/,/g, '').trim();
-          const totalStr = (row.Total || '').toString().replace(/,/g, '').trim();
+          // Convertir valores numéricos (manejar valores vacíos, "-", "$", comas, espacios)
+          const parseMonetaryValue = (value: string): number => {
+            if (!value || value === '-' || value === '') return 0;
+            // Remover $, comas, espacios y otros caracteres no numéricos excepto punto y guión
+            const cleaned = value.toString()
+              .replace(/\$/g, '') // Remover símbolo de dólar
+              .replace(/,/g, '') // Remover comas
+              .replace(/\s/g, '') // Remover espacios
+              .trim();
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? 0 : parsed;
+          };
           
-          let subtotal = 0;
-          let iva = 0;
-          let total = 0;
-          
-          if (subtotalStr && subtotalStr !== '-' && subtotalStr !== '') {
-            const parsed = parseFloat(subtotalStr);
-            if (!isNaN(parsed)) subtotal = parsed;
-          }
-          
-          if (ivaStr && ivaStr !== '-' && ivaStr !== '') {
-            const parsed = parseFloat(ivaStr);
-            if (!isNaN(parsed)) iva = parsed;
-          }
-          
-          if (totalStr && totalStr !== '-' && totalStr !== '') {
-            const parsed = parseFloat(totalStr);
-            if (!isNaN(parsed)) total = parsed;
-          }
+          let subtotal = parseMonetaryValue(row.Subtotal || '');
+          let iva = parseMonetaryValue(row.IVA || '');
+          let total = parseMonetaryValue(row.Total || '');
           
           // Si total está vacío pero tenemos subtotal e IVA, calcularlo
           if (total === 0 && subtotal > 0) {
             total = subtotal + iva;
+          }
+          
+          // Si subtotal está vacío pero tenemos total e IVA, calcularlo
+          if (subtotal === 0 && total > 0 && iva > 0) {
+            subtotal = total - iva;
+          }
+          
+          // Si IVA está vacío pero tenemos total y subtotal, calcularlo
+          if (iva === 0 && total > 0 && subtotal > 0) {
+            iva = total - subtotal;
           }
 
           // Validar tipo (más flexible)
