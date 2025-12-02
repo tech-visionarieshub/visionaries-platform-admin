@@ -233,71 +233,124 @@ export async function sendTaskAssignedEmail(
   assigneeEmail: string,
   creatorEmail: string
 ): Promise<{ success: boolean; error?: string }> {
+  console.log('[TeamTaskEmailService] Iniciando envío de email de asignación:', {
+    taskId: task.id,
+    taskTitle: task.title,
+    assigneeEmail,
+    creatorEmail,
+  })
+  
   try {
     // Solo enviar si el assignee es diferente al creador
     if (!assigneeEmail || assigneeEmail === creatorEmail) {
+      console.log('[TeamTaskEmailService] No se envía email porque assignee es igual al creador o no hay assignee')
       return { success: true }
     }
     
-    // Obtener nombres de usuarios desde Firestore
+    // Obtener nombres de usuarios desde Firestore y email de contacto
     let assigneeName: string | undefined
     let creatorName: string | undefined
+    let actualAssigneeEmail = assigneeEmail // Email que se usará para enviar el correo
+    
+    console.log('[TeamTaskEmailService] Obteniendo información de usuarios desde Firestore')
     
     try {
       const db = getInternalFirestore()
       
-      // Obtener nombre del assignee
+      // Obtener nombre y email de contacto del assignee
       try {
         const assigneeDoc = await db.collection('users').doc(assigneeEmail).get()
         if (assigneeDoc.exists) {
-          assigneeName = assigneeDoc.data()?.displayName
+          const assigneeData = assigneeDoc.data()
+          assigneeName = assigneeData?.displayName || assigneeData?.name
+          // Usar email de contacto si existe, sino usar el email original
+          actualAssigneeEmail = assigneeData?.contactEmail || assigneeData?.emailAlias || assigneeEmail
+          console.log('[TeamTaskEmailService] Información del assignee obtenida:', {
+            assigneeName,
+            actualAssigneeEmail,
+            originalEmail: assigneeEmail,
+          })
+        } else {
+          console.log('[TeamTaskEmailService] No se encontró documento del assignee en Firestore')
         }
-      } catch (error) {
-        console.warn('[TeamTaskEmailService] No se pudo obtener nombre del assignee:', error)
+      } catch (error: any) {
+        console.warn('[TeamTaskEmailService] No se pudo obtener nombre del assignee:', {
+          error: error.message,
+          stack: error.stack,
+        })
       }
       
       // Obtener nombre del creador
       try {
         const creatorDoc = await db.collection('users').doc(creatorEmail).get()
         if (creatorDoc.exists) {
-          creatorName = creatorDoc.data()?.displayName
+          const creatorData = creatorDoc.data()
+          creatorName = creatorData?.displayName || creatorData?.name
+          console.log('[TeamTaskEmailService] Información del creador obtenida:', { creatorName })
+        } else {
+          console.log('[TeamTaskEmailService] No se encontró documento del creador en Firestore')
         }
-      } catch (error) {
-        console.warn('[TeamTaskEmailService] No se pudo obtener nombre del creador:', error)
+      } catch (error: any) {
+        console.warn('[TeamTaskEmailService] No se pudo obtener nombre del creador:', {
+          error: error.message,
+          stack: error.stack,
+        })
       }
-    } catch (error) {
-      console.warn('[TeamTaskEmailService] No se pudieron obtener nombres de usuarios:', error)
+    } catch (error: any) {
+      console.warn('[TeamTaskEmailService] No se pudieron obtener nombres de usuarios:', {
+        error: error.message,
+        stack: error.stack,
+      })
     }
     
     const emailData: TaskEmailData = {
       task,
-      assigneeEmail,
+      assigneeEmail: actualAssigneeEmail, // Usar el email de contacto si existe
       creatorEmail,
       assigneeName,
       creatorName,
     }
     
+    console.log('[TeamTaskEmailService] Generando contenido del email')
     const htmlBody = generateTaskAssignedEmailHTML(emailData)
     const textBody = generateTaskAssignedEmailText(emailData)
     
     const emailMessage: EmailMessage = {
-      to: assigneeEmail,
+      to: actualAssigneeEmail, // Enviar al email de contacto
       subject: `Nueva tarea asignada: ${task.title}`,
       body: textBody,
       htmlBody: htmlBody,
     }
     
+    console.log('[TeamTaskEmailService] Llamando a gmailService.sendEmail:', {
+      to: emailMessage.to,
+      subject: emailMessage.subject,
+    })
+    
     const result = await gmailService.sendEmail(emailMessage)
     
+    console.log('[TeamTaskEmailService] Resultado de gmailService.sendEmail:', result)
+    
     if (!result.success) {
-      console.error('[TeamTaskEmailService] Error enviando email:', result.error)
+      console.error('[TeamTaskEmailService] Error enviando email:', {
+        error: result.error,
+        taskId: task.id,
+        assigneeEmail: actualAssigneeEmail,
+      })
       return { success: false, error: result.error }
     }
     
-    console.log('[TeamTaskEmailService] Email enviado exitosamente a:', assigneeEmail)
+    console.log('[TeamTaskEmailService] Email enviado exitosamente a:', actualAssigneeEmail)
     return { success: true }
   } catch (error: any) {
-    console.error('[TeamTaskEmailService] Error:', error)
+    console.error('[TeamTaskEmailService] Error inesperado:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      taskId: task.id,
+      assigneeEmail,
+      creatorEmail,
+    })
     return { success: false, error: error.message || 'Error desconocido' }
   }
 }
