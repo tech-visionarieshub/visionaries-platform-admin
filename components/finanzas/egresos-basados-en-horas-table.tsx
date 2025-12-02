@@ -7,13 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil } from "lucide-react"
+import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit } from "lucide-react"
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
 import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
 import { DashboardMensual } from "./dashboard-mensual"
 import { NuevoEgresoDialog } from "./nuevo-egreso-dialog"
+import { EditarEgresoDialog } from "./editar-egreso-dialog"
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,8 @@ export function EgresosBasadosEnHorasTable() {
   const [linkDialog, setLinkDialog] = useState<{ open: boolean; egresoId: string; tipo: 'factura' | 'comprobante' } | null>(null)
   const [linkUrl, setLinkUrl] = useState("")
   const [savingLink, setSavingLink] = useState(false)
+  const [editingEgreso, setEditingEgreso] = useState<Egreso | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadEgresos() {
@@ -621,9 +624,25 @@ export function EgresosBasadosEnHorasTable() {
                     </TableCell>
                       <TableCell>{egreso.fechaPago || '-'}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)} className="h-8 w-8">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          {egreso.status !== "Pagado" && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => {
+                                setEditingEgreso(egreso)
+                                setIsEditDialogOpen(true)
+                              }} 
+                              className="h-8 w-8"
+                              title="Editar egreso"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)} className="h-8 w-8">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -645,6 +664,14 @@ export function EgresosBasadosEnHorasTable() {
       <NuevoEgresoDialog
         open={isNuevoEgresoDialogOpen}
         onOpenChange={setIsNuevoEgresoDialogOpen}
+        onSuccess={handleRefresh}
+      />
+
+      {/* Editar Egreso Dialog */}
+      <EditarEgresoDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        egreso={editingEgreso}
         onSuccess={handleRefresh}
       />
 
