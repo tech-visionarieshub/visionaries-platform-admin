@@ -73,7 +73,7 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
     }
   }
 
-  // Función para formatear fecha sin problemas de zona horaria
+  // Función para formatear fecha usando zona horaria de Monterrey, México
   const formatDateForInput = (date: Date | string | undefined): string => {
     if (!date) return ""
     try {
@@ -93,12 +93,17 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
         return ""
       }
       
-      // Usar métodos locales para evitar problemas de zona horaria
-      // Usar UTC para obtener la fecha correcta sin importar la zona horaria
-      const year = d.getUTCFullYear()
-      const month = String(d.getUTCMonth() + 1).padStart(2, '0')
-      const day = String(d.getUTCDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
+      // Formatear fecha usando zona horaria de Monterrey (America/Mexico_City)
+      // Esto asegura que la fecha mostrada en el input sea la misma que se muestra en la tabla
+      const timeZone = 'America/Mexico_City'
+      const formatter = new Intl.DateTimeFormat('en-CA', { // en-CA da formato YYYY-MM-DD
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      
+      return formatter.format(d)
     } catch (error) {
       console.error('[formatDateForInput] Error:', error)
       return ""
@@ -165,14 +170,23 @@ export function TeamTaskEditor({ open, onOpenChange, task, onSuccess }: TeamTask
         projectName: formData.projectId ? projects.find(p => p.id === formData.projectId)?.name : undefined,
         dueDate: formData.dueDate ? (() => {
           // Crear fecha en zona horaria de Monterrey (America/Mexico_City)
-          // Usar mediodía local para evitar cambios de día
+          // Parsear la fecha del input (formato YYYY-MM-DD) y crear Date en zona horaria de Monterrey
           const [year, month, day] = formData.dueDate.split('-').map(Number)
-          // Crear fecha en zona horaria local (Monterrey)
-          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T12:00:00`
-          // Usar Intl.DateTimeFormat para crear fecha en zona horaria de Monterrey
-          const dateInMexico = new Date(dateStr + '-06:00') // UTC-6 para Monterrey (ajustar según horario de verano si es necesario)
-          // Ajustar a mediodía en zona horaria local
-          return new Date(year, month - 1, day, 12, 0, 0)
+          
+          // Crear fecha usando mediodía en zona horaria de Monterrey
+          // Usar el offset de Monterrey (UTC-6 en invierno, UTC-5 en verano)
+          // Para evitar problemas, crear la fecha como string ISO con offset de Monterrey
+          // y luego convertir a Date
+          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T12:00:00-06:00`
+          const dateInMexico = new Date(dateStr)
+          
+          // Verificar que la fecha sea válida
+          if (isNaN(dateInMexico.getTime())) {
+            // Fallback: crear fecha local
+            return new Date(year, month - 1, day, 12, 0, 0)
+          }
+          
+          return dateInMexico
         })() : undefined,
         estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
         comentarios: formData.comentarios.trim() || undefined,
