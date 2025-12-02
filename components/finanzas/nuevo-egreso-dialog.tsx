@@ -391,9 +391,9 @@ export function NuevoEgresoDialog({ open, onOpenChange, onSuccess }: NuevoEgreso
                 <SelectContent>
                   {formData.tipoTarea === 'team-task' ? (
                     teamTasks.length === 0 ? (
-                      <SelectItem value="" disabled>
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
                         {formData.personaEmail ? "No hay tareas completadas" : "Selecciona una persona primero"}
-                      </SelectItem>
+                      </div>
                     ) : (
                       teamTasks.map((task) => (
                         <SelectItem key={task.id} value={task.id}>
@@ -403,9 +403,9 @@ export function NuevoEgresoDialog({ open, onOpenChange, onSuccess }: NuevoEgreso
                     )
                   ) : (
                     features.length === 0 ? (
-                      <SelectItem value="" disabled>
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
                         {formData.proyectoId ? "No hay funcionalidades completadas" : "Selecciona un proyecto primero"}
-                      </SelectItem>
+                      </div>
                     ) : (
                       features.map((feature) => (
                         <SelectItem key={feature.id} value={feature.id}>

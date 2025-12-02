@@ -438,14 +438,14 @@ export function EgresosBasadosEnHorasTable() {
                         ) : (
                           <Select
                             value={egreso.clienteId || ""}
-                            onValueChange={(value) => handleUpdateCliente(egreso.id, value || undefined)}
+                            onValueChange={(value) => handleUpdateCliente(egreso.id, value === "sin-cliente" ? undefined : value)}
                             disabled={loadingClientes}
                           >
                             <SelectTrigger className="w-full min-w-[150px]">
                               <SelectValue placeholder="Seleccionar cliente" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Sin cliente</SelectItem>
+                              <SelectItem value="sin-cliente">Sin cliente</SelectItem>
                               {clientes.map((cliente) => (
                                 <SelectItem key={cliente.id} value={cliente.id}>
                                   {cliente.empresa}
