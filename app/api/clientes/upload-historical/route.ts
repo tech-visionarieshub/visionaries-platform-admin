@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withFinanzasAuth } from '@/lib/api/middleware';
 import { clientesRepository } from '@/lib/repositories/clientes-repository';
+import { projectsRepository } from '@/lib/repositories/projects-repository';
 import type { ClienteEntity } from '@/lib/repositories/clientes-repository';
 import Papa from 'papaparse';
 
@@ -36,6 +37,103 @@ function normalizeValue(value: string | undefined): string | undefined {
     return undefined;
   }
   return value.trim();
+}
+
+/**
+ * Normaliza el nombre de empresa removiendo emojis
+ */
+function normalizeEmpresa(empresa: string): string {
+  if (!empresa || empresa.trim() === '') return '';
+  
+  // Remover emojis y caracteres especiales al inicio
+  const sinEmojis = empresa.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+  
+  // Remover espacios múltiples
+  return sinEmojis.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Normaliza correos electrónicos
+ * - Remueve comas finales
+ * - Limpia espacios
+ * - Maneja múltiples correos separados por comas
+ */
+function normalizeEmail(email: string | undefined): string | undefined {
+  if (!email || email.trim() === '' || email.trim() === '-') return undefined;
+  
+  let cleaned = email.trim();
+  
+  // Remover comas finales
+  cleaned = cleaned.replace(/,\s*$/, '');
+  
+  // Limpiar espacios múltiples
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  return cleaned || undefined;
+}
+
+/**
+ * Normaliza el campo "Datos de pago"
+ * - Convierte saltos de línea a espacios
+ * - Limpia espacios múltiples
+ * - Mantiene la información estructurada
+ */
+function normalizeDatosPago(datos: string | undefined): string {
+  if (!datos || datos.trim() === '' || datos.trim() === '-') return '';
+  
+  // Reemplazar saltos de línea con espacios
+  let normalized = datos.replace(/\r\n/g, ' ').replace(/\n/g, ' ').replace(/\r/g, ' ');
+  
+  // Limpiar espacios múltiples
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  return normalized;
+}
+
+/**
+ * Normaliza el Fiscal Regime completando el texto
+ */
+function normalizeFiscalRegime(regime: string | undefined): string {
+  if (!regime || regime.trim() === '' || regime.trim() === '-') return '';
+  
+  const regimeMap: Record<string, string> = {
+    '601': '601 - General de Ley Personas Morales',
+    '612': '612 - Personas Físicas con Actividades Empresariales',
+    '626': '626 - Régimen Simplificado de Confianza',
+    '603': '603 - Personas Morales con Fines no Lucrativos',
+    '605': '605 - Sueldos y Salarios e Ingresos Asimilados a Salarios',
+    '606': '606 - Arrendamiento',
+    '608': '608 - Demás ingresos',
+    '610': '610 - Residentes en el Extranjero sin Establecimiento Permanente en México',
+    '611': '611 - Ingresos por Dividendos (socios y accionistas)',
+    '614': '614 - Ingresos por obtención de premios',
+    '615': '615 - Régimen de los ingresos por obtención de premios',
+    '616': '616 - Sin obligaciones fiscales',
+    '620': '620 - Sociedades Cooperativas de Producción que optan por diferir sus ingresos',
+    '621': '621 - Incorporación Fiscal',
+    '622': '622 - Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras',
+    '623': '623 - Opcional para Grupos de Sociedades',
+    '624': '624 - Coordinados',
+    '625': '625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas',
+    '628': '628 - Hidrocarburos',
+    '629': '629 - De los Regímenes Fiscales Preferentes y de las Empresas Multinacionales',
+    '630': '630 - Enajenación de acciones en bolsa de valores',
+  };
+  
+  const regimeTrimmed = regime.trim();
+  
+  // Si ya tiene el texto completo, retornarlo
+  if (regimeTrimmed.includes(' - ')) {
+    return regimeTrimmed;
+  }
+  
+  // Si es solo el número, buscar en el mapa
+  if (regimeMap[regimeTrimmed]) {
+    return regimeMap[regimeTrimmed];
+  }
+  
+  // Si no se encuentra, retornar el valor original
+  return regimeTrimmed;
 }
 
 export async function POST(request: NextRequest) {
@@ -103,11 +201,25 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Identificar empresas que tienen proyectos en la plataforma
+      const allProjects = await projectsRepository.getAll();
+      const empresasConProyectos = new Set(
+        allProjects.map(p => p.client?.toLowerCase().trim()).filter(Boolean)
+      );
+
       const results = {
         success: 0,
         errors: 0,
         skipped: 0,
-        details: [] as Array<{ row: number; success: boolean; message: string; clienteId?: string }>,
+        withProjects: 0,
+        details: [] as Array<{ 
+          row: number; 
+          success: boolean; 
+          message: string; 
+          clienteId?: string;
+          hasProjects?: boolean;
+          empresa?: string;
+        }>,
       };
 
       // Procesar cada fila
@@ -116,12 +228,12 @@ export async function POST(request: NextRequest) {
         const rowNumber = i + 2; // +2 porque la primera fila es el header y empezamos desde 1
 
         try {
-          // Validar campos requeridos
-          const empresa = normalizeValue(row.Empresa);
+          // Normalizar y validar campos requeridos
+          const empresaNormalizada = normalizeEmpresa(row.Empresa || '');
           const razonSocial = normalizeValue(row['Razón Social']);
           const rfc = normalizeValue(row.RFC);
 
-          if (!empresa || !razonSocial || !rfc) {
+          if (!empresaNormalizada || !razonSocial || !rfc) {
             throw new Error('Empresa, Razón Social y RFC son campos requeridos');
           }
 
@@ -137,18 +249,18 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          // Crear objeto cliente
+          // Crear objeto cliente con todas las normalizaciones
           const clienteData: Omit<ClienteEntity, 'id' | 'createdAt' | 'updatedAt'> = {
-            empresa: empresa,
+            empresa: empresaNormalizada,
             personaCobranza: normalizeValue(row['Persona Cobranza']) || '',
-            correoCobranza: normalizeValue(row['Correo Cobranza']) || '',
-            ccCobranza: normalizeValue(row['CC Cobranza']),
+            correoCobranza: normalizeEmail(row['Correo Cobranza']) || '',
+            ccCobranza: normalizeEmail(row['CC Cobranza']),
             cuentaPago: normalizeValue(row['Cuenta de pago']) || '',
-            datosPago: normalizeValue(row['Datos de pago']) || '',
+            datosPago: normalizeDatosPago(row['Datos de pago']),
             razonSocial: razonSocial,
             rfc: rfc,
             cp: normalizeValue(row.CP) || '',
-            regimenFiscal: normalizeValue(row['Fiscal Regime']) || '',
+            regimenFiscal: normalizeFiscalRegime(row['Fiscal Regime']),
             usoCFDI: normalizeValue(row.UsoCFDI) || '',
             calle: normalizeValue(row.Calle) || '',
             colonia: normalizeValue(row.Colonia) || '',
@@ -160,6 +272,12 @@ export async function POST(request: NextRequest) {
             pais: normalizeValue(row.Pais) || 'MÉXICO',
           };
 
+          // Verificar si la empresa tiene proyectos en la plataforma
+          const tieneProyectos = empresasConProyectos.has(empresaNormalizada.toLowerCase());
+          if (tieneProyectos) {
+            results.withProjects++;
+          }
+
           // Crear cliente
           const cliente = await clientesRepository.create(clienteData);
 
@@ -167,8 +285,12 @@ export async function POST(request: NextRequest) {
           results.details.push({
             row: rowNumber,
             success: true,
-            message: 'Cliente creado exitosamente',
+            message: tieneProyectos 
+              ? 'Cliente creado exitosamente (tiene proyectos en la plataforma)' 
+              : 'Cliente creado exitosamente',
             clienteId: cliente.id,
+            hasProjects: tieneProyectos,
+            empresa: empresaNormalizada,
           });
         } catch (error: any) {
           results.errors++;
@@ -187,6 +309,7 @@ export async function POST(request: NextRequest) {
           success: results.success,
           errors: results.errors,
           skipped: results.skipped,
+          withProjects: results.withProjects,
         },
         details: results.details,
       });

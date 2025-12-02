@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { Upload, FileText, Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { Upload, FileText, Loader2, CheckCircle2, XCircle, AlertCircle, Link2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getIdToken } from "@/lib/firebase/visionaries-tech"
@@ -23,6 +23,8 @@ interface UploadResult {
   success: boolean
   message: string
   clienteId?: string
+  hasProjects?: boolean
+  empresa?: string
 }
 
 interface CargarClientesDialogProps {
@@ -44,6 +46,7 @@ export function CargarClientesDialog({
     success: number
     errors: number
     skipped: number
+    withProjects?: number
     details: UploadResult[]
   } | null>(null)
 
@@ -99,6 +102,7 @@ export function CargarClientesDialog({
         success: data.summary.success,
         errors: data.summary.errors,
         skipped: data.summary.skipped,
+        withProjects: data.summary.withProjects || 0,
         details: data.details,
       })
 
@@ -196,11 +200,17 @@ export function CargarClientesDialog({
             <div className="space-y-3 border rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold">Resultados de la carga</h4>
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-4 text-sm flex-wrap">
                   {results.success > 0 && (
                     <div className="flex items-center gap-1 text-green-600">
                       <CheckCircle2 className="h-4 w-4" />
                       <span>{results.success} exitosos</span>
+                    </div>
+                  )}
+                  {results.withProjects && results.withProjects > 0 && (
+                    <div className="flex items-center gap-1 text-blue-600">
+                      <Link2 className="h-4 w-4" />
+                      <span>{results.withProjects} con proyectos</span>
                     </div>
                   )}
                   {results.skipped > 0 && (
@@ -218,9 +228,27 @@ export function CargarClientesDialog({
                 </div>
               </div>
 
+              {/* Mostrar clientes con proyectos */}
+              {results.withProjects && results.withProjects > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-blue-700">Clientes con proyectos en la plataforma:</p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {results.details
+                      .filter((r) => r.success && r.hasProjects)
+                      .map((result, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-xs bg-blue-50 p-2 rounded">
+                          <Link2 className="h-3 w-3 text-blue-600" />
+                          <span className="font-medium">{result.empresa || `Fila ${result.row}`}</span>
+                          <span className="text-muted-foreground">- Tiene proyectos activos</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {(results.errors > 0 || results.skipped > 0) && (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  <p className="text-sm font-medium">Detalles:</p>
+                  <p className="text-sm font-medium">Detalles de errores y omisiones:</p>
                   {results.details
                     .filter((r) => !r.success)
                     .map((result, idx) => (
