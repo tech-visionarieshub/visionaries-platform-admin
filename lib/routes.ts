@@ -266,6 +266,12 @@ export function routeMatches(pattern: string, actualPath: string): boolean {
     return true
   }
 
+  // Si el patrón termina con una ruta base (ej: /projects), verificar si actualPath comienza con ella
+  // Esto permite que /projects cubra /projects/[id] y todas sus subrutas
+  if (actualPath.startsWith(pattern + '/') || actualPath === pattern) {
+    return true
+  }
+
   // Si el patrón tiene [id], convertirlo a regex
   const regexPattern = pattern.replace(/\[id\]/g, '[^/]+')
   const regex = new RegExp(`^${regexPattern}$`)
@@ -277,6 +283,36 @@ export function routeMatches(pattern: string, actualPath: string): boolean {
  * Estas rutas no requieren estar en allowedRoutes
  */
 const ALWAYS_ALLOWED_ROUTES = ['/settings', '/login', '/']
+
+/**
+ * Rutas que requieren ser admin (no solo superadmin)
+ * Estas rutas están completamente bloqueadas para usuarios que no son admin
+ */
+const ADMIN_ONLY_ROUTES = ['/crm', '/finanzas', '/cotizaciones', '/reports']
+
+/**
+ * Verifica si una ruta requiere ser admin
+ */
+export function requiresAdminAccess(path: string): boolean {
+  return ADMIN_ONLY_ROUTES.some(adminRoute => path.startsWith(adminRoute))
+}
+
+/**
+ * Verifica si un usuario es admin (incluye superadmin)
+ */
+export function isAdmin(email?: string, claims?: Record<string, any>, role?: string): boolean {
+  // Superadmin siempre es admin
+  if (isSuperAdmin(email, claims)) {
+    return true
+  }
+  
+  // Verificar por role
+  if (role === 'admin' || claims?.role === 'admin') {
+    return true
+  }
+  
+  return false
+}
 
 /**
  * Verifica si un usuario es superadmin
@@ -302,11 +338,20 @@ export function hasRouteAccess(
   allowedRoutes: string[], 
   currentPath: string, 
   userEmail?: string,
-  userClaims?: Record<string, any>
+  userClaims?: Record<string, any>,
+  userRole?: string
 ): boolean {
   // Superadmin tiene acceso a todo (pasado y futuro)
   if (isSuperAdmin(userEmail, userClaims)) {
     return true
+  }
+
+  // Verificar si la ruta requiere ser admin
+  if (requiresAdminAccess(currentPath)) {
+    // Si requiere admin, verificar que el usuario sea admin
+    if (!isAdmin(userEmail, userClaims, userRole)) {
+      return false
+    }
   }
 
   // Rutas que siempre están permitidas para usuarios internos

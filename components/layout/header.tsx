@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/use-user"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useState } from "react"
-import { hasRouteAccess } from "@/lib/routes"
+import { hasRouteAccess, requiresAdminAccess, isAdmin } from "@/lib/routes"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -96,6 +96,9 @@ export function Header() {
 
   const canAccessFinanzas = hasFinanzasAccess(user?.email)
   
+  // Verificar si el usuario es admin
+  const isUserAdmin = user?.superadmin || user?.role === 'admin'
+  
   // Verificar acceso a rutas basado en allowedRoutes
   const checkRouteAccess = (href: string): boolean => {
     if (!user) return false
@@ -106,8 +109,11 @@ export function Header() {
     if (allowedRoutes.length === 0) return true
     
     // Verificar si la ruta está permitida
-    return hasRouteAccess(allowedRoutes, href, user.email, { allowedRoutes })
+    return hasRouteAccess(allowedRoutes, href, user.email, { allowedRoutes }, user.role)
   }
+  
+  // Verificar si una sección requiere ser admin (usando función importada)
+  const requiresAdmin = (href: string): boolean => requiresAdminAccess(href)
 
   return (
     <header className="sticky top-0 z-30 border-b bg-white shadow-sm">
@@ -132,8 +138,12 @@ export function Header() {
                   const isExpanded = expandedSections.includes(item.name)
                   const hasSubmenu = item.submenu && item.submenu.length > 0
                   const isFinanzas = item.name === "Finanzas"
+                  const needsAdmin = requiresAdmin(item.href)
                   const hasRoutePermission = checkRouteAccess(item.href)
-                  const hasAccess = hasRoutePermission && (!isFinanzas || canAccessFinanzas)
+                  // Si requiere admin y el usuario no es admin, no tiene acceso
+                  const hasAccess = hasRoutePermission && 
+                                   (!isFinanzas || canAccessFinanzas) && 
+                                   (!needsAdmin || isUserAdmin)
 
                   return (
                     <div key={item.name} className="mb-2">
@@ -212,8 +222,12 @@ export function Header() {
           {navigation.map((item) => {
             const isActive = pathname.startsWith(item.href)
             const isFinanzas = item.name === "Finanzas"
+            const needsAdmin = requiresAdmin(item.href)
             const hasRoutePermission = checkRouteAccess(item.href)
-            const hasAccess = hasRoutePermission && (!isFinanzas || canAccessFinanzas)
+            // Si requiere admin y el usuario no es admin, no tiene acceso
+            const hasAccess = hasRoutePermission && 
+                             (!isFinanzas || canAccessFinanzas) && 
+                             (!needsAdmin || isUserAdmin)
 
             return (
               <div key={item.name} className="group relative">

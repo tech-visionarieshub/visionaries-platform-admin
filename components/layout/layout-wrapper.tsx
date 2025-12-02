@@ -45,6 +45,7 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
 
         const isInternal = claims.internal === true
         const isSuperAdmin = claims.superadmin === true || user.email === 'adminplatform@visionarieshub.com'
+        const allowedRoutes = (claims.allowedRoutes as string[]) || []
 
         if (!isInternal && !isSuperAdmin) {
           console.warn('[Auth] Usuario sin permiso internal', user.email)
@@ -53,9 +54,24 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
           return
         }
 
+        // 4. Validar acceso a la ruta actual (excepto superadmin y rutas públicas)
+        if (!isSuperAdmin && !noLayoutRoutes.includes(pathname)) {
+          const { hasRouteAccess } = await import('@/lib/routes')
+          const userRole = (claims.role as string) || 'admin'
+          const hasAccess = hasRouteAccess(allowedRoutes, pathname, user.email, claims, userRole)
+          
+          if (!hasAccess) {
+            console.warn('[Auth] Usuario sin acceso a ruta:', pathname, user.email)
+            // Redirigir a la primera ruta permitida o al dashboard
+            const firstAllowedRoute = allowedRoutes.length > 0 ? allowedRoutes[0] : '/'
+            router.replace(firstAllowedRoute)
+            return
+          }
+        }
+
         console.log('[Auth] Usuario autorizado:', user.email)
         
-        // 4. Guardar en Store
+        // 5. Guardar en Store
         setUser({
           id: user.uid,
           name: user.displayName || claims.name as string || user.email?.split('@')[0] || 'Usuario',
@@ -63,6 +79,7 @@ function AuthValidator({ children }: { children: React.ReactNode }) {
           role: (claims.role as any) || 'admin',
           avatar: user.photoURL || undefined,
           superadmin: isSuperAdmin,
+          allowedRoutes: allowedRoutes,
             })
           
           setIsAuthorized(true)
