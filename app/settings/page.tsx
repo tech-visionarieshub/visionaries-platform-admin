@@ -1430,7 +1430,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Gmail API</CardTitle>
-              <CardDescription>Envía emails usando Gmail API. Puede usar las mismas credenciales de Google Calendar.</CardDescription>
+              <CardDescription>Envía emails usando Gmail API. Usa el Client ID: 114317182996525369700 (configurado separado de Google Calendar).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
