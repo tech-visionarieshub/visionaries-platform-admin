@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Edit, Trash2, Mail, Building2, FileText, Upload } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Mail, Building2, FileText, Upload, Users, CheckCircle, DollarSign, TrendingUp } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
 import { getClientes, getCotizaciones, updateCliente, createCliente } from "@/lib/api/finanzas-api"
 import { getCotizaciones as getCotizacionesAPI } from "@/lib/api/cotizaciones-api"
 import { getProjects } from "@/lib/api/projects-api"
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import type { Cliente } from "@/lib/api/finanzas-api"
 import type { Project } from "@/lib/mock-data/projects"
 import { CargarClientesDialog } from "./cargar-clientes-dialog"
@@ -66,6 +67,30 @@ export function ClientesTable() {
 
     return { total, aceptadas, valorTotal }
   }
+
+  // Calcular métricas del dashboard
+  const dashboardMetrics = useMemo(() => {
+    const totalClientes = clientes.length
+    const clientesConProyectosActivos = clientes.filter(c => clienteTieneProyectosActivos.get(c.id)).length
+    const clientesConCotizacionesAceptadas = clientes.filter(c => {
+      const stats = getClienteStats(c.id)
+      return stats.aceptadas > 0
+    }).length
+    const totalCotizaciones = cotizaciones.length
+    const cotizacionesAceptadas = cotizaciones.filter(c => ["Aceptada", "Firmada", "Convertida"].includes(c.estado)).length
+    const valorTotalCotizaciones = cotizaciones
+      .filter(c => ["Aceptada", "Firmada", "Convertida"].includes(c.estado))
+      .reduce((sum, c) => sum + (c.desglose?.costoTotal || 0), 0)
+
+    return {
+      totalClientes,
+      clientesConProyectosActivos,
+      clientesConCotizacionesAceptadas,
+      totalCotizaciones,
+      cotizacionesAceptadas,
+      valorTotalCotizaciones,
+    }
+  }, [clientes, cotizaciones, clienteTieneProyectosActivos])
 
   // Verificar si un cliente tiene proyectos activos
   const clienteTieneProyectosActivos = useMemo(() => {
@@ -148,7 +173,79 @@ export function ClientesTable() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Dashboard de Métricas */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Clientes</p>
+                <p className="text-2xl font-bold">{dashboardMetrics.totalClientes}</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Con Proyectos Activos</p>
+                <p className="text-2xl font-bold text-green-600">{dashboardMetrics.clientesConProyectosActivos}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {dashboardMetrics.totalClientes > 0 
+                    ? `${Math.round((dashboardMetrics.clientesConProyectosActivos / dashboardMetrics.totalClientes) * 100)}% del total`
+                    : '0%'}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Con Cotizaciones Aceptadas</p>
+                <p className="text-2xl font-bold text-purple-600">{dashboardMetrics.clientesConCotizacionesAceptadas}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {dashboardMetrics.cotizacionesAceptadas} cotizaciones aceptadas
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Valor Total Cotizaciones</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  ${dashboardMetrics.valorTotalCotizaciones.toLocaleString('es-MX')}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {dashboardMetrics.totalCotizaciones} cotizaciones totales
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
