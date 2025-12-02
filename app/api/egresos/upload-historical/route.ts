@@ -150,6 +150,7 @@ function normalizeFechaPago(fecha: string): string | undefined {
 /**
  * Busca un cliente por empresa normalizada (case-insensitive, matching flexible)
  * Estrategia de matching:
+ * 0. Reglas especiales por defecto (empresas específicas)
  * 1. Match exacto (case-insensitive)
  * 2. Match parcial (una contiene a la otra, mínimo 3 caracteres)
  * 3. Match por palabras clave (si ambas tienen al menos una palabra común de 3+ caracteres)
@@ -161,6 +162,29 @@ function matchEmpresaWithCliente(
   if (!empresaNormalizada) return null;
   
   const empresaMatch = normalizeEmpresaForMatching(empresaNormalizada);
+  
+  // 0. Reglas especiales por defecto
+  // Si es "✨ VISIONARIES HUB" o variaciones, buscar "Visionaries Hub"
+  if (empresaMatch.includes('visionaries') && empresaMatch.includes('hub')) {
+    const visionariesCliente = clientes.find(c => {
+      const clienteMatch = normalizeEmpresaForMatching(c.empresa);
+      return clienteMatch.includes('visionaries') && clienteMatch.includes('hub');
+    });
+    if (visionariesCliente) {
+      return visionariesCliente;
+    }
+  }
+  
+  // Si es "SGAC", buscar "Invomex"
+  if (empresaMatch === 'sgac' || empresaMatch.includes('sgac')) {
+    const invomexCliente = clientes.find(c => {
+      const clienteMatch = normalizeEmpresaForMatching(c.empresa);
+      return clienteMatch === 'invomex' || clienteMatch.includes('invomex');
+    });
+    if (invomexCliente) {
+      return invomexCliente;
+    }
+  }
   
   // 1. Buscar match exacto (case-insensitive)
   for (const cliente of clientes) {
