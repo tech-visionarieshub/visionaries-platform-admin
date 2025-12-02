@@ -744,13 +744,27 @@ export function TeamTasksList() {
                         })()}
                       </TableCell>
                       <TableCell>
-                        <div className="text-xs">
-                          {task.actualHours ? (
-                            <span>{task.actualHours}h</span>
-                          ) : task.estimatedHours ? (
-                            <span className="text-muted-foreground">{task.estimatedHours}h est.</span>
+                        <div className="text-center">
+                          {task.estimatedHours || task.actualHours ? (
+                            <>
+                              <div className="text-xs text-muted-foreground mb-0.5">
+                                Est: {task.estimatedHours || 0}h
+                              </div>
+                              <div
+                                className={`text-xs font-medium ${
+                                  (task.actualHours || 0) > (task.estimatedHours || 0) ? "text-[#E02814]" : "text-foreground"
+                                }`}
+                              >
+                                Real: {(task.actualHours || 0).toFixed(1)}h
+                              </div>
+                              {(task.actualHours || 0) > (task.estimatedHours || 0) && (
+                                <div className="text-xs text-[#E02814]">
+                                  +{((task.actualHours || 0) - (task.estimatedHours || 0)).toFixed(1)}h
+                                </div>
+                              )}
+                            </>
                           ) : (
-                            <span className="text-muted-foreground">-</span>
+                            <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </div>
                       </TableCell>
@@ -1016,8 +1030,15 @@ export function TeamTasksList() {
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground mb-1">Horas Reales</div>
-                  <div className="text-sm">
-                    {selectedTask.actualHours ? `${selectedTask.actualHours}h` : '-'}
+                  <div className={`text-sm font-medium ${
+                    (selectedTask.actualHours || 0) > (selectedTask.estimatedHours || 0) ? "text-[#E02814]" : ""
+                  }`}>
+                    {selectedTask.actualHours ? `${selectedTask.actualHours.toFixed(1)}h` : '-'}
+                    {(selectedTask.actualHours || 0) > (selectedTask.estimatedHours || 0) && selectedTask.estimatedHours && (
+                      <span className="text-[#E02814] ml-1">
+                        (+{((selectedTask.actualHours || 0) - (selectedTask.estimatedHours || 0)).toFixed(1)}h)
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div>
