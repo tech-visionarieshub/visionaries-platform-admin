@@ -462,6 +462,11 @@ export function TeamTasksList() {
     return colors[index]
   }
 
+  // Función helper para obtener el nombre del proyecto o "Visionaries Admin" por defecto
+  const getProjectName = (task: TeamTask): string => {
+    return task.projectName || 'Visionaries Admin'
+  }
+
 
   return (
     <div className="space-y-4">
@@ -695,11 +700,7 @@ export function TeamTasksList() {
                         </div>
                       </TableCell>
                       <TableCell className="min-w-[120px]">
-                        {task.projectName ? (
-                          <span className="text-xs break-words">{task.projectName}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
+                        <span className="text-xs break-words">{getProjectName(task)}</span>
                       </TableCell>
                       <TableCell className="min-w-[100px]">
                         <Select
@@ -977,12 +978,10 @@ export function TeamTasksList() {
                       : 'Sin asignar'}
                   </div>
                 </div>
-                {selectedTask.projectName && (
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-1">Proyecto</div>
-                    <div className="text-sm">{selectedTask.projectName}</div>
-                  </div>
-                )}
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">Proyecto</div>
+                  <div className="text-sm">{getProjectName(selectedTask)}</div>
+                </div>
                 {selectedTask.dueDate && (
                   <div>
                     <div className="text-xs font-semibold text-muted-foreground mb-1">Fecha Límite</div>

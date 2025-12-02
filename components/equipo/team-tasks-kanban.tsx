@@ -123,9 +123,7 @@ function KanbanCard({
               <span className="truncate">{assignee.displayName}</span>
             </div>
           )}
-          {task.projectName && (
-            <div className="text-xs truncate">{task.projectName}</div>
-          )}
+          <div className="text-xs truncate">{task.projectName || 'Visionaries Admin'}</div>
           {task.dueDate && (
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3 w-3" />
