@@ -31,6 +31,8 @@ export function ClientesTable() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [formData, setFormData] = useState<Partial<Cliente>>({})
   const [isSaving, setIsSaving] = useState(false)
+  const [proyectosFilter, setProyectosFilter] = useState<string>("todos")
+  const [cotizacionesFilter, setCotizacionesFilter] = useState<string>("todos")
 
   useEffect(() => {
     async function loadData() {
@@ -103,12 +105,37 @@ export function ClientesTable() {
   }, [proyectos])
 
   const filteredClientes = useMemo(() => {
-    const filtered = clientes.filter(
+    let filtered = clientes.filter(
       (cliente) =>
         cliente.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
         cliente.razonSocial.toLowerCase().includes(searchTerm.toLowerCase()) ||
         cliente.rfc.toLowerCase().includes(searchTerm.toLowerCase()),
     )
+
+    // Filtrar por proyectos activos
+    if (proyectosFilter === "con-proyectos") {
+      filtered = filtered.filter(c => clienteTieneProyectosActivos.get(c.id))
+    } else if (proyectosFilter === "sin-proyectos") {
+      filtered = filtered.filter(c => !clienteTieneProyectosActivos.get(c.id))
+    }
+
+    // Filtrar por cotizaciones
+    if (cotizacionesFilter === "con-cotizaciones") {
+      filtered = filtered.filter(c => {
+        const stats = getClienteStats(c.id)
+        return stats.total > 0
+      })
+    } else if (cotizacionesFilter === "con-cotizaciones-aceptadas") {
+      filtered = filtered.filter(c => {
+        const stats = getClienteStats(c.id)
+        return stats.aceptadas > 0
+      })
+    } else if (cotizacionesFilter === "sin-cotizaciones") {
+      filtered = filtered.filter(c => {
+        const stats = getClienteStats(c.id)
+        return stats.total === 0
+      })
+    }
 
     // Ordenar: primero los que tienen proyectos activos, luego los demás
     return filtered.sort((a, b) => {
@@ -121,7 +148,7 @@ export function ClientesTable() {
       // Si ambos tienen o no tienen proyectos activos, ordenar alfabéticamente por empresa
       return a.empresa.localeCompare(b.empresa)
     })
-  }, [clientes, searchTerm, clienteTieneProyectosActivos])
+  }, [clientes, searchTerm, proyectosFilter, cotizacionesFilter, clienteTieneProyectosActivos])
 
   const handleEdit = (cliente: Cliente) => {
     setSelectedCliente(cliente)
@@ -245,26 +272,60 @@ export function ClientesTable() {
         </Card>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por empresa, razón social o RFC..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 h-9"
-          />
+      {/* Toolbar y Filtros */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por empresa, razón social o RFC..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 h-9"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setIsUploadDialogOpen(true)} size="sm" variant="outline">
+              <Upload className="h-4 w-4 mr-1" />
+              Cargar CSV
+            </Button>
+            <Button onClick={handleNew} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Nuevo Cliente
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setIsUploadDialogOpen(true)} size="sm" variant="outline">
-            <Upload className="h-4 w-4 mr-1" />
-            Cargar CSV
-          </Button>
-          <Button onClick={handleNew} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Nuevo Cliente
-          </Button>
+
+        {/* Filtros */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Proyectos</Label>
+            <Select value={proyectosFilter} onValueChange={setProyectosFilter}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los clientes</SelectItem>
+                <SelectItem value="con-proyectos">Con proyectos activos</SelectItem>
+                <SelectItem value="sin-proyectos">Sin proyectos activos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Cotizaciones</Label>
+            <Select value={cotizacionesFilter} onValueChange={setCotizacionesFilter}>
+              <SelectTrigger className="w-[200px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los clientes</SelectItem>
+                <SelectItem value="con-cotizaciones">Con cotizaciones</SelectItem>
+                <SelectItem value="con-cotizaciones-aceptadas">Con cotizaciones aceptadas</SelectItem>
+                <SelectItem value="sin-cotizaciones">Sin cotizaciones</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
