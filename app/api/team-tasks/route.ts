@@ -126,14 +126,47 @@ export async function POST(request: NextRequest) {
     if (assigneeEmail && assigneeEmail !== creatorEmail) {
       try {
         const { sendTaskAssignedEmail } = await import('@/lib/services/team-task-email-service')
-        // Enviar email en background (no esperar respuesta)
-        sendTaskAssignedEmail(task, assigneeEmail, creatorEmail).catch(error => {
-          console.error('[Team Tasks API] Error enviando email de notificación:', error)
-          // No fallar la creación de la tarea si el email falla
-        })
+        // Enviar email y esperar respuesta para guardar el estado
+        const emailResult = await sendTaskAssignedEmail(task, assigneeEmail, creatorEmail)
+        
+        // Actualizar la tarea con el estado del envío de correo
+        if (emailResult.success) {
+          await teamTasksRepository.update(task.id, {
+            assignmentEmailSent: true,
+            assignmentEmailSentAt: new Date(),
+          })
+          // Recargar la tarea para retornarla con el estado actualizado
+          const updatedTask = await teamTasksRepository.getById(task.id)
+          return NextResponse.json({
+            success: true,
+            task: updatedTask,
+          })
+        } else {
+          // Guardar que falló el envío
+          await teamTasksRepository.update(task.id, {
+            assignmentEmailSent: false,
+          })
+          const updatedTask = await teamTasksRepository.getById(task.id)
+          console.error('[Team Tasks API] Error enviando email de notificación:', emailResult.error)
+          return NextResponse.json({
+            success: true,
+            task: updatedTask,
+          })
+        }
       } catch (error) {
         console.error('[Team Tasks API] Error importando servicio de email:', error)
+        // Guardar que falló el envío
+        await teamTasksRepository.update(task.id, {
+          assignmentEmailSent: false,
+        }).catch(err => {
+          console.error('[Team Tasks API] Error actualizando estado de email:', err)
+        })
         // No fallar la creación de la tarea si el email falla
+        const updatedTask = await teamTasksRepository.getById(task.id)
+        return NextResponse.json({
+          success: true,
+          task: updatedTask,
+        })
       }
     }
 

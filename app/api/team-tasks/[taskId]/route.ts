@@ -134,13 +134,33 @@ export async function PUT(
     if (newAssignee && newAssignee !== oldAssignee && newAssignee !== creatorEmail) {
       try {
         const { sendTaskAssignedEmail } = await import('@/lib/services/team-task-email-service')
-        // Enviar email en background (no esperar respuesta)
-        sendTaskAssignedEmail(updatedTask, newAssignee, creatorEmail).catch(error => {
-          console.error('[Team Tasks API] Error enviando email de notificación:', error)
-          // No fallar la actualización de la tarea si el email falla
-        })
+        // Enviar email y esperar respuesta para guardar el estado
+        const emailResult = await sendTaskAssignedEmail(updatedTask, newAssignee, creatorEmail)
+        
+        // Actualizar la tarea con el estado del envío de correo
+        if (emailResult.success) {
+          await teamTasksRepository.update(taskId, {
+            assignmentEmailSent: true,
+            assignmentEmailSentAt: new Date(),
+          })
+          // Actualizar el objeto updatedTask para retornarlo
+          updatedTask = await teamTasksRepository.getById(taskId)
+        } else {
+          // Guardar que falló el envío
+          await teamTasksRepository.update(taskId, {
+            assignmentEmailSent: false,
+          })
+          updatedTask = await teamTasksRepository.getById(taskId)
+          console.error('[Team Tasks API] Error enviando email de notificación:', emailResult.error)
+        }
       } catch (error) {
         console.error('[Team Tasks API] Error importando servicio de email:', error)
+        // Guardar que falló el envío
+        await teamTasksRepository.update(taskId, {
+          assignmentEmailSent: false,
+        }).catch(err => {
+          console.error('[Team Tasks API] Error actualizando estado de email:', err)
+        })
         // No fallar la actualización de la tarea si el email falla
       }
     }

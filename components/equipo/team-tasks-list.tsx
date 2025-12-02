@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal, Calendar, LayoutGrid, GanttChart, CalendarDays, Copy } from "lucide-react"
+import { Clock, User, Plus, Search, Play, Pause, Check, Sparkles, Edit, Trash2, MoreHorizontal, Calendar, LayoutGrid, GanttChart, CalendarDays, Copy, Mail, MailCheck, MailX } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -229,16 +229,38 @@ export function TeamTasksList() {
 
   const handleAssigneeChange = async (taskId: string, newAssignee: string) => {
     try {
-      await updateTeamTask(taskId, { assignee: newAssignee === 'unassigned' ? undefined : newAssignee })
+      const updatedTask = await updateTeamTask(taskId, { assignee: newAssignee === 'unassigned' ? undefined : newAssignee })
       setTasks(prevTasks => 
         prevTasks.map(t => 
-          t.id === taskId ? { ...t, assignee: newAssignee === 'unassigned' ? undefined : newAssignee } : t
+          t.id === taskId ? { ...t, ...updatedTask } : t
         )
       )
-      toast({
-        title: "Responsable actualizado",
-        description: "El responsable de la tarea ha sido actualizado",
-      })
+      
+      // Mostrar mensaje según el estado del correo
+      if (newAssignee !== 'unassigned' && updatedTask.assignee && updatedTask.assignee !== updatedTask.createdBy) {
+        if (updatedTask.assignmentEmailSent === true) {
+          toast({
+            title: "Responsable actualizado",
+            description: "El responsable de la tarea ha sido actualizado y se envió el correo de notificación",
+          })
+        } else if (updatedTask.assignmentEmailSent === false) {
+          toast({
+            title: "Responsable actualizado",
+            description: "El responsable se actualizó pero hubo un error al enviar el correo de notificación",
+            variant: "destructive",
+          })
+        } else {
+          toast({
+            title: "Responsable actualizado",
+            description: "El responsable de la tarea ha sido actualizado",
+          })
+        }
+      } else {
+        toast({
+          title: "Responsable actualizado",
+          description: "El responsable de la tarea ha sido actualizado",
+        })
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -697,6 +719,23 @@ export function TeamTasksList() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {task.assignee && task.assignee !== task.createdBy && (
+                            <div className="flex-shrink-0" title={
+                              task.assignmentEmailSent === true 
+                                ? 'Correo de asignación enviado' 
+                                : task.assignmentEmailSent === false 
+                                ? 'Error al enviar correo de asignación' 
+                                : 'Estado de correo desconocido'
+                            }>
+                              {task.assignmentEmailSent === true ? (
+                                <MailCheck className="h-3.5 w-3.5 text-green-600" />
+                              ) : task.assignmentEmailSent === false ? (
+                                <MailX className="h-3.5 w-3.5 text-red-600" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5 text-gray-400" />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="min-w-[120px]">
@@ -976,6 +1015,23 @@ export function TeamTasksList() {
                     {selectedTask.assignee 
                       ? users.find(u => u.email === selectedTask.assignee)?.displayName || selectedTask.assignee
                       : 'Sin asignar'}
+                    {selectedTask.assignee && selectedTask.assignee !== selectedTask.createdBy && (
+                      <div className="ml-auto" title={
+                        selectedTask.assignmentEmailSent === true 
+                          ? 'Correo de asignación enviado' 
+                          : selectedTask.assignmentEmailSent === false 
+                          ? 'Error al enviar correo de asignación' 
+                          : 'Estado de correo desconocido'
+                      }>
+                        {selectedTask.assignmentEmailSent === true ? (
+                          <MailCheck className="h-4 w-4 text-green-600" />
+                        ) : selectedTask.assignmentEmailSent === false ? (
+                          <MailX className="h-4 w-4 text-red-600" />
+                        ) : (
+                          <Mail className="h-4 w-4 text-gray-400" />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div>

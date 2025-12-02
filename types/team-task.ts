@@ -50,6 +50,8 @@ export interface TeamTask {
   accumulatedTime?: number
   comentarios?: string
   trelloCardId?: string  // ID de la tarjeta de Trello para evitar duplicados
+  assignmentEmailSent?: boolean  // Indica si se envió el correo de asignación
+  assignmentEmailSentAt?: Date  // Fecha en que se envió el correo de asignación
   createdAt: Date
   updatedAt: Date
   createdBy: string
