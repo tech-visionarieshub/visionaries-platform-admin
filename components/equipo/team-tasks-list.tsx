@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/hooks/use-user"
 import { getTeamTasks, updateTeamTask, deleteTeamTask, trackTeamTaskTime, createTeamTask, type TeamTask } from "@/lib/api/team-tasks-api"
 import { getUsers, type User } from "@/lib/api/users-api"
 import { getProjects } from "@/lib/api/projects-api"
@@ -39,13 +40,25 @@ const priorityConfig = {
 
 export function TeamTasksList() {
   const { toast } = useToast()
+  const { user } = useUser()
+  
+  // Determinar si el usuario es admin o superadmin
+  const isAdmin = user?.superadmin === true || user?.email === 'adminplatform@visionarieshub.com' || user?.role === 'admin'
+  
+  // Inicializar filtro de assignee: si no es admin, filtrar por su email por defecto
+  const [filterAssignee, setFilterAssignee] = useState<string>(() => {
+    // Si no es admin y tiene email, filtrar por su email
+    if (!isAdmin && user?.email) {
+      return user.email
+    }
+    return "all"
+  })
   
   const [tasks, setTasks] = useState<TeamTask[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterPriority, setFilterPriority] = useState<string>("all")
-  const [filterAssignee, setFilterAssignee] = useState<string>("all")
   const [filterProject, setFilterProject] = useState<string>("all")
   const [filterCategory, setFilterCategory] = useState<string>("all")
   const [selectedTask, setSelectedTask] = useState<TeamTask | null>(null)
@@ -88,6 +101,20 @@ export function TeamTasksList() {
       setLoading(false)
     }
   }, [filterStatus, filterAssignee, filterProject, filterCategory, toast])
+
+  // Actualizar filtro de assignee cuando cambie el usuario o su estado de admin
+  useEffect(() => {
+    const currentIsAdmin = user?.superadmin === true || user?.email === 'adminplatform@visionarieshub.com' || user?.role === 'admin'
+    
+    // Si no es admin y tiene email, y el filtro está en "all", aplicar filtro por su email
+    if (!currentIsAdmin && user?.email && filterAssignee === 'all') {
+      setFilterAssignee(user.email)
+    }
+    // Si es admin y el filtro está en el email del usuario, cambiar a "all"
+    else if (currentIsAdmin && filterAssignee === user?.email) {
+      setFilterAssignee('all')
+    }
+  }, [user, filterAssignee])
 
   useEffect(() => {
     loadTasks()
