@@ -49,10 +49,13 @@ export class BaseRepository<T extends BaseEntity> {
     const { id, ...rest } = data as any;
     const firestoreData: any = { ...rest };
 
-    // Remover campos undefined
+    // Remover campos undefined (pero mantener null para eliminar campos en Firestore)
     Object.keys(firestoreData).forEach(key => {
       if (firestoreData[key] === undefined) {
         delete firestoreData[key];
+      } else if (firestoreData[key] === null) {
+        // Convertir null a FieldValue.delete() para eliminar el campo en Firestore
+        firestoreData[key] = admin.firestore.FieldValue.delete();
       }
     });
 
