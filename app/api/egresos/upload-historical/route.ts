@@ -23,6 +23,45 @@ interface CSVRow {
   'Fecha pago': string;
 }
 
+/**
+ * Normaliza el formato del mes
+ * Convierte diferentes formatos a un formato estándar: "Mes Año" (ej: "Enero 2025")
+ */
+function normalizeMes(mes: string): string {
+  if (!mes || mes.trim() === '') return '';
+  
+  const mesLower = mes.trim().toLowerCase();
+  
+  // Mapeo de meses en español
+  const mesesMap: Record<string, string> = {
+    'enero': 'Enero',
+    'febrero': 'Febrero',
+    'marzo': 'Marzo',
+    'abril': 'Abril',
+    'mayo': 'Mayo',
+    'junio': 'Junio',
+    'julio': 'Julio',
+    'agosto': 'Agosto',
+    'septiembre': 'Septiembre',
+    'octubre': 'Octubre',
+    'noviembre': 'Noviembre',
+    'diciembre': 'Diciembre',
+  };
+  
+  // Buscar el mes en el string
+  for (const [mesKey, mesValue] of Object.entries(mesesMap)) {
+    if (mesLower.includes(mesKey)) {
+      // Extraer el año si existe
+      const añoMatch = mes.match(/\d{4}/);
+      const año = añoMatch ? añoMatch[0] : new Date().getFullYear().toString();
+      return `${mesValue} ${año}`;
+    }
+  }
+  
+  // Si no se encuentra, retornar el valor original
+  return mes.trim();
+}
+
 export async function POST(request: NextRequest) {
   return withFinanzasAuth(request, async (user) => {
     try {
@@ -97,37 +136,72 @@ export async function POST(request: NextRequest) {
         const rowNumber = i + 2; // +2 porque la primera fila es el header y empezamos desde 1
 
         try {
-          // Convertir valores numéricos
-          const subtotal = parseFloat(row.Subtotal.replace(/,/g, '')) || 0;
-          const iva = parseFloat(row.IVA.replace(/,/g, '')) || 0;
-          const total = parseFloat(row.Total.replace(/,/g, '')) || 0;
-
-          // Validar tipo
-          if (row.Tipo !== 'Variable' && row.Tipo !== 'Fijo') {
-            throw new Error(`Tipo inválido: ${row.Tipo}. Debe ser "Variable" o "Fijo"`);
+          // Convertir valores numéricos (manejar valores vacíos o "-")
+          const subtotalStr = (row.Subtotal || '').toString().replace(/,/g, '').trim();
+          const ivaStr = (row.IVA || '').toString().replace(/,/g, '').trim();
+          const totalStr = (row.Total || '').toString().replace(/,/g, '').trim();
+          
+          let subtotal = 0;
+          let iva = 0;
+          let total = 0;
+          
+          if (subtotalStr && subtotalStr !== '-' && subtotalStr !== '') {
+            const parsed = parseFloat(subtotalStr);
+            if (!isNaN(parsed)) subtotal = parsed;
+          }
+          
+          if (ivaStr && ivaStr !== '-' && ivaStr !== '') {
+            const parsed = parseFloat(ivaStr);
+            if (!isNaN(parsed)) iva = parsed;
+          }
+          
+          if (totalStr && totalStr !== '-' && totalStr !== '') {
+            const parsed = parseFloat(totalStr);
+            if (!isNaN(parsed)) total = parsed;
+          }
+          
+          // Si total está vacío pero tenemos subtotal e IVA, calcularlo
+          if (total === 0 && subtotal > 0) {
+            total = subtotal + iva;
           }
 
-          // Validar status
+          // Validar tipo (más flexible)
+          const tipo = (row.Tipo || '').trim();
+          if (tipo && tipo !== 'Variable' && tipo !== 'Fijo') {
+            // Si no es válido, usar 'Variable' por defecto
+            console.warn(`Tipo inválido en fila ${rowNumber}: "${tipo}". Usando "Variable" por defecto.`);
+          }
+          const tipoFinal = (tipo === 'Variable' || tipo === 'Fijo') ? tipo : 'Variable';
+
+          // Validar status (más flexible)
+          const status = (row.Status || '').trim();
           const validStatuses = ['Pagado', 'Pendiente', 'Cancelado'];
-          if (!validStatuses.includes(row.Status)) {
-            throw new Error(`Status inválido: ${row.Status}. Debe ser uno de: ${validStatuses.join(', ')}`);
+          if (status && !validStatuses.includes(status)) {
+            // Si no es válido, usar 'Pendiente' por defecto
+            console.warn(`Status inválido en fila ${rowNumber}: "${status}". Usando "Pendiente" por defecto.`);
+          }
+          const statusFinal = validStatuses.includes(status) ? status : 'Pendiente';
+
+          // Validar campos mínimos requeridos
+          if (!row.Concepto || row.Concepto.trim() === '') {
+            throw new Error('El campo Concepto es requerido');
           }
 
           // Crear objeto egreso
           const egresoData: Omit<Egreso, 'id'> = {
-            lineaNegocio: row['Línea de negocio'] || '',
-            categoria: row.Categoría || '',
-            empresa: row.Empresa || '',
-            equipo: row.Equipo || '',
-            concepto: row.Concepto || '',
+            lineaNegocio: (row['Línea de negocio'] || '').trim() || '',
+            categoria: (row.Categoría || '').trim() || '',
+            empresa: (row.Empresa || '').trim() || '',
+            equipo: (row.Equipo || '').trim() || '',
+            concepto: (row.Concepto || '').trim(),
             subtotal,
             iva,
             total,
-            tipo: row.Tipo as 'Variable' | 'Fijo',
-            mes: row.Mes || '',
-            status: row.Status as 'Pagado' | 'Pendiente' | 'Cancelado',
+            tipo: tipoFinal as 'Variable' | 'Fijo',
+            mes: normalizeMes((row.Mes || '').trim()),
+            status: statusFinal as 'Pagado' | 'Pendiente' | 'Cancelado',
             tipoEgreso: 'basadoEnHoras',
-            fechaPago: row['Fecha pago'] || undefined,
+            fechaPago: (row['Fecha pago'] || '').trim() || undefined,
           };
 
           // Crear egreso primero para obtener el ID

@@ -58,6 +58,18 @@ export function EgresosBasadosEnHorasTable() {
     return Array.from(new Set(egresos.map((e) => e.empresa).filter(Boolean))).sort()
   }, [egresos])
 
+  const uniqueMeses = useMemo(() => {
+    return Array.from(new Set(egresos.map((e) => e.mes).filter(Boolean))).sort()
+  }, [egresos])
+
+  const uniqueTipos = useMemo(() => {
+    return Array.from(new Set(egresos.map((e) => e.tipo).filter(Boolean))).sort()
+  }, [egresos])
+
+  const uniqueStatuses = useMemo(() => {
+    return Array.from(new Set(egresos.map((e) => e.status).filter(Boolean))).sort()
+  }, [egresos])
+
   const filteredEgresos = egresos.filter((egreso) => {
     const matchesSearch =
       egreso.concepto.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -219,9 +231,11 @@ export function EgresosBasadosEnHorasTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Pagado">Pagado</SelectItem>
-                <SelectItem value="Pendiente">Pendiente</SelectItem>
-                <SelectItem value="Cancelado">Cancelado</SelectItem>
+                {uniqueStatuses.filter(s => s && s.trim() !== '').map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -234,8 +248,11 @@ export function EgresosBasadosEnHorasTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Variable">Variable</SelectItem>
-                <SelectItem value="Fijo">Fijo</SelectItem>
+                {uniqueTipos.filter(t => t && t.trim() !== '').map((tipo) => (
+                  <SelectItem key={tipo} value={tipo}>
+                    {tipo}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -248,11 +265,11 @@ export function EgresosBasadosEnHorasTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Enero 2025">Enero 2025</SelectItem>
-                <SelectItem value="Febrero 2025">Febrero 2025</SelectItem>
-                <SelectItem value="Marzo 2025">Marzo 2025</SelectItem>
-                <SelectItem value="Abril 2025">Abril 2025</SelectItem>
-                <SelectItem value="Mayo 2025">Mayo 2025</SelectItem>
+                {uniqueMeses.filter(m => m && m.trim() !== '').map((mes) => (
+                  <SelectItem key={mes} value={mes}>
+                    {mes}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -260,90 +277,96 @@ export function EgresosBasadosEnHorasTable() {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="min-w-[200px]">Concepto</TableHead>
-              <TableHead className="min-w-[120px]">Categoría</TableHead>
-              <TableHead className="min-w-[150px]">Cliente</TableHead>
-              <TableHead className="min-w-[120px]">Equipo</TableHead>
-              <TableHead className="min-w-[120px]">Línea de Negocio</TableHead>
-              <TableHead className="min-w-[80px]">Tipo</TableHead>
-              <TableHead className="min-w-[100px]">Mes</TableHead>
-              <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
-              <TableHead className="text-right min-w-[100px]">IVA</TableHead>
-              <TableHead className="text-right min-w-[100px]">Total</TableHead>
-              <TableHead className="min-w-[100px]">Status</TableHead>
-              <TableHead className="min-w-[100px]">Fecha Pago</TableHead>
-              <TableHead className="min-w-[120px]">Archivos</TableHead>
-              <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredEgresos.length === 0 ? (
+      <div className="rounded-md border w-full overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table className="w-full">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={14} className="text-center py-8">
-                  No se encontraron egresos basados en horas
-                </TableCell>
+                <TableHead className="whitespace-nowrap">Línea de negocio</TableHead>
+                <TableHead className="whitespace-nowrap">Categoría</TableHead>
+                <TableHead className="whitespace-nowrap">Empresa</TableHead>
+                <TableHead className="whitespace-nowrap">Equipo</TableHead>
+                <TableHead className="whitespace-nowrap">Concepto</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Subtotal</TableHead>
+                <TableHead className="text-right whitespace-nowrap">IVA</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Total</TableHead>
+                <TableHead className="whitespace-nowrap">Tipo</TableHead>
+                <TableHead className="whitespace-nowrap">Mes</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
+                <TableHead className="whitespace-nowrap">Factura</TableHead>
+                <TableHead className="whitespace-nowrap">Comprobante</TableHead>
+                <TableHead className="whitespace-nowrap">Fecha pago</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Acciones</TableHead>
               </TableRow>
-            ) : (
-              filteredEgresos.map((egreso) => {
-                const facturaUrl = egreso.facturaUrl || egreso.factura
-                const comprobanteUrl = egreso.comprobanteUrl || egreso.comprobante
-                
-                return (
-                  <TableRow key={egreso.id}>
-                    <TableCell className="font-medium">{egreso.concepto}</TableCell>
-                    <TableCell>{egreso.categoria}</TableCell>
-                    <TableCell>{egreso.empresa}</TableCell>
-                    <TableCell>{egreso.equipo}</TableCell>
-                    <TableCell>{egreso.lineaNegocio}</TableCell>
-                    <TableCell>{getTipoBadge(egreso.tipo)}</TableCell>
-                    <TableCell>{egreso.mes}</TableCell>
-                    <TableCell className="text-right">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
-                    <TableCell className="text-right">${egreso.iva.toLocaleString("es-MX")}</TableCell>
-                    <TableCell className="text-right font-medium">${egreso.total.toLocaleString("es-MX")}</TableCell>
-                    <TableCell>{getStatusBadge(egreso.status)}</TableCell>
-                    <TableCell>{egreso.fechaPago || '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {facturaUrl && (
+            </TableHeader>
+            <TableBody>
+              {filteredEgresos.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={15} className="text-center py-8">
+                    No se encontraron egresos basados en horas
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredEgresos.map((egreso) => {
+                  const facturaUrl = egreso.facturaUrl || egreso.factura
+                  const comprobanteUrl = egreso.comprobanteUrl || egreso.comprobante
+                  
+                  return (
+                    <TableRow key={egreso.id}>
+                      <TableCell className="break-words max-w-[120px]">{egreso.lineaNegocio || '-'}</TableCell>
+                      <TableCell className="break-words max-w-[120px]">{egreso.categoria || '-'}</TableCell>
+                      <TableCell className="break-words max-w-[150px]">{egreso.empresa || '-'}</TableCell>
+                      <TableCell className="break-words max-w-[120px]">{egreso.equipo || '-'}</TableCell>
+                      <TableCell className="break-words max-w-[200px] font-medium">{egreso.concepto || '-'}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap font-medium">${egreso.total.toLocaleString("es-MX")}</TableCell>
+                      <TableCell className="whitespace-nowrap">{getTipoBadge(egreso.tipo)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{egreso.mes || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap">{getStatusBadge(egreso.status)}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {facturaUrl ? (
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleViewFile(facturaUrl, egreso.facturaFileName || 'factura.pdf', 'factura')}
                             title="Ver factura"
+                            className="h-8 w-8"
                           >
                             <FileText className="h-4 w-4" />
                           </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
                         )}
-                        {comprobanteUrl && (
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {comprobanteUrl ? (
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleViewFile(comprobanteUrl, egreso.comprobanteFileName || 'comprobante.pdf', 'comprobante')}
                             title="Ver comprobante"
+                            className="h-8 w-8"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                        )}
-                        {!facturaUrl && !comprobanteUrl && (
+                        ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{egreso.fechaPago || '-'}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)} className="h-8 w-8">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Upload Dialog */}
