@@ -760,6 +760,50 @@ The report must use bullets for all lists. Format example:
   }
 
   /**
+   * Limpia y repara JSON con caracteres de control problemáticos
+   */
+  private cleanJsonString(jsonString: string): string {
+    try {
+      // Primero intentar parsear directamente
+      JSON.parse(jsonString)
+      return jsonString
+    } catch {
+      // Si falla, limpiar caracteres de control problemáticos
+      let cleaned = jsonString
+      
+      // Método 1: Escapar caracteres de control dentro de strings JSON
+      // Usar una expresión regular más robusta para encontrar strings
+      cleaned = cleaned.replace(/"([^"\\]|\\.)*"/g, (match) => {
+        // Dentro de un string JSON, escapar caracteres de control
+        return match
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t')
+          .replace(/[\x00-\x1F\x7F]/g, (char) => {
+            const code = char.charCodeAt(0)
+            return `\\u${code.toString(16).padStart(4, '0')}`
+          })
+      })
+      
+      // Método 2: Si aún falla, limpieza más agresiva
+      try {
+        JSON.parse(cleaned)
+        return cleaned
+      } catch {
+        // Limpieza agresiva: eliminar caracteres de control fuera de strings
+        cleaned = jsonString
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Eliminar caracteres de control excepto \n, \r, \t
+          .replace(/\n(?![^"]*"[^"]*:)/g, ' ') // Reemplazar \n fuera de strings con espacio
+          .replace(/\r(?![^"]*"[^"]*:)/g, ' ') // Reemplazar \r fuera de strings con espacio
+          .replace(/\t(?![^"]*"[^"]*:)/g, ' ') // Reemplazar \t fuera de strings con espacio
+          .replace(/\s+/g, ' ') // Normalizar espacios múltiples
+      }
+      
+      return cleaned
+    }
+  }
+
+  /**
    * Genera funcionalidades desde un transcript de reunión usando IA
    */
   async generateFeaturesFromTranscript(transcript: string): Promise<Array<{
@@ -901,8 +945,12 @@ IMPORTANTE:
 
       let parsed
       try {
-        const jsonString = jsonMatch[0]
+        let jsonString = jsonMatch[0]
         console.log('[OpenAI Service] Intentando parsear JSON (primeros 500 caracteres):', jsonString.substring(0, 500))
+        
+        // Limpiar JSON antes de parsear
+        jsonString = this.cleanJsonString(jsonString)
+        
         parsed = JSON.parse(jsonString)
       } catch (parseError: any) {
         console.error('[OpenAI Service] Error parseando JSON:', {
