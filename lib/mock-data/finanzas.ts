@@ -282,6 +282,15 @@ export type Egreso = {
   clienteId?: string  // ID del cliente si se encuentra
   proyectoIds?: string[]  // IDs de proyectos asociados
   empresaNormalizada?: string  // Nombre de empresa sin emojis para referencia
+  // Campos para egresos del mes en curso
+  persona?: string  // Nombre del miembro del equipo
+  tarea?: string  // Nombre de la tarea o funcionalidad
+  horas?: number  // Horas trabajadas
+  precioPorHora?: number  // Precio por hora de la persona
+  tareaId?: string  // ID de la tarea si viene de team tasks
+  featureId?: string  // ID de la funcionalidad si viene de features
+  tareaTipo?: "team-task" | "feature"  // Tipo de tarea
+  aplicarIva?: boolean  // Si se aplica IVA del 16%
 }
 
 export const mockEgresos: Egreso[] = [
@@ -401,6 +410,16 @@ export type TeamMember = {
   clabe?: string
   banco?: string
   pagos: Record<string, number>
+}
+
+// Precios por Hora
+export type PrecioPorHora = {
+  id: string
+  personaEmail: string
+  personaNombre: string
+  precioPorHora: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export const mockTeamMembers: TeamMember[] = [

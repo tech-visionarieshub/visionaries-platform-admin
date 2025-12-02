@@ -14,6 +14,7 @@ const tabs = [
   { name: "Complementos", href: "/finanzas/complementos" },
   { name: "Egresos", href: "/finanzas/egresos" },
   { name: "Nómina", href: "/finanzas/nomina" },
+  { name: "Precios por Hora", href: "/finanzas/precios-por-hora" },
   { name: "Reportes", href: "/finanzas/reportes" },
 ]
 

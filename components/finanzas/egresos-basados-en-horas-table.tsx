@@ -12,6 +12,8 @@ import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
 import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
+import { DashboardMensual } from "./dashboard-mensual"
+import { NuevoEgresoDialog } from "./nuevo-egreso-dialog"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +36,7 @@ export function EgresosBasadosEnHorasTable() {
   const [categoriaFilter, setCategoriaFilter] = useState<string>("all")
   const [empresaFilter, setEmpresaFilter] = useState<string>("all")
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
+  const [isNuevoEgresoDialogOpen, setIsNuevoEgresoDialogOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: 'factura' | 'comprobante' } | null>(null)
 
   useEffect(() => {
@@ -246,6 +249,9 @@ export function EgresosBasadosEnHorasTable() {
 
   return (
     <div className="space-y-4">
+      {/* Dashboard Mensual */}
+      <DashboardMensual egresos={egresos} />
+
       {/* Summary Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-lg border p-4">
@@ -285,10 +291,16 @@ export function EgresosBasadosEnHorasTable() {
               className="pl-8"
             />
           </div>
-          <Button onClick={() => setIsUploadDialogOpen(true)} variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Cargar Histórico
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsNuevoEgresoDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Egreso
+            </Button>
+            <Button onClick={() => setIsUploadDialogOpen(true)} variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Cargar Histórico
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -505,6 +517,13 @@ export function EgresosBasadosEnHorasTable() {
       <CargarHistoricoDialog
         open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
+        onSuccess={handleRefresh}
+      />
+
+      {/* Nuevo Egreso Dialog */}
+      <NuevoEgresoDialog
+        open={isNuevoEgresoDialogOpen}
+        onOpenChange={setIsNuevoEgresoDialogOpen}
         onSuccess={handleRefresh}
       />
 

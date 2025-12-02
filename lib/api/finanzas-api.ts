@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
-import type { Factura, Complemento, Egreso, TeamMember } from '@/lib/mock-data/finanzas';
+import type { Factura, Complemento, Egreso, TeamMember, PrecioPorHora } from '@/lib/mock-data/finanzas';
 
 // Clientes
 const CLIENTES_BASE = '/api/clientes';
@@ -141,5 +141,28 @@ export async function updateNominaMember(id: string, updates: Partial<TeamMember
 
 export async function deleteNominaMember(id: string): Promise<void> {
   return apiDelete(`${NOMINA_BASE}/${id}`);
+}
+
+// Precios por Hora
+const PRECIOS_POR_HORA_BASE = '/api/precios-por-hora';
+
+export async function getPreciosPorHora(): Promise<PrecioPorHora[]> {
+  return apiGet<PrecioPorHora[]>(PRECIOS_POR_HORA_BASE);
+}
+
+export async function getPrecioPorHoraById(id: string): Promise<PrecioPorHora> {
+  return apiGet<PrecioPorHora>(`${PRECIOS_POR_HORA_BASE}/${id}`);
+}
+
+export async function createPrecioPorHora(precio: Omit<PrecioPorHora, 'id'>): Promise<PrecioPorHora> {
+  return apiPost<PrecioPorHora>(PRECIOS_POR_HORA_BASE, precio);
+}
+
+export async function updatePrecioPorHora(id: string, updates: Partial<PrecioPorHora>): Promise<PrecioPorHora> {
+  return apiPut<PrecioPorHora>(`${PRECIOS_POR_HORA_BASE}/${id}`, updates);
+}
+
+export async function deletePrecioPorHora(id: string): Promise<void> {
+  return apiDelete(`${PRECIOS_POR_HORA_BASE}/${id}`);
 }
 
