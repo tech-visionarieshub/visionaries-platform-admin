@@ -1286,6 +1286,243 @@ IMPORTANTE:
       throw new Error(`Error al generar tareas: ${error.message}`)
     }
   }
+
+  /**
+   * Genera tareas del equipo desde un JSON de Trello usando IA
+   * Solo procesa tarjetas que NO estén completadas (closed: false y dueComplete: false)
+   */
+  async generateTeamTasksFromTrelloJSON(trelloData: any): Promise<Array<{
+    title: string
+    description: string
+    category: 'Propuestas' | 'Startups' | 'Evolution' | 'Pathway' | 'Desarrollo' | 'QA' | 'Portal Admin' | 'Aura' | 'Redes Sociales' | 'Conferencias' | 'Inversión' | 'Pagos' | 'Otra'
+    customCategory?: string
+    priority: 'high' | 'medium' | 'low'
+    status: 'pending' | 'in-progress' | 'review' | 'completed' | 'cancelled'
+    estimatedHours: number
+    dueDate?: Date
+    assignee?: string
+  }>> {
+    const apiKey = await this.getApiKey()
+
+    // Extraer tarjetas del JSON de Trello
+    const cards = trelloData.cards || []
+    
+    // Filtrar solo tarjetas no completadas
+    const pendingCards = cards.filter((card: any) => {
+      // Excluir tarjetas cerradas o completadas
+      if (card.closed === true) return false
+      if (card.dueComplete === true) return false
+      return true
+    })
+
+    if (pendingCards.length === 0) {
+      return []
+    }
+
+    // Crear un resumen de las tarjetas para enviar a la IA
+    const cardsSummary = pendingCards.map((card: any) => ({
+      id: card.id,
+      name: card.name,
+      desc: card.desc || '',
+      due: card.due,
+      start: card.start,
+      idList: card.idList,
+      idMembers: card.idMembers || [],
+      labels: (card.labels || []).map((l: any) => l.name || l.color || ''),
+      dateLastActivity: card.dateLastActivity,
+    }))
+
+    // Obtener información de listas para mapear estados
+    const lists = trelloData.lists || []
+    const listsMap = new Map(lists.map((list: any) => [list.id, list.name]))
+
+    // Obtener información de miembros para mapear asignados
+    const members = trelloData.members || []
+    const membersMap = new Map(members.map((member: any) => [member.id, member.email || member.username]))
+
+    // Crear contexto para la IA
+    const context = {
+      boardName: trelloData.name || 'Board de Trello',
+      lists: lists.map((list: any) => ({ id: list.id, name: list.name })),
+      cards: cardsSummary,
+    }
+
+    const contextString = JSON.stringify(context, null, 2)
+    const contextToProcess = contextString.length > 50000 
+      ? contextString.substring(0, 50000) + '... [contexto truncado]'
+      : contextString
+
+    const prompt = `Eres un experto en análisis de datos de Trello y gestión de tareas de equipo. Analiza el siguiente JSON exportado de Trello y transforma las tarjetas PENDIENTES (no cerradas ni completadas) en tareas estructuradas.
+
+DATOS DE TRELLO:
+${contextToProcess}
+
+INSTRUCCIONES:
+1. Solo procesa tarjetas que NO estén completadas (closed: false y dueComplete: false)
+2. Para cada tarjeta pendiente, genera una tarea con la siguiente estructura:
+
+1. Title: Usa el nombre de la tarjeta (card.name). Si es muy genérico, mejóralo basándote en la descripción.
+
+2. Description: Combina la descripción de la tarjeta (card.desc) con información relevante. Si hay información en los labels o en el contexto del board, inclúyela.
+
+3. Category: Selecciona la categoría más apropiada de esta lista:
+   - "Propuestas": Tareas relacionadas con propuestas comerciales, cotizaciones, validaciones con clientes
+   - "Startups": Tareas relacionadas con startups
+   - "Evolution": Tareas relacionadas con Evolution
+   - "Pathway": Tareas relacionadas con Pathway
+   - "Desarrollo": Tareas de desarrollo técnico, programación, implementación
+   - "QA": Tareas de testing y calidad
+   - "Portal Admin": Tareas del portal administrativo
+   - "Aura": Tareas relacionadas con Aura
+   - "Redes Sociales": Tareas de redes sociales y marketing
+   - "Conferencias": Tareas relacionadas con conferencias y eventos
+   - "Inversión": Tareas relacionadas con inversión
+   - "Pagos": Tareas relacionadas con pagos y facturación
+   - "Otra": Si no encaja en ninguna categoría anterior (en este caso, incluye customCategory)
+
+4. Priority: 
+   - "high" si la tarjeta tiene labels como "urgente", "alta", "high", "urgent", o si la fecha de vencimiento está cerca
+   - "low" si tiene labels como "baja", "low", "opcional"
+   - "medium" para todo lo demás
+
+5. Status: Mapea el estado basándote en la lista (list) donde está la tarjeta:
+   - Listas como "To Do", "Pendiente", "Backlog" → "pending"
+   - Listas como "Doing", "En Progreso", "In Progress" → "in-progress"
+   - Listas como "Review", "Revisión" → "review"
+   - Listas como "Done", "Completada" → "completed" (pero estas NO deberían estar en el JSON si están completadas)
+   - Por defecto: "pending"
+
+6. Estimated Hours: Estima horas basándote en:
+   - Tareas simples (enviar correo, revisar): 0.5-1h
+   - Tareas de preparación/revisión: 1-3h
+   - Tareas de desarrollo/implementación: 4-16h
+   - Proyectos completos: 20-40h
+   - Si no hay información suficiente, usa 2h por defecto
+
+7. Due Date: Si la tarjeta tiene fecha de vencimiento (card.due), úsala. Formato: ISO 8601 string.
+
+8. Assignee: Si la tarjeta tiene miembros asignados (card.idMembers), intenta mapear el email del primer miembro. Si no hay email disponible, déjalo vacío.
+
+IMPORTANTE:
+- Solo procesa tarjetas PENDIENTES (closed: false y dueComplete: false)
+- Si una tarjeta no tiene nombre o está vacía, omítela
+- Responde SOLO con un JSON válido en este formato exacto:
+{
+  "tasks": [
+    {
+      "title": "Nombre de la Tarea",
+      "description": "Descripción detallada",
+      "category": "Desarrollo",
+      "customCategory": "Solo si category es 'Otra'",
+      "priority": "high|medium|low",
+      "status": "pending|in-progress|review",
+      "estimatedHours": 2.0,
+      "dueDate": "2024-01-15T00:00:00.000Z" (opcional, solo si existe),
+      "assignee": "email@example.com" (opcional, solo si existe)
+    }
+  ]
+}`
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un experto en análisis de datos de Trello y gestión de tareas. Transforma tarjetas de Trello en tareas estructuradas, excluyendo las completadas. Responde SOLO con JSON válido, sin texto adicional.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.5,
+          max_tokens: 8000,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Error desconocido' }))
+        throw new Error(`OpenAI API error: ${error.error?.message || 'Error desconocido'}`)
+      }
+
+      const data: OpenAIResponse = await response.json()
+      const content = data.choices[0]?.message?.content
+
+      if (!content) {
+        throw new Error('No se recibió respuesta de OpenAI')
+      }
+
+      console.log('[OpenAI Service] Respuesta recibida de OpenAI para Trello JSON (primeros 1000 caracteres):', content.substring(0, 1000))
+
+      // Limpiar el contenido: remover markdown code blocks si existen
+      let cleanedContent = content.trim()
+      cleanedContent = cleanedContent.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/g, '')
+      
+      // Buscar JSON en el contenido
+      let jsonMatch = cleanedContent.match(/\{[\s\S]*\}/)
+      
+      if (!jsonMatch) {
+        const firstBrace = cleanedContent.indexOf('{')
+        if (firstBrace !== -1) {
+          const lastBrace = cleanedContent.lastIndexOf('}')
+          if (lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonMatch = [cleanedContent.substring(firstBrace, lastBrace + 1)]
+          }
+        }
+      }
+
+      if (!jsonMatch) {
+        console.error('[OpenAI Service] Respuesta sin JSON válido. Contenido completo:', content)
+        throw new Error('Respuesta de OpenAI no contiene JSON válido. La respuesta fue: ' + content.substring(0, 200))
+      }
+
+      let parsed
+      try {
+        const jsonString = jsonMatch[0]
+        console.log('[OpenAI Service] Intentando parsear JSON de Trello (primeros 500 caracteres):', jsonString.substring(0, 500))
+        parsed = JSON.parse(jsonString)
+      } catch (parseError: any) {
+        console.error('[OpenAI Service] Error parseando JSON de Trello:', {
+          error: parseError.message,
+          jsonPreview: jsonMatch[0].substring(0, 1000),
+          fullContent: content,
+        })
+        throw new Error(`Error al parsear la respuesta JSON de OpenAI: ${parseError.message}. Respuesta recibida: ${content.substring(0, 300)}`)
+      }
+
+      const tasks = parsed.tasks || []
+
+      if (!Array.isArray(tasks) || tasks.length === 0) {
+        console.error('[OpenAI Service] No se generaron tareas desde Trello. Respuesta:', parsed)
+        throw new Error('No se generaron tareas desde el JSON de Trello. Verifica que haya tarjetas pendientes.')
+      }
+
+      // Validar y formatear tareas
+      const validCategories = ['Propuestas', 'Startups', 'Evolution', 'Pathway', 'Desarrollo', 'QA', 'Portal Admin', 'Aura', 'Redes Sociales', 'Conferencias', 'Inversión', 'Pagos', 'Otra']
+      
+      return tasks.map((t: any) => ({
+        title: t.title || 'Sin título',
+        description: t.description || '',
+        category: validCategories.includes(t.category) ? t.category : 'Otra',
+        customCategory: t.category === 'Otra' ? (t.customCategory || t.title) : undefined,
+        priority: ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium',
+        status: ['pending', 'in-progress', 'review'].includes(t.status) ? t.status : 'pending',
+        estimatedHours: Math.max(0.5, Math.min(40, parseFloat(t.estimatedHours) || 2)),
+        dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+        assignee: t.assignee || undefined,
+      }))
+    } catch (error: any) {
+      console.error('[OpenAI Service] Error generando tareas del equipo desde Trello JSON:', error)
+      throw new Error(`Error al generar tareas desde Trello: ${error.message}`)
+    }
+  }
 }
 
 export const openAIService = new OpenAIService()
