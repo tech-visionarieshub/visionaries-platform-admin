@@ -607,21 +607,21 @@ export function TeamTasksList() {
         ) : filteredTasks.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">No hay tareas que mostrar</div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
+          <div className="w-full overflow-hidden">
+            <Table className="table-auto w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[300px]">Título</TableHead>
-                  <TableHead className="w-32">Categoría</TableHead>
-                  <TableHead className="w-40">Responsable</TableHead>
-                  <TableHead className="w-40">Proyecto</TableHead>
-                  <TableHead className="w-32">Estado</TableHead>
-                  <TableHead className="w-28">Prioridad</TableHead>
-                  <TableHead className="w-32">Fecha Límite</TableHead>
-                  <TableHead className="w-32">Retraso</TableHead>
-                  <TableHead className="w-32">Horas</TableHead>
-                  <TableHead className="w-40">Tiempo</TableHead>
-                  <TableHead className="w-32">Acciones</TableHead>
+                  <TableHead className="min-w-[200px] max-w-[300px]">Título</TableHead>
+                  <TableHead className="min-w-[100px]">Categoría</TableHead>
+                  <TableHead className="min-w-[120px]">Responsable</TableHead>
+                  <TableHead className="min-w-[120px]">Proyecto</TableHead>
+                  <TableHead className="min-w-[100px]">Estado</TableHead>
+                  <TableHead className="min-w-[80px]">Prioridad</TableHead>
+                  <TableHead className="min-w-[100px]">Fecha Límite</TableHead>
+                  <TableHead className="min-w-[80px]">Retraso</TableHead>
+                  <TableHead className="min-w-[80px]">Horas</TableHead>
+                  <TableHead className="min-w-[100px]">Tiempo</TableHead>
+                  <TableHead className="min-w-[100px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -644,9 +644,9 @@ export function TeamTasksList() {
                         setShowTaskDetails(true)
                       }}
                     >
-                      <TableCell>
+                      <TableCell className="min-w-[200px] max-w-[300px]">
                         <div className="space-y-1">
-                          <div className="font-medium">{task.title}</div>
+                          <div className="font-medium break-words whitespace-normal">{task.title}</div>
                           {task.description && (
                             <div className="text-xs text-muted-foreground line-clamp-1">
                               {task.description}
@@ -654,25 +654,27 @@ export function TeamTasksList() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
+                      <TableCell className="min-w-[100px]">
+                        <Badge variant="outline" className="text-xs whitespace-nowrap">
                           {task.category === 'Otra' ? (task.customCategory || 'Otra') : task.category}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[120px]">
                         <div className="flex items-center gap-2">
                           {task.assignee && (
-                            <div className={`w-3 h-3 rounded-full border ${getAssigneeColor(task.assignee).split(' ')[0]}`} />
+                            <div className={`w-3 h-3 rounded-full border flex-shrink-0 ${getAssigneeColor(task.assignee).split(' ')[0]}`} />
                           )}
                           <Select
                             value={task.assignee || 'unassigned'}
                             onValueChange={(value) => handleAssigneeChange(task.id, value)}
                           >
-                            <SelectTrigger className={`h-7 text-xs w-32 ${task.assignee ? getAssigneeColor(task.assignee) : 'bg-gray-100 text-gray-600'}`}>
+                            <SelectTrigger className={`h-7 text-xs max-w-[120px] ${task.assignee ? getAssigneeColor(task.assignee) : 'bg-gray-100 text-gray-600'}`}>
                               <SelectValue>
-                                {task.assignee 
-                                  ? users.find(u => u.email === task.assignee)?.displayName || task.assignee
-                                  : 'Sin asignar'}
+                                <span className="truncate block">
+                                  {task.assignee 
+                                    ? users.find(u => u.email === task.assignee)?.displayName || task.assignee
+                                    : 'Sin asignar'}
+                                </span>
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
@@ -689,19 +691,19 @@ export function TeamTasksList() {
                           </Select>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[120px]">
                         {task.projectName ? (
-                          <span className="text-xs">{task.projectName}</span>
+                          <span className="text-xs break-words">{task.projectName}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[100px]">
                         <Select
                           value={task.status}
                           onValueChange={(value) => handleStatusChange(task.id, value as TeamTaskStatus)}
                         >
-                          <SelectTrigger className="h-7 text-xs w-28">
+                          <SelectTrigger className="h-7 text-xs max-w-[100px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -713,52 +715,52 @@ export function TeamTasksList() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell>
-                        <Badge className={`${priorityConfig[task.priority].color} text-xs px-1.5 py-0`} variant="outline">
+                      <TableCell className="min-w-[80px]">
+                        <Badge className={`${priorityConfig[task.priority].color} text-xs px-1.5 py-0 whitespace-nowrap`} variant="outline">
                           {priorityConfig[task.priority].label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[100px]">
                         <div className="text-xs">
                           {task.dueDate ? (
                             <div className="flex items-center gap-1.5">
-                              <Calendar className="h-3 w-3 text-muted-foreground" />
-                              <span>{formatDate(task.dueDate)}</span>
+                              <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="whitespace-nowrap">{formatDate(task.dueDate)}</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[80px]">
                         {(() => {
                           const daysOverdue = getDaysOverdue(task.dueDate)
                           if (daysOverdue !== null && task.status !== 'completed' && task.status !== 'cancelled') {
                             return (
-                              <Badge variant="destructive" className="text-xs">
-                                {daysOverdue} día{daysOverdue !== 1 ? 's' : ''} de retraso
+                              <Badge variant="destructive" className="text-xs whitespace-nowrap">
+                                {daysOverdue} día{daysOverdue !== 1 ? 's' : ''}
                               </Badge>
                             )
                           }
                           return <span className="text-xs text-muted-foreground">-</span>
                         })()}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[80px]">
                         <div className="text-center">
                           {task.estimatedHours || task.actualHours ? (
                             <>
-                              <div className="text-xs text-muted-foreground mb-0.5">
+                              <div className="text-xs text-muted-foreground mb-0.5 whitespace-nowrap">
                                 Est: {task.estimatedHours || 0}h
                               </div>
                               <div
-                                className={`text-xs font-medium ${
+                                className={`text-xs font-medium whitespace-nowrap ${
                                   (task.actualHours || 0) > (task.estimatedHours || 0) ? "text-[#E02814]" : "text-foreground"
                                 }`}
                               >
                                 Real: {(task.actualHours || 0).toFixed(1)}h
                               </div>
                               {(task.actualHours || 0) > (task.estimatedHours || 0) && (
-                                <div className="text-xs text-[#E02814]">
+                                <div className="text-xs text-[#E02814] whitespace-nowrap">
                                   +{((task.actualHours || 0) - (task.estimatedHours || 0)).toFixed(1)}h
                                 </div>
                               )}
@@ -768,11 +770,11 @@ export function TeamTasksList() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                      <TableCell className="min-w-[100px]">
+                        <div className="flex items-center gap-1 flex-wrap">
                           {isRunning && (
-                            <div className="flex items-center gap-1 text-xs text-purple-600">
-                              <Clock className="h-3 w-3 animate-spin" />
+                            <div className="flex items-center gap-1 text-xs text-purple-600 whitespace-nowrap">
+                              <Clock className="h-3 w-3 animate-spin flex-shrink-0" />
                               {formatTime(currentTime)}
                             </div>
                           )}
@@ -781,7 +783,7 @@ export function TeamTasksList() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0"
+                                className="h-6 w-6 p-0 flex-shrink-0"
                                 onClick={() => handleTimeTracking(task, 'start')}
                                 title="Iniciar timer"
                               >
@@ -792,7 +794,7 @@ export function TeamTasksList() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0"
+                                className="h-6 w-6 p-0 flex-shrink-0"
                                 onClick={() => handleTimeTracking(task, 'pause')}
                                 title="Pausar timer"
                               >
@@ -803,7 +805,7 @@ export function TeamTasksList() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0"
+                                className="h-6 w-6 p-0 flex-shrink-0"
                                 onClick={() => handleTimeTracking(task, 'complete')}
                                 title="Completar tarea"
                               >
@@ -811,17 +813,17 @@ export function TeamTasksList() {
                               </Button>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground ml-1">
+                          <div className="text-xs text-muted-foreground whitespace-nowrap">
                             {formatTime(totalTime)}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="min-w-[100px]">
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className="h-6 w-6 p-0 flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDuplicate(task)
@@ -833,7 +835,7 @@ export function TeamTasksList() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className="h-6 w-6 p-0 flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation()
                               setTaskToEdit(task)
@@ -846,7 +848,7 @@ export function TeamTasksList() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0 text-destructive"
+                            className="h-6 w-6 p-0 text-destructive flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDelete(task.id)
