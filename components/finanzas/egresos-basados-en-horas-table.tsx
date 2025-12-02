@@ -354,7 +354,7 @@ export function EgresosBasadosEnHorasTable() {
             <TableBody>
               {filteredEgresos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={15} className="text-center py-8">
+                  <TableCell colSpan={16} className="text-center py-8">
                     No se encontraron egresos basados en horas
                   </TableCell>
                 </TableRow>
