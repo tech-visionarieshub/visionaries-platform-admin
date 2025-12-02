@@ -39,6 +39,9 @@ export function EgresosBasadosEnHorasTable() {
   const [isNuevoEgresoDialogOpen, setIsNuevoEgresoDialogOpen] = useState(false)
   const [generandoAutomaticos, setGenerandoAutomaticos] = useState(false)
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: 'factura' | 'comprobante' } | null>(null)
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; egresoId: string; tipo: 'factura' | 'comprobante' } | null>(null)
+  const [linkUrl, setLinkUrl] = useState("")
+  const [savingLink, setSavingLink] = useState(false)
 
   useEffect(() => {
     async function loadEgresos() {
@@ -551,6 +554,62 @@ export function EgresosBasadosEnHorasTable() {
         onOpenChange={setIsNuevoEgresoDialogOpen}
         onSuccess={handleRefresh}
       />
+
+      {/* Link Dialog */}
+      <Dialog open={linkDialog?.open || false} onOpenChange={(open) => {
+        if (!open) {
+          setLinkDialog(null)
+          setLinkUrl("")
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {linkDialog?.tipo === 'factura' ? 'Agregar/Editar Link de Factura' : 'Agregar/Editar Link de Comprobante'}
+            </DialogTitle>
+            <DialogDescription>
+              Pega el link de la {linkDialog?.tipo === 'factura' ? 'factura' : 'comprobante'} (puede ser Google Drive, Dropbox, o cualquier URL)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="linkUrl">URL <span className="text-red-500">*</span></Label>
+              <Input
+                id="linkUrl"
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+                disabled={savingLink}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setLinkDialog(null)
+                setLinkUrl("")
+              }} 
+              disabled={savingLink}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveLink} disabled={savingLink || !linkUrl.trim()}>
+              {savingLink ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar Link"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* File Preview Dialog */}
       <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
