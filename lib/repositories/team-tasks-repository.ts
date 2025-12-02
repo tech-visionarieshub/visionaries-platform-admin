@@ -44,6 +44,21 @@ export class TeamTasksRepository {
       throw new Error(`Team Task ${doc.id} does not exist`)
     }
 
+    // Convertir dueDate preservando la fecha (sin cambiar de día por zona horaria)
+    let dueDate: Date | undefined = undefined
+    if (data.dueDate) {
+      const firestoreDate = data.dueDate?.toDate?.() || (data.dueDate && !(data.dueDate instanceof Date) ? undefined : (data.dueDate as Date | undefined))
+      if (firestoreDate) {
+        // Crear una nueva fecha usando los componentes de fecha en zona horaria local
+        // Esto preserva el día/mes/año sin importar la zona horaria del servidor
+        const year = firestoreDate.getFullYear()
+        const month = firestoreDate.getMonth()
+        const day = firestoreDate.getDate()
+        // Crear fecha en mediodía local para evitar cambios de día
+        dueDate = new Date(year, month, day, 12, 0, 0)
+      }
+    }
+
     return {
       id: doc.id,
       title: data.title,
@@ -55,7 +70,7 @@ export class TeamTasksRepository {
       assignee: data.assignee,
       projectId: data.projectId,
       projectName: data.projectName,
-      dueDate: data.dueDate?.toDate?.() || (data.dueDate && !(data.dueDate instanceof Date) ? undefined : (data.dueDate as Date | undefined)),
+      dueDate: dueDate,
       estimatedHours: data.estimatedHours,
       actualHours: data.actualHours,
       startedAt: data.startedAt?.toDate?.() || (data.startedAt as Date | undefined),
