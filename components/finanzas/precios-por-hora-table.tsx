@@ -100,6 +100,32 @@ export function PreciosPorHoraTable() {
         await createPrecioPorHora(formData)
         toast.success("Precio creado exitosamente")
       }
+      
+      // Generar egresos automáticos para tareas y features completadas (tanto al crear como al actualizar)
+      try {
+        const response = await fetch('/api/egresos/generar-automaticos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            personaEmail: formData.personaEmail,
+            precioPorHora: formData.precioPorHora,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.creados > 0) {
+            toast.success(`${result.creados} egreso(s) generado(s) automáticamente`)
+          } else {
+            toast.info("No se encontraron tareas o funcionalidades completadas para generar egresos")
+          }
+        }
+      } catch (genError) {
+        console.error('Error generando egresos automáticos:', genError)
+        // No mostrar error al usuario, solo loguear
+      }
       setIsDialogOpen(false)
       await loadData()
     } catch (error: any) {
