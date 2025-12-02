@@ -1298,8 +1298,12 @@ IMPORTANTE:
 
       let parsed
       try {
-        const jsonString = jsonMatch[0]
+        let jsonString = jsonMatch[0]
         console.log('[OpenAI Service] Intentando parsear JSON (primeros 500 caracteres):', jsonString.substring(0, 500))
+        
+        // Limpiar JSON antes de parsear
+        jsonString = this.cleanJsonString(jsonString)
+        
         parsed = JSON.parse(jsonString)
       } catch (parseError: any) {
         console.error('[OpenAI Service] Error parseando JSON:', {
@@ -1533,8 +1537,12 @@ IMPORTANTE:
 
       let parsed
       try {
-        const jsonString = jsonMatch[0]
+        let jsonString = jsonMatch[0]
         console.log('[OpenAI Service] Intentando parsear JSON de Trello (primeros 500 caracteres):', jsonString.substring(0, 500))
+        
+        // Limpiar JSON antes de parsear
+        jsonString = this.cleanJsonString(jsonString)
+        
         parsed = JSON.parse(jsonString)
       } catch (parseError: any) {
         console.error('[OpenAI Service] Error parseando JSON de Trello:', {
