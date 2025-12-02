@@ -98,7 +98,7 @@ export function DashboardMensual({ egresos }: DashboardMensualProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ${metricas.pagado.toLocaleString("es-MX")}
+              ${metricas.pagado.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Egresos pagados en {mesSeleccionado}
@@ -114,7 +114,7 @@ export function DashboardMensual({ egresos }: DashboardMensualProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              ${metricas.porPagar.toLocaleString("es-MX")}
+              ${metricas.porPagar.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Egresos pendientes en {mesSeleccionado}

@@ -256,14 +256,14 @@ export function EgresosBasadosEnHorasTable() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-lg border p-4">
           <div className="text-sm text-muted-foreground">Total Egresos {añoActual}</div>
-          <div className="text-2xl font-bold">${totalEgresos.toLocaleString("es-MX")}</div>
+          <div className="text-2xl font-bold">${totalEgresos.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {filteredEgresos.length} egreso{filteredEgresos.length !== 1 ? "s" : ""}
           </div>
         </div>
         <div className="rounded-lg border p-4">
           <div className="text-sm text-muted-foreground">Pagado {añoActual}</div>
-          <div className="text-2xl font-bold text-green-600">${totalPagado.toLocaleString("es-MX")}</div>
+          <div className="text-2xl font-bold text-green-600">${totalPagado.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {filteredEgresos.filter((e) => e.status === "Pagado").length} egreso
             {filteredEgresos.filter((e) => e.status === "Pagado").length !== 1 ? "s" : ""}
@@ -271,7 +271,7 @@ export function EgresosBasadosEnHorasTable() {
         </div>
         <div className="rounded-lg border p-4">
           <div className="text-sm text-muted-foreground">Pendiente {añoActual}</div>
-          <div className="text-2xl font-bold text-orange-600">${totalPendiente.toLocaleString("es-MX")}</div>
+          <div className="text-2xl font-bold text-orange-600">${totalPendiente.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {filteredEgresos.filter((e) => e.status === "Pendiente").length} egreso
             {filteredEgresos.filter((e) => e.status === "Pendiente").length !== 1 ? "s" : ""}
@@ -462,9 +462,9 @@ export function EgresosBasadosEnHorasTable() {
                       </TableCell>
                       <TableCell>{egreso.equipo || '-'}</TableCell>
                       <TableCell className="font-medium">{egreso.concepto || '-'}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap font-medium">${egreso.total.toLocaleString("es-MX")}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">${(egreso.subtotal || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">${(egreso.iva || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap font-medium">${(egreso.total || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell>{getTipoBadge(egreso.tipo)}</TableCell>
                       <TableCell>{egreso.mes || '-'}</TableCell>
                       <TableCell>{getStatusBadge(egreso.status)}</TableCell>
