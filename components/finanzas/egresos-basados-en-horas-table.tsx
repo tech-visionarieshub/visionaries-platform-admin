@@ -277,96 +277,94 @@ export function EgresosBasadosEnHorasTable() {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border w-full overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table className="w-full">
-            <TableHeader>
+      <div className="rounded-md border w-full">
+        <Table className="w-full table-fixed">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[10%]">Línea de negocio</TableHead>
+              <TableHead className="w-[8%]">Categoría</TableHead>
+              <TableHead className="w-[10%]">Empresa</TableHead>
+              <TableHead className="w-[8%]">Equipo</TableHead>
+              <TableHead className="w-[15%]">Concepto</TableHead>
+              <TableHead className="w-[6%] text-right">Subtotal</TableHead>
+              <TableHead className="w-[6%] text-right">IVA</TableHead>
+              <TableHead className="w-[6%] text-right">Total</TableHead>
+              <TableHead className="w-[6%]">Tipo</TableHead>
+              <TableHead className="w-[8%]">Mes</TableHead>
+              <TableHead className="w-[6%]">Status</TableHead>
+              <TableHead className="w-[5%]">Factura</TableHead>
+              <TableHead className="w-[5%]">Comprobante</TableHead>
+              <TableHead className="w-[7%]">Fecha pago</TableHead>
+              <TableHead className="w-[5%] text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredEgresos.length === 0 ? (
               <TableRow>
-                <TableHead className="whitespace-nowrap">Línea de negocio</TableHead>
-                <TableHead className="whitespace-nowrap">Categoría</TableHead>
-                <TableHead className="whitespace-nowrap">Empresa</TableHead>
-                <TableHead className="whitespace-nowrap">Equipo</TableHead>
-                <TableHead className="whitespace-nowrap">Concepto</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Subtotal</TableHead>
-                <TableHead className="text-right whitespace-nowrap">IVA</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Total</TableHead>
-                <TableHead className="whitespace-nowrap">Tipo</TableHead>
-                <TableHead className="whitespace-nowrap">Mes</TableHead>
-                <TableHead className="whitespace-nowrap">Status</TableHead>
-                <TableHead className="whitespace-nowrap">Factura</TableHead>
-                <TableHead className="whitespace-nowrap">Comprobante</TableHead>
-                <TableHead className="whitespace-nowrap">Fecha pago</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Acciones</TableHead>
+                <TableCell colSpan={15} className="text-center py-8">
+                  No se encontraron egresos basados en horas
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEgresos.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={15} className="text-center py-8">
-                    No se encontraron egresos basados en horas
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredEgresos.map((egreso) => {
-                  const facturaUrl = egreso.facturaUrl || egreso.factura
-                  const comprobanteUrl = egreso.comprobanteUrl || egreso.comprobante
-                  
-                  return (
-                    <TableRow key={egreso.id}>
-                      <TableCell className="break-words max-w-[120px]">{egreso.lineaNegocio || '-'}</TableCell>
-                      <TableCell className="break-words max-w-[120px]">{egreso.categoria || '-'}</TableCell>
-                      <TableCell className="break-words max-w-[150px]">{egreso.empresa || '-'}</TableCell>
-                      <TableCell className="break-words max-w-[120px]">{egreso.equipo || '-'}</TableCell>
-                      <TableCell className="break-words max-w-[200px] font-medium">{egreso.concepto || '-'}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap font-medium">${egreso.total.toLocaleString("es-MX")}</TableCell>
-                      <TableCell className="whitespace-nowrap">{getTipoBadge(egreso.tipo)}</TableCell>
-                      <TableCell className="whitespace-nowrap">{egreso.mes || '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{getStatusBadge(egreso.status)}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {facturaUrl ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewFile(facturaUrl, egreso.facturaFileName || 'factura.pdf', 'factura')}
-                            title="Ver factura"
-                            className="h-8 w-8"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {comprobanteUrl ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewFile(comprobanteUrl, egreso.comprobanteFileName || 'comprobante.pdf', 'comprobante')}
-                            title="Ver comprobante"
-                            className="h-8 w-8"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{egreso.fechaPago || '-'}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)} className="h-8 w-8">
-                          <Trash2 className="h-4 w-4" />
+            ) : (
+              filteredEgresos.map((egreso) => {
+                const facturaUrl = egreso.facturaUrl || egreso.factura
+                const comprobanteUrl = egreso.comprobanteUrl || egreso.comprobante
+                
+                return (
+                  <TableRow key={egreso.id}>
+                    <TableCell className="break-words text-wrap">{egreso.lineaNegocio || '-'}</TableCell>
+                    <TableCell className="break-words text-wrap">{egreso.categoria || '-'}</TableCell>
+                    <TableCell className="break-words text-wrap">{egreso.empresa || '-'}</TableCell>
+                    <TableCell className="break-words text-wrap">{egreso.equipo || '-'}</TableCell>
+                    <TableCell className="break-words text-wrap font-medium">{egreso.concepto || '-'}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap font-medium">${egreso.total.toLocaleString("es-MX")}</TableCell>
+                    <TableCell className="text-wrap">{getTipoBadge(egreso.tipo)}</TableCell>
+                    <TableCell className="text-wrap">{egreso.mes || '-'}</TableCell>
+                    <TableCell className="text-wrap">{getStatusBadge(egreso.status)}</TableCell>
+                    <TableCell className="text-center">
+                      {facturaUrl ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewFile(facturaUrl, egreso.facturaFileName || 'factura.pdf', 'factura')}
+                          title="Ver factura"
+                          className="h-8 w-8"
+                        >
+                          <FileText className="h-4 w-4" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {comprobanteUrl ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewFile(comprobanteUrl, egreso.comprobanteFileName || 'comprobante.pdf', 'comprobante')}
+                          title="Ver comprobante"
+                          className="h-8 w-8"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-wrap">{egreso.fechaPago || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteEgreso(egreso.id)} className="h-8 w-8">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Upload Dialog */}
