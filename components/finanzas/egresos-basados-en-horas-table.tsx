@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2 } from "lucide-react"
+import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
 import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
@@ -497,34 +497,78 @@ export function EgresosBasadosEnHorasTable() {
                       <TableCell>{egreso.mes || '-'}</TableCell>
                       <TableCell>{getStatusBadge(egreso.status)}</TableCell>
                     <TableCell className="text-center">
-                      {facturaUrl ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewFile(facturaUrl, egreso.facturaFileName || 'factura.pdf', 'factura')}
-                          title="Ver factura"
-                          className="h-8 w-8"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        {facturaUrl ? (
+                          <>
+                            <a
+                              href={facturaUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-xs flex items-center gap-1"
+                              title={facturaUrl}
+                            >
+                              <Link2 className="h-3 w-3" />
+                              <span className="max-w-[100px] truncate">Ver factura</span>
+                            </a>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenLinkDialog(egreso.id, 'factura', facturaUrl)}
+                              title="Editar link de factura"
+                              className="h-6 w-6"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenLinkDialog(egreso.id, 'factura')}
+                            title="Agregar link de factura"
+                            className="h-8 w-8"
+                          >
+                            <Link2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {comprobanteUrl ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewFile(comprobanteUrl, egreso.comprobanteFileName || 'comprobante.pdf', 'comprobante')}
-                          title="Ver comprobante"
-                          className="h-8 w-8"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        {comprobanteUrl ? (
+                          <>
+                            <a
+                              href={comprobanteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline text-xs flex items-center gap-1"
+                              title={comprobanteUrl}
+                            >
+                              <Link2 className="h-3 w-3" />
+                              <span className="max-w-[100px] truncate">Ver comprobante</span>
+                            </a>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenLinkDialog(egreso.id, 'comprobante', comprobanteUrl)}
+                              title="Editar link de comprobante"
+                              className="h-6 w-6"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenLinkDialog(egreso.id, 'comprobante')}
+                            title="Agregar link de comprobante"
+                            className="h-8 w-8"
+                          >
+                            <Link2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                       <TableCell>{egreso.fechaPago || '-'}</TableCell>
                       <TableCell className="text-right">
