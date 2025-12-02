@@ -219,14 +219,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         creados: totalEgresosCreados.length,
-        totalEgresos: totalEgresosCreados,
-        resumenPorPersona,
+        totalEgresos: totalEgresosCreados || [],
+        resumenPorPersona: resumenPorPersona || [],
         errores: errores.length > 0 ? errores : undefined,
       });
     } catch (error: any) {
       console.error('[Generar Automáticos Todos API] Error:', error);
       return NextResponse.json(
-        { error: 'Error generando egresos automáticos', message: error.message },
+        { 
+          success: false,
+          error: 'Error generando egresos automáticos', 
+          message: error.message,
+          totalEgresos: [],
+          resumenPorPersona: [],
+        },
         { status: 500 }
       );
     }

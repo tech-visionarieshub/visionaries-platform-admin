@@ -294,13 +294,26 @@ export function EgresosBasadosEnHorasTable() {
     setGenerandoAutomaticos(true)
     try {
       const result = await apiPost<{
-        success: boolean
+        success?: boolean
+        error?: string
         mensaje?: string
         creados?: number
         totalEgresos?: any[]
         resumenPorPersona?: Array<{ persona: string; creados: number }>
+        errores?: string[]
       }>('/api/egresos/generar-automaticos-todos', {})
       
+      // Verificar si hay error en la respuesta
+      if (result?.error) {
+        throw new Error(result.error)
+      }
+
+      // Verificar que result existe y tiene la estructura esperada
+      if (!result) {
+        throw new Error('No se recibió respuesta del servidor')
+      }
+
+      // Si hay egresos creados, mostrar éxito
       if (result.totalEgresos && result.totalEgresos.length > 0) {
         toast.success(`Se generaron ${result.totalEgresos.length} egresos automáticos`)
         
@@ -311,7 +324,18 @@ export function EgresosBasadosEnHorasTable() {
             .join(', ')
           toast.info(`Resumen: ${resumen}`)
         }
+
+        // Mostrar errores si los hay (pero no críticos)
+        if (result.errores && result.errores.length > 0) {
+          console.warn('Errores parciales al generar egresos:', result.errores)
+          if (result.errores.length <= 3) {
+            result.errores.forEach(err => toast.warning(err))
+          } else {
+            toast.warning(`${result.errores.length} errores menores durante la generación`)
+          }
+        }
       } else {
+        // No se generaron egresos, mostrar mensaje informativo
         toast.info(result.mensaje || 'No se generaron nuevos egresos')
       }
 
@@ -319,7 +343,8 @@ export function EgresosBasadosEnHorasTable() {
       await handleRefresh()
     } catch (error: any) {
       console.error('Error generating automatic egresos:', error)
-      toast.error(error.message || 'Error al generar egresos automáticos')
+      const errorMessage = error?.message || error?.error || 'Error al generar egresos automáticos'
+      toast.error(errorMessage)
     } finally {
       setGenerandoAutomaticos(false)
     }
