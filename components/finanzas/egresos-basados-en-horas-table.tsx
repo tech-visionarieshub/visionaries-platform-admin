@@ -285,6 +285,51 @@ export function EgresosBasadosEnHorasTable() {
     }
   }
 
+  const handleGenerarAutomaticos = async () => {
+    if (!confirm("¿Estás seguro de que deseas generar egresos automáticos para todas las personas con precio por hora configurado?")) {
+      return
+    }
+
+    setGenerandoAutomaticos(true)
+    try {
+      const response = await fetch('/api/egresos/generar-automaticos-todos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al generar egresos automáticos')
+      }
+
+      const result = await response.json()
+      
+      if (result.totalEgresos && result.totalEgresos.length > 0) {
+        toast.success(`Se generaron ${result.totalEgresos.length} egresos automáticos`)
+        
+        // Mostrar resumen por persona si existe
+        if (result.resumenPorPersona && result.resumenPorPersona.length > 0) {
+          const resumen = result.resumenPorPersona
+            .map((r: { persona: string; creados: number }) => `${r.persona}: ${r.creados}`)
+            .join(', ')
+          toast.info(`Resumen: ${resumen}`)
+        }
+      } else {
+        toast.info(result.mensaje || 'No se generaron nuevos egresos')
+      }
+
+      // Refrescar la lista de egresos
+      await handleRefresh()
+    } catch (error: any) {
+      console.error('Error generating automatic egresos:', error)
+      toast.error(error.message || 'Error al generar egresos automáticos')
+    } finally {
+      setGenerandoAutomaticos(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive"> = {
       Pagado: "default",
