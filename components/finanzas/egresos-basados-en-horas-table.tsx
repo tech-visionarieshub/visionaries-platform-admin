@@ -183,9 +183,16 @@ export function EgresosBasadosEnHorasTable() {
     try {
       setUpdatingEgresoId(egresoId)
       
-      await updateEgreso(egresoId, {
-        clienteId: clienteId || undefined,
-      })
+      // Preparar updates: si clienteId es undefined, enviarlo explícitamente para eliminar el campo
+      const updates: any = {};
+      if (clienteId) {
+        updates.clienteId = clienteId;
+      } else {
+        // Si es undefined, enviar null para que Firestore lo elimine
+        updates.clienteId = null;
+      }
+      
+      await updateEgreso(egresoId, updates)
       
       // Actualizar el estado local
       setEgresos(egresos.map(e => 

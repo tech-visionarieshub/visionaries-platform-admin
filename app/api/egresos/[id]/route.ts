@@ -41,9 +41,21 @@ export async function PUT(
   return withFinanzasAuth(request, async (user) => {
     try {
       const body = await request.json();
-      const { id, ...updates } = body;
+      // Remover id del body si viene (no debería, pero por seguridad)
+      const { id: bodyId, ...updates } = body;
 
-      const egreso = await egresosRepository.update(id, updates);
+      // Asegurar que el id del path se use, no el del body
+      const egresoId = id;
+
+      // Limpiar campos undefined para que Firestore los elimine correctamente
+      const cleanUpdates: any = {};
+      Object.keys(updates).forEach(key => {
+        if (updates[key as keyof typeof updates] !== undefined) {
+          cleanUpdates[key] = updates[key as keyof typeof updates];
+        }
+      });
+
+      const egreso = await egresosRepository.update(egresoId, cleanUpdates);
 
       return NextResponse.json({ success: true, data: egreso });
     } catch (error: any) {
