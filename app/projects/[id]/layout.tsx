@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, use } from "react"
-import { ArrowLeft, Calendar, User, DollarSign, Clock, Zap } from "lucide-react"
+import { ArrowLeft, Calendar, User, DollarSign, Clock, Zap, CheckCircle2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
@@ -114,6 +114,8 @@ export default function ProjectLayout({
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editingProject, setEditingProject] = useState<Partial<Project>>({})
   const [saving, setSaving] = useState(false)
+  const [markingAsDelivered, setMarkingAsDelivered] = useState(false)
+  const [showDeliverConfirmDialog, setShowDeliverConfirmDialog] = useState(false)
   const [clientes, setClientes] = useState<Array<{ id: string; nombre: string }>>([])
   const [loadingClientes, setLoadingClientes] = useState(false)
   const { toast } = useToast()
@@ -211,6 +213,33 @@ export default function ProjectLayout({
     }
   }
 
+  const handleMarkAsDelivered = async () => {
+    if (!project) return
+
+    setMarkingAsDelivered(true)
+    try {
+      const updated = await updateProject(project.id, {
+        status: "Finalizado",
+        progress: 100,
+      })
+      setProject(updated)
+      setShowDeliverConfirmDialog(false)
+      toast({
+        title: "Proyecto marcado como Entregado",
+        description: "El proyecto ha sido marcado como entregado. Se registró que recibieron el último pago y firmaron las cartas de aceptación.",
+      })
+    } catch (error: any) {
+      console.error('Error marking project as delivered:', error)
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo marcar el proyecto como entregado",
+        variant: "destructive",
+      })
+    } finally {
+      setMarkingAsDelivered(false)
+    }
+  }
+
   if (loading || !project) {
     return (
       <div className="space-y-6">
@@ -239,12 +268,25 @@ export default function ProjectLayout({
             </div>
             <p className="text-muted-foreground">{project.description}</p>
           </div>
-          <Button 
-            className="bg-[#4514F9] hover:bg-[#3810C7]"
-            onClick={handleEditClick}
-          >
-            Editar Proyecto
-          </Button>
+          <div className="flex items-center gap-2">
+            {project.status !== "Finalizado" && (
+              <Button 
+                variant="outline"
+                className="border-green-600 text-green-600 hover:bg-green-50"
+                onClick={() => setShowDeliverConfirmDialog(true)}
+                disabled={markingAsDelivered}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {markingAsDelivered ? "Marcando..." : "Marcar como Entregado"}
+              </Button>
+            )}
+            <Button 
+              className="bg-[#4514F9] hover:bg-[#3810C7]"
+              onClick={handleEditClick}
+            >
+              Editar Proyecto
+            </Button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -475,6 +517,65 @@ export default function ProjectLayout({
               className="bg-[#4514F9] hover:bg-[#3810C7]"
             >
               {saving ? "Guardando..." : "Guardar Cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmación para Marcar como Entregado */}
+      <Dialog open={showDeliverConfirmDialog} onOpenChange={setShowDeliverConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Marcar Proyecto como Entregado</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas marcar este proyecto como entregado?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <p className="text-sm text-blue-900 dark:text-blue-100">
+                <strong>Esto significa que:</strong>
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-blue-800 dark:text-blue-200 list-disc list-inside">
+                <li>El cliente ya recibió el último pago</li>
+                <li>Se firmaron las cartas de aceptación</li>
+                <li>El proyecto será marcado como "Finalizado"</li>
+                <li>El progreso se establecerá en 100%</li>
+              </ul>
+            </div>
+            {project && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Proyecto:</p>
+                <p className="text-sm text-muted-foreground">{project.name}</p>
+                <p className="text-sm font-medium mt-2">Cliente:</p>
+                <p className="text-sm text-muted-foreground">{project.client}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDeliverConfirmDialog(false)} 
+              disabled={markingAsDelivered}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleMarkAsDelivered} 
+              disabled={markingAsDelivered}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {markingAsDelivered ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Marcando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Confirmar Entrega
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
