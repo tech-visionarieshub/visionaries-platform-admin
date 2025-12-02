@@ -70,9 +70,16 @@ export function ClientesTable() {
   }
 
   // Verificar si un cliente tiene proyectos activos
+  // Ignorar proyectos que contengan "visionaries" en el nombre
   const clienteTieneProyectosActivos = useMemo(() => {
     const map = new Map<string, boolean>()
     proyectos.forEach((proyecto) => {
+      // Ignorar proyectos con "visionaries" en el nombre (case insensitive)
+      const nombreProyecto = proyecto.name?.toLowerCase() || ''
+      if (nombreProyecto.includes('visionaries')) {
+        return
+      }
+      
       if (proyecto.status !== "Finalizado" && proyecto.clientId) {
         map.set(proyecto.clientId, true)
       }

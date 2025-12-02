@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { getProjectById, updateProject } from "@/lib/api/projects-api"
 import { getFeatures } from "@/lib/api/features-api"
+import { getClientes } from "@/lib/api/finanzas-api"
 import type { Project } from "@/lib/mock-data/projects"
 import type { Feature } from "@/types/feature"
 import {
@@ -113,6 +114,8 @@ export default function ProjectLayout({
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editingProject, setEditingProject] = useState<Partial<Project>>({})
   const [saving, setSaving] = useState(false)
+  const [clientes, setClientes] = useState<Array<{ id: string; nombre: string }>>([])
+  const [loadingClientes, setLoadingClientes] = useState(false)
   const { toast } = useToast()
   const { user } = useUser()
   const canAccessFinanzas = hasFinanzasAccess(user?.email)
@@ -147,6 +150,26 @@ export default function ProjectLayout({
   // Usar el progreso calculado si hay features, sino usar el del proyecto
   const displayProgress = features.length > 0 ? calculatedProgress : (project?.progress || 0)
 
+  useEffect(() => {
+    async function loadClientes() {
+      if (!showEditDialog) return
+      setLoadingClientes(true)
+      try {
+        const data = await getClientes()
+        setClientes(data.map(c => ({ id: c.id, nombre: c.empresa })))
+      } catch (err: any) {
+        // Si es error de autenticación, no hacer nada (ya redirige)
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
+        console.error('Error loading clientes:', err)
+      } finally {
+        setLoadingClientes(false)
+      }
+    }
+    loadClientes()
+  }, [showEditDialog])
+
   const handleEditClick = () => {
     if (project) {
       setEditingProject({
@@ -154,6 +177,7 @@ export default function ProjectLayout({
         description: project.description,
         status: project.status,
         client: project.client,
+        clientId: project.clientId,
         budget: project.budget,
         startDate: project.startDate,
         endDate: project.endDate,
@@ -348,31 +372,46 @@ export default function ProjectLayout({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="client">Cliente</Label>
-                <Input
-                  id="client"
-                  name="client"
-                  value={editingProject.client || ''}
-                  onChange={(e) => setEditingProject({ ...editingProject, client: e.target.value })}
-                  placeholder="Nombre del cliente"
-                />
+                <Label htmlFor="clientId">Cliente</Label>
+                <Select
+                  value={editingProject.clientId || ''}
+                  onValueChange={(value) => {
+                    const cliente = clientes.find(c => c.id === value)
+                    setEditingProject({ 
+                      ...editingProject, 
+                      clientId: value,
+                      client: cliente?.nombre || editingProject.client || ''
+                    })
+                  }}
+                  disabled={loadingClientes}
+                >
+                  <SelectTrigger id="clientId" name="clientId">
+                    <SelectValue placeholder={loadingClientes ? "Cargando clientes..." : "Seleccionar cliente"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientes.map((cliente) => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Estado</Label>
                 <Select
                   name="status"
                   value={editingProject.status || ''}
-                  onValueChange={(value) => setEditingProject({ ...editingProject, status: value })}
+                  onValueChange={(value) => setEditingProject({ ...editingProject, status: value as Project['status'] })}
                 >
                   <SelectTrigger id="status" name="status">
                     <SelectValue placeholder="Seleccionar estado" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="planning">Planificación</SelectItem>
-                    <SelectItem value="in-progress">En Progreso</SelectItem>
-                    <SelectItem value="review">En Revisión</SelectItem>
-                    <SelectItem value="completed">Completado</SelectItem>
-                    <SelectItem value="on-hold">En Pausa</SelectItem>
+                    <SelectItem value="En desarrollo">En desarrollo</SelectItem>
+                    <SelectItem value="QA">QA</SelectItem>
+                    <SelectItem value="Garantía">Garantía</SelectItem>
+                    <SelectItem value="Finalizado">Finalizado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
