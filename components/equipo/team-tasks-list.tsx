@@ -396,6 +396,8 @@ export function TeamTasksList() {
     try {
       let due: Date
       if (typeof dueDate === 'string') {
+        // Si es string, puede ser ISO string o fecha en formato YYYY-MM-DD
+        // Intentar parsear como ISO primero
         due = new Date(dueDate)
         if (isNaN(due.getTime())) {
           return null
@@ -407,14 +409,26 @@ export function TeamTasksList() {
         }
       }
       
-      // Usar UTC para comparar fechas sin problemas de zona horaria
+      // Obtener fecha de hoy en UTC (solo año, mes, día, sin hora)
       const today = new Date()
-      const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
-      const dueUTC = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate()))
+      const todayYear = today.getUTCFullYear()
+      const todayMonth = today.getUTCMonth()
+      const todayDay = today.getUTCDate()
       
+      // Obtener fecha límite en UTC (solo año, mes, día, sin hora)
+      const dueYear = due.getUTCFullYear()
+      const dueMonth = due.getUTCMonth()
+      const dueDay = due.getUTCDate()
+      
+      // Crear fechas UTC a mediodía para comparación precisa
+      const todayUTC = new Date(Date.UTC(todayYear, todayMonth, todayDay, 12, 0, 0))
+      const dueUTC = new Date(Date.UTC(dueYear, dueMonth, dueDay, 12, 0, 0))
+      
+      // Calcular diferencia en días
       const diffTime = todayUTC.getTime() - dueUTC.getTime()
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
       
+      // Solo retornar retraso si es mayor a 0 (si hoy es la fecha límite o es futuro, no hay retraso)
       return diffDays > 0 ? diffDays : null
     } catch (error) {
       console.error('[getDaysOverdue] Error:', error)
