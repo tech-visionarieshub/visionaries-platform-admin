@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { getEgresosBasadosEnHoras, deleteEgreso, type Egreso } from "@/lib/api/finanzas-api"
+import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
 import {
   Dialog,
@@ -22,7 +22,10 @@ import {
 
 export function EgresosBasadosEnHorasTable() {
   const [egresos, setEgresos] = useState<Egreso[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingClientes, setLoadingClientes] = useState(false)
+  const [updatingEgresoId, setUpdatingEgresoId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [tipoFilter, setTipoFilter] = useState<string>("all")
@@ -48,6 +51,24 @@ export function EgresosBasadosEnHorasTable() {
       }
     }
     loadEgresos()
+  }, [])
+
+  useEffect(() => {
+    async function loadClientes() {
+      try {
+        setLoadingClientes(true)
+        const data = await getClientes()
+        setClientes(data)
+      } catch (err: any) {
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
+        console.error('Error loading clientes:', err)
+      } finally {
+        setLoadingClientes(false)
+      }
+    }
+    loadClientes()
   }, [])
 
   const uniqueCategorias = useMemo(() => {
@@ -101,6 +122,36 @@ export function EgresosBasadosEnHorasTable() {
 
   const handleViewFile = (url: string, name: string, type: 'factura' | 'comprobante') => {
     setPreviewFile({ url, name, type })
+  }
+
+  const handleUpdateCliente = async (egresoId: string, clienteId: string | undefined) => {
+    try {
+      setUpdatingEgresoId(egresoId)
+      
+      await updateEgreso(egresoId, {
+        clienteId: clienteId || undefined,
+      })
+      
+      // Actualizar el estado local
+      setEgresos(egresos.map(e => 
+        e.id === egresoId 
+          ? { ...e, clienteId: clienteId || undefined }
+          : e
+      ))
+      
+      toast.success("Cliente vinculado exitosamente")
+    } catch (error: any) {
+      console.error("Error updating cliente:", error)
+      toast.error(error.message || "Error al vincular cliente")
+    } finally {
+      setUpdatingEgresoId(null)
+    }
+  }
+
+  const getClienteName = (clienteId: string | undefined): string => {
+    if (!clienteId) return ""
+    const cliente = clientes.find(c => c.id === clienteId)
+    return cliente?.empresa || ""
   }
 
   const handleRefresh = async () => {
@@ -285,6 +336,7 @@ export function EgresosBasadosEnHorasTable() {
                 <TableHead className="min-w-[100px]">Línea de negocio</TableHead>
                 <TableHead className="min-w-[100px]">Categoría</TableHead>
                 <TableHead className="min-w-[120px]">Empresa</TableHead>
+                <TableHead className="min-w-[150px]">Cliente Vinculado</TableHead>
                 <TableHead className="min-w-[100px]">Equipo</TableHead>
                 <TableHead className="min-w-[150px]">Concepto</TableHead>
                 <TableHead className="min-w-[90px] text-right">Subtotal</TableHead>
@@ -316,6 +368,34 @@ export function EgresosBasadosEnHorasTable() {
                       <TableCell>{egreso.lineaNegocio || '-'}</TableCell>
                       <TableCell>{egreso.categoria || '-'}</TableCell>
                       <TableCell>{egreso.empresa || '-'}</TableCell>
+                      <TableCell>
+                        {updatingEgresoId === egreso.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Select
+                            value={egreso.clienteId || ""}
+                            onValueChange={(value) => handleUpdateCliente(egreso.id, value || undefined)}
+                            disabled={loadingClientes}
+                          >
+                            <SelectTrigger className="w-full min-w-[150px]">
+                              <SelectValue placeholder="Seleccionar cliente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Sin cliente</SelectItem>
+                              {clientes.map((cliente) => (
+                                <SelectItem key={cliente.id} value={cliente.id}>
+                                  {cliente.empresa}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {egreso.clienteId && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {getClienteName(egreso.clienteId)}
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell>{egreso.equipo || '-'}</TableCell>
                       <TableCell className="font-medium">{egreso.concepto || '-'}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>

@@ -149,6 +149,10 @@ function normalizeFechaPago(fecha: string): string | undefined {
 
 /**
  * Busca un cliente por empresa normalizada (case-insensitive, matching flexible)
+ * Estrategia de matching:
+ * 1. Match exacto (case-insensitive)
+ * 2. Match parcial (una contiene a la otra, mínimo 3 caracteres)
+ * 3. Match por palabras clave (si ambas tienen al menos una palabra común de 3+ caracteres)
  */
 function matchEmpresaWithCliente(
   empresaNormalizada: string,
@@ -158,7 +162,7 @@ function matchEmpresaWithCliente(
   
   const empresaMatch = normalizeEmpresaForMatching(empresaNormalizada);
   
-  // Buscar match exacto (case-insensitive)
+  // 1. Buscar match exacto (case-insensitive)
   for (const cliente of clientes) {
     const clienteEmpresaMatch = normalizeEmpresaForMatching(cliente.empresa);
     if (clienteEmpresaMatch === empresaMatch) {
@@ -166,14 +170,33 @@ function matchEmpresaWithCliente(
     }
   }
   
-  // Buscar match parcial (empresa del egreso contiene nombre del cliente o viceversa)
-  for (const cliente of clientes) {
-    const clienteEmpresaMatch = normalizeEmpresaForMatching(cliente.empresa);
-    if (
-      empresaMatch.includes(clienteEmpresaMatch) ||
-      clienteEmpresaMatch.includes(empresaMatch)
-    ) {
-      return cliente;
+  // 2. Buscar match parcial (una contiene a la otra, mínimo 3 caracteres para evitar matches falsos)
+  if (empresaMatch.length >= 3) {
+    for (const cliente of clientes) {
+      const clienteEmpresaMatch = normalizeEmpresaForMatching(cliente.empresa);
+      if (clienteEmpresaMatch.length >= 3) {
+        if (
+          empresaMatch.includes(clienteEmpresaMatch) ||
+          clienteEmpresaMatch.includes(empresaMatch)
+        ) {
+          return cliente;
+        }
+      }
+    }
+  }
+  
+  // 3. Match por palabras clave (palabras de 3+ caracteres)
+  const palabrasEmpresa = empresaMatch.split(/\s+/).filter(p => p.length >= 3);
+  if (palabrasEmpresa.length > 0) {
+    for (const cliente of clientes) {
+      const clienteEmpresaMatch = normalizeEmpresaForMatching(cliente.empresa);
+      const palabrasCliente = clienteEmpresaMatch.split(/\s+/).filter(p => p.length >= 3);
+      
+      // Si hay al menos una palabra común
+      const palabrasComunes = palabrasEmpresa.filter(p => palabrasCliente.includes(p));
+      if (palabrasComunes.length > 0) {
+        return cliente;
+      }
     }
   }
   
