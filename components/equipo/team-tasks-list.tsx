@@ -72,23 +72,12 @@ export function TeamTasksList() {
   const [activeView, setActiveView] = useState<"table" | "kanban" | "gantt" | "calendar">("table")
   const [showTrelloUpload, setShowTrelloUpload] = useState(false)
 
-  // Cargar tareas
+  // Cargar tareas - cargar todas sin filtros del servidor, los filtros se aplican en el cliente
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true)
-      const filters: {
-        status?: TeamTaskStatus
-        assignee?: string
-        projectId?: string
-        category?: TeamTaskCategory
-      } = {}
-
-      if (filterStatus !== 'all') filters.status = filterStatus as TeamTaskStatus
-      if (filterAssignee !== 'all') filters.assignee = filterAssignee
-      if (filterProject !== 'all') filters.projectId = filterProject
-      if (filterCategory !== 'all') filters.category = filterCategory as TeamTaskCategory
-
-      const data = await getTeamTasks(filters)
+      // Cargar todas las tareas sin filtros del servidor
+      const data = await getTeamTasks()
       setTasks(data)
     } catch (error: any) {
       console.error('[TeamTasksList] Error loading tasks:', error)
@@ -100,7 +89,7 @@ export function TeamTasksList() {
     } finally {
       setLoading(false)
     }
-  }, [filterStatus, filterAssignee, filterProject, filterCategory, toast])
+  }, [toast])
 
   // Actualizar filtro de assignee cuando cambie el usuario o su estado de admin
   useEffect(() => {
@@ -144,7 +133,7 @@ export function TeamTasksList() {
     }
   }
 
-  // Filtrar tareas por búsqueda y filtros del cliente
+  // Filtrar tareas por búsqueda y todos los filtros del cliente
   const filteredTasks = tasks.filter(task => {
     // Filtro de búsqueda
     if (searchQuery) {
@@ -155,7 +144,7 @@ export function TeamTasksList() {
       if (!matchesTitle && !matchesDescription && !matchesCategory) return false
     }
     
-    // Filtro de estado (aplicar también en cliente por si acaso)
+    // Filtro de estado
     if (filterStatus !== 'all' && task.status !== filterStatus) return false
     
     // Filtro de responsable
@@ -166,6 +155,9 @@ export function TeamTasksList() {
     
     // Filtro de categoría
     if (filterCategory !== 'all' && task.category !== filterCategory) return false
+    
+    // Filtro de prioridad
+    if (filterPriority !== 'all' && task.priority !== filterPriority) return false
     
     return true
   })
@@ -510,7 +502,7 @@ export function TeamTasksList() {
 
       {/* Filtros */}
       <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
           <div className="md:col-span-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -533,6 +525,17 @@ export function TeamTasksList() {
               <SelectItem value="review">En Revisión</SelectItem>
               <SelectItem value="completed">Completada</SelectItem>
               <SelectItem value="cancelled">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterPriority} onValueChange={setFilterPriority}>
+            <SelectTrigger>
+              <SelectValue placeholder={filterPriority === 'all' ? 'Todas las prioridades' : 'Prioridad'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las prioridades</SelectItem>
+              <SelectItem value="high">Alta</SelectItem>
+              <SelectItem value="medium">Media</SelectItem>
+              <SelectItem value="low">Baja</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
