@@ -21,7 +21,13 @@ export async function POST(request: NextRequest) {
       const mesActual = `${meses[ahora.getMonth()]} ${ahora.getFullYear()}`;
 
       // Obtener todos los precios por hora configurados
-      const precios = await preciosPorHoraRepository.getAll();
+      let precios;
+      try {
+        precios = await preciosPorHoraRepository.getAll();
+      } catch (error: any) {
+        console.error('[Generar Automáticos Todos API] Error obteniendo precios:', error);
+        throw new Error(`Error obteniendo precios por hora: ${error.message}`);
+      }
       
       if (precios.length === 0) {
         return NextResponse.json({
@@ -33,10 +39,22 @@ export async function POST(request: NextRequest) {
       }
 
       // Obtener todos los proyectos una vez
-      const proyectos = await projectsRepository.getAll();
+      let proyectos;
+      try {
+        proyectos = await projectsRepository.getAll();
+      } catch (error: any) {
+        console.error('[Generar Automáticos Todos API] Error obteniendo proyectos:', error);
+        throw new Error(`Error obteniendo proyectos: ${error.message}`);
+      }
       
       // Obtener egresos existentes del mes actual para evitar duplicados
-      const egresosExistentes = await egresosRepository.getByMes(mesActual);
+      let egresosExistentes;
+      try {
+        egresosExistentes = await egresosRepository.getByMes(mesActual);
+      } catch (error: any) {
+        console.error('[Generar Automáticos Todos API] Error obteniendo egresos existentes:', error);
+        throw new Error(`Error obteniendo egresos existentes: ${error.message}`);
+      }
       const egresosExistentesMap = new Map<string, boolean>();
       egresosExistentes.forEach(e => {
         if (e.tareaId) {
@@ -58,25 +76,38 @@ export async function POST(request: NextRequest) {
         let egresosPersona = 0;
 
         // Obtener todas las tareas completadas de la persona
-        const teamTasks = await teamTasksRepository.getAll({
-          status: 'completed',
-          assignee: personaEmail,
-        });
+        let teamTasks;
+        try {
+          teamTasks = await teamTasksRepository.getAll({
+            status: 'completed',
+            assignee: personaEmail,
+          });
+        } catch (error: any) {
+          console.error(`[Generar Automáticos Todos API] Error obteniendo team tasks para ${personaEmail}:`, error);
+          errores.push(`Error obteniendo tareas para ${personaEmail}: ${error.message}`);
+          continue; // Continuar con la siguiente persona
+        }
 
         // Obtener todas las features completadas de la persona
         const featuresCompletadas: Array<{ feature: any; projectId: string; projectName: string }> = [];
         for (const proyecto of proyectos) {
-          const features = await featuresRepository.getAll(proyecto.id);
-          const completadas = features.filter(
-            f => (f.status === 'done' || f.status === 'completed') && 
-                 f.assignee === personaEmail
-          );
-          for (const feature of completadas) {
-            featuresCompletadas.push({
-              feature,
-              projectId: proyecto.id,
-              projectName: proyecto.name || proyecto.client || 'Sin nombre',
-            });
+          try {
+            const features = await featuresRepository.getAll(proyecto.id);
+            const completadas = features.filter(
+              f => (f.status === 'done' || f.status === 'completed') && 
+                   f.assignee === personaEmail
+            );
+            for (const feature of completadas) {
+              featuresCompletadas.push({
+                feature,
+                projectId: proyecto.id,
+                projectName: proyecto.name || proyecto.client || 'Sin nombre',
+              });
+            }
+          } catch (error: any) {
+            console.error(`[Generar Automáticos Todos API] Error obteniendo features para proyecto ${proyecto.id}:`, error);
+            errores.push(`Error obteniendo features para proyecto ${proyecto.id}: ${error.message}`);
+            // Continuar con el siguiente proyecto
           }
         }
 
