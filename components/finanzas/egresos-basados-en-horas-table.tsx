@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
+import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
 import {
   Dialog,
@@ -71,16 +72,47 @@ export function EgresosBasadosEnHorasTable() {
     loadClientes()
   }, [])
 
+  // Función para parsear mes en formato "Enero 2024" a fecha para ordenar
+  const parseMesToDate = (mes: string): Date => {
+    if (!mes) return new Date(0)
+    
+    const mesesMap: Record<string, number> = {
+      'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
+      'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
+      'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
+    }
+    
+    const partes = mes.trim().split(' ')
+    if (partes.length < 2) return new Date(0)
+    
+    const mesNombre = partes[0].toLowerCase()
+    const año = parseInt(partes[1])
+    
+    if (isNaN(año) || !mesesMap[mesNombre]) return new Date(0)
+    
+    return new Date(año, mesesMap[mesNombre], 1)
+  }
+
   const uniqueCategorias = useMemo(() => {
     return Array.from(new Set(egresos.map((e) => e.categoria).filter(Boolean))).sort()
   }, [egresos])
 
   const uniqueEmpresas = useMemo(() => {
-    return Array.from(new Set(egresos.map((e) => e.empresa).filter(Boolean))).sort()
+    // Normalizar empresas (sin emojis) para los filtros
+    const empresasNormalizadas = egresos
+      .map((e) => e.empresaNormalizada || normalizeEmpresa(e.empresa || ''))
+      .filter(Boolean)
+    return Array.from(new Set(empresasNormalizadas)).sort()
   }, [egresos])
 
   const uniqueMeses = useMemo(() => {
-    return Array.from(new Set(egresos.map((e) => e.mes).filter(Boolean))).sort()
+    // Ordenar meses del más actual al más viejo
+    const meses = Array.from(new Set(egresos.map((e) => e.mes).filter(Boolean)))
+    return meses.sort((a, b) => {
+      const dateA = parseMesToDate(a)
+      const dateB = parseMesToDate(b)
+      return dateB.getTime() - dateA.getTime() // Más reciente primero
+    })
   }, [egresos])
 
   const uniqueTipos = useMemo(() => {
@@ -91,19 +123,31 @@ export function EgresosBasadosEnHorasTable() {
     return Array.from(new Set(egresos.map((e) => e.status).filter(Boolean))).sort()
   }, [egresos])
 
-  const filteredEgresos = egresos.filter((egreso) => {
-    const matchesSearch =
-      egreso.concepto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      egreso.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      egreso.categoria.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || egreso.status === statusFilter
-    const matchesTipo = tipoFilter === "all" || egreso.tipo === tipoFilter
-    const matchesMes = mesFilter === "all" || egreso.mes === mesFilter
-    const matchesCategoria = categoriaFilter === "all" || egreso.categoria === categoriaFilter
-    const matchesEmpresa = empresaFilter === "all" || egreso.empresa === empresaFilter
+  const filteredEgresos = useMemo(() => {
+    const filtered = egresos.filter((egreso) => {
+      const empresaNormalizada = egreso.empresaNormalizada || normalizeEmpresa(egreso.empresa || '')
+      const matchesSearch =
+        egreso.concepto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (egreso.empresa || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        empresaNormalizada.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        egreso.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesStatus = statusFilter === "all" || egreso.status === statusFilter
+      const matchesTipo = tipoFilter === "all" || egreso.tipo === tipoFilter
+      const matchesMes = mesFilter === "all" || egreso.mes === mesFilter
+      const matchesCategoria = categoriaFilter === "all" || egreso.categoria === categoriaFilter
+      // Comparar con empresa normalizada en el filtro
+      const matchesEmpresa = empresaFilter === "all" || empresaNormalizada === empresaFilter
 
-    return matchesSearch && matchesStatus && matchesTipo && matchesMes && matchesCategoria && matchesEmpresa
-  })
+      return matchesSearch && matchesStatus && matchesTipo && matchesMes && matchesCategoria && matchesEmpresa
+    })
+    
+    // Ordenar por mes (más actual primero)
+    return filtered.sort((a, b) => {
+      const dateA = parseMesToDate(a.mes || '')
+      const dateB = parseMesToDate(b.mes || '')
+      return dateB.getTime() - dateA.getTime() // Más reciente primero
+    })
+  }, [egresos, searchTerm, statusFilter, tipoFilter, mesFilter, categoriaFilter, empresaFilter])
 
   const handleDeleteEgreso = async (id: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este egreso?")) {
