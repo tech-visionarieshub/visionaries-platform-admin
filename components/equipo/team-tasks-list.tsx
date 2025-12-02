@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,6 +71,7 @@ export function TeamTasksList() {
   const [projects, setProjects] = useState<Array<{ id: string; name: string; clientName?: string }>>([])
   const [activeView, setActiveView] = useState<"table" | "kanban" | "gantt" | "calendar">("table")
   const [showTrelloUpload, setShowTrelloUpload] = useState(false)
+  const initialFilterApplied = useRef(false)
 
   // Cargar tareas - cargar todas sin filtros del servidor, los filtros se aplican en el cliente
   const loadTasks = useCallback(async () => {
@@ -91,17 +92,19 @@ export function TeamTasksList() {
     }
   }, [toast])
 
-  // Actualizar filtro de assignee cuando cambie el usuario o su estado de admin
+  // Aplicar filtro por defecto solo una vez al inicio para usuarios no admin
   useEffect(() => {
+    if (initialFilterApplied.current) return // Ya se aplicó el filtro inicial
+    
     const currentIsAdmin = user?.superadmin === true || user?.email === 'adminplatform@visionarieshub.com' || user?.role === 'admin'
     
-    // Si no es admin y tiene email, y el filtro está en "all", aplicar filtro por su email
+    // Solo aplicar filtro por defecto si no es admin y tiene email
     if (!currentIsAdmin && user?.email && filterAssignee === 'all') {
       setFilterAssignee(user.email)
-    }
-    // Si es admin y el filtro está en el email del usuario, cambiar a "all"
-    else if (currentIsAdmin && filterAssignee === user?.email) {
-      setFilterAssignee('all')
+      initialFilterApplied.current = true
+    } else if (currentIsAdmin) {
+      // Si es admin, marcar como aplicado para no hacer nada más
+      initialFilterApplied.current = true
     }
   }, [user, filterAssignee])
 
