@@ -872,11 +872,32 @@ The report must use bullets for all lists. Format example:
 TRANSCRIPT:
 ${transcriptToProcess}
 
+INSTRUCCIONES CRÍTICAS SOBRE EPICS:
+
+1. **RECONOCER EPICS SUGERIDAS**: Si el transcript menciona epics específicas (por ejemplo: "EPIC 2A — Scholarship Registry / CRM", "EPIC 2B — Scholarship Winners Tracking", "EPIC 2C — Eligibility Automation", etc.), DEBES usar EXACTAMENTE esos nombres de epic tal como aparecen en el transcript.
+
+2. **AGRUPAR EN EPICS EXISTENTES**: Todas las funcionalidades mencionadas dentro de una sección de epic deben agruparse en esa epic específica. NO crees nuevas epics si ya están definidas en el transcript.
+
+3. **NO NUMERAR FUNCIONALIDADES**: Los títulos de las funcionalidades NO deben incluir números o prefijos como "2.1", "2.2", etc. Solo usa el nombre descriptivo de la funcionalidad.
+
+4. **USAR NOMBRES EXACTOS**: Si el transcript dice "EPIC 2A — Scholarship Registry / CRM", usa exactamente "EPIC 2A — Scholarship Registry / CRM" como epicTitle. NO lo cambies a "Scholarship Registry" o "CRM de Becas".
+
+5. **FUNCIONALIDADES SIN EPIC**: Si hay funcionalidades que no pertenecen claramente a ninguna epic mencionada, puedes crear una epic genérica, pero PRIORIZA usar las epics sugeridas en el transcript.
+
 Para cada funcionalidad, requisito o característica mencionada en el transcript, genera una feature con la siguiente estructura:
 
-1. Epic Title: Agrupa funcionalidades relacionadas en epics lógicos (máximo 4-5 epics). Usa nombres descriptivos como "Sistema de Autenticación", "Dashboard de Analytics", "Gestión de Usuarios", etc.
+1. Epic Title: 
+   - **CRÍTICO**: Si el transcript menciona epics específicas (ej: "EPIC 2A — Scholarship Registry / CRM", "EPIC 2B — Scholarship Winners Tracking"), DEBES usar EXACTAMENTE ese nombre completo tal como aparece en el transcript
+   - Si el transcript dice "EPIC 2A — Scholarship Registry / CRM", usa "EPIC 2A — Scholarship Registry / CRM" (NO "Scholarship Registry", NO "CRM de Becas", NO "EPIC 2A")
+   - Si el transcript dice "EPIC 2B — Scholarship Winners Tracking", usa "EPIC 2B — Scholarship Winners Tracking" (exactamente así)
+   - Agrupa TODAS las funcionalidades mencionadas dentro de cada sección de epic en esa epic específica
+   - SOLO crea nuevas epics si NO hay epics mencionadas en el transcript
+   - Si no hay epics mencionadas, agrupa funcionalidades relacionadas en epics lógicos (máximo 4-5 epics)
+   - Usa nombres descriptivos como "Sistema de Autenticación", "Dashboard de Analytics", "Gestión de Usuarios", etc. SOLO si NO hay epics sugeridas en el transcript
 
 2. Title: Nombre claro y técnico de la funcionalidad basado en lo mencionado en el transcript
+   - NO incluyas números o prefijos como "2.1", "2.2", etc.
+   - Solo el nombre descriptivo de la funcionalidad
 
 3. Description: Descripción detallada de lo que debe hacer la funcionalidad, incluyendo contexto de la conversación cuando sea relevante
 
@@ -901,7 +922,9 @@ Para cada funcionalidad, requisito o característica mencionada en el transcript
 IMPORTANTE:
 - Extrae TODAS las funcionalidades mencionadas, no solo las principales
 - Si se menciona algo como "necesitamos que...", "debería tener...", "sería bueno que...", "requerimos...", conviértelo en una feature
-- Agrupa funcionalidades relacionadas en el mismo epic
+- PRIORIZA usar las epics que el usuario sugiere en el transcript, usa sus nombres EXACTOS
+- NO numeres las funcionalidades (no uses "2.1", "2.2", etc. en los títulos)
+- Agrupa funcionalidades relacionadas en la misma epic sugerida
 - Si no hay suficiente información para estimar horas, usa valores conservadores (2-4 horas)
 - Responde SOLO con un JSON válido en este formato exacto:
 {
