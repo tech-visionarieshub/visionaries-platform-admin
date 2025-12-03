@@ -417,7 +417,16 @@ export function EgresosBasadosEnHorasTable() {
         totalEgresos: result.totalEgresos?.length,
         mensaje: result.mensaje,
         resumenPorPersona: result.resumenPorPersona,
+        errores: result.errores,
       })
+      
+      // Mostrar errores en consola SIEMPRE
+      if (result.errores && result.errores.length > 0) {
+        console.error('[Generar Automáticos] ERRORES ENCONTRADOS:', result.errores)
+        result.errores.forEach((err: string, index: number) => {
+          console.error(`[Generar Automáticos] Error ${index + 1}/${result.errores.length}:`, err)
+        })
+      }
 
       // Si hay egresos creados, mostrar éxito
       if (result.totalEgresos && result.totalEgresos.length > 0) {
@@ -455,6 +464,24 @@ export function EgresosBasadosEnHorasTable() {
         const mensaje = result.mensaje || 'No se generaron nuevos egresos. Verifica que haya tareas/features completadas con horas trabajadas.'
         toast.info(mensaje)
         console.log('[Generar Automáticos]', mensaje)
+        
+        // Si hay errores, mostrarlos también cuando no se generaron egresos
+        if (result.errores && result.errores.length > 0) {
+          console.error('[Generar Automáticos] ERRORES (no se generaron egresos):', result.errores)
+          result.errores.forEach((err: string, index: number) => {
+            console.error(`[Generar Automáticos] Error ${index + 1}/${result.errores.length}:`, err)
+          })
+          
+          // Mostrar los primeros 3 errores en toast
+          if (result.errores.length <= 3) {
+            result.errores.forEach((err: string) => toast.error(err, { duration: 8000 }))
+          } else {
+            toast.error(`${result.errores.length} errores encontrados. Revisa la consola para detalles.`, { duration: 8000 })
+            result.errores.slice(0, 3).forEach((err: string) => {
+              toast.error(err, { duration: 8000 })
+            })
+          }
+        }
       }
 
       // Refrescar la lista de egresos
