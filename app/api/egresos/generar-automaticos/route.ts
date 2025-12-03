@@ -4,6 +4,7 @@ import { egresosRepository } from '@/lib/repositories/egresos-repository';
 import { teamTasksRepository } from '@/lib/repositories/team-tasks-repository';
 import { featuresRepository } from '@/lib/repositories/features-repository';
 import { projectsRepository } from '@/lib/repositories/projects-repository';
+import { preciosPorHoraRepository } from '@/lib/repositories/precios-por-hora-repository';
 import type { Egreso } from '@/lib/mock-data/finanzas';
 
 /**
@@ -22,6 +23,10 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // Obtener el nombre de la persona desde precios por hora
+      const precioPorHoraData = await preciosPorHoraRepository.getByPersonaEmail(personaEmail);
+      const personaNombre = precioPorHoraData?.personaNombre || personaEmail.split('@')[0];
 
       // Obtener mes actual
       const ahora = new Date();
@@ -86,11 +91,18 @@ export async function POST(request: NextRequest) {
         const total = subtotal; // Sin IVA por defecto
 
         try {
+          // Obtener el nombre del assignee si es diferente a personaEmail
+          let equipoNombre = personaNombre;
+          if (task.assignee && task.assignee !== personaEmail) {
+            const precioAssignee = await preciosPorHoraRepository.getByPersonaEmail(task.assignee);
+            equipoNombre = precioAssignee?.personaNombre || task.assignee.split('@')[0];
+          }
+
           const egresoData: Omit<Egreso, 'id'> = {
             lineaNegocio: '',
             categoria: task.category || 'Tareas del Equipo',
             empresa: '',
-            equipo: task.assignee || personaEmail,
+            equipo: equipoNombre,
             concepto: `${task.assignee?.split('@')[0] || personaEmail.split('@')[0]} - ${task.title}`,
             subtotal,
             iva: 0,
@@ -131,11 +143,18 @@ export async function POST(request: NextRequest) {
         const total = subtotal; // Sin IVA por defecto
 
         try {
+          // Obtener el nombre del assignee si es diferente a personaEmail
+          let equipoNombre = personaNombre;
+          if (feature.assignee && feature.assignee !== personaEmail) {
+            const precioAssignee = await preciosPorHoraRepository.getByPersonaEmail(feature.assignee);
+            equipoNombre = precioAssignee?.personaNombre || feature.assignee.split('@')[0];
+          }
+
           const egresoData: Omit<Egreso, 'id'> = {
             lineaNegocio: '',
             categoria: 'Funcionalidades',
             empresa: projectName,
-            equipo: feature.assignee || personaEmail,
+            equipo: equipoNombre,
             concepto: `${feature.assignee?.split('@')[0] || personaEmail.split('@')[0]} - ${feature.name}`,
             subtotal,
             iva: 0,

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit, Stethoscope } from "lucide-react"
 import { toast } from "sonner"
-import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
+import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, getPreciosPorHora, type Egreso, type Cliente, type PrecioPorHora } from "@/lib/api/finanzas-api"
 import { apiPost, apiGet } from "@/lib/api/client"
 import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
@@ -28,6 +28,7 @@ import {
 export function EgresosBasadosEnHorasTable() {
   const [egresos, setEgresos] = useState<Egreso[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [preciosPorHora, setPreciosPorHora] = useState<PrecioPorHora[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingClientes, setLoadingClientes] = useState(false)
   const [updatingEgresoId, setUpdatingEgresoId] = useState<string | null>(null)
@@ -85,6 +86,21 @@ export function EgresosBasadosEnHorasTable() {
       }
     }
     loadClientes()
+  }, [])
+
+  useEffect(() => {
+    async function loadPreciosPorHora() {
+      try {
+        const data = await getPreciosPorHora()
+        setPreciosPorHora(data)
+      } catch (err: any) {
+        if (err.name === 'AuthenticationError' || err.message?.includes('authentication')) {
+          return
+        }
+        console.error('Error loading precios por hora:', err)
+      }
+    }
+    loadPreciosPorHora()
   }, [])
 
   // Función para parsear mes en formato "Enero 2024" a fecha para ordenar
@@ -226,6 +242,24 @@ export function EgresosBasadosEnHorasTable() {
     if (!clienteId) return ""
     const cliente = clientes.find(c => c.id === clienteId)
     return cliente?.empresa || ""
+  }
+
+  const getPersonaNombre = (equipo: string | undefined): string => {
+    if (!equipo) return '-'
+    
+    // Si ya es un nombre (no contiene @), devolverlo tal cual
+    if (!equipo.includes('@')) {
+      return equipo
+    }
+    
+    // Buscar en precios por hora
+    const precio = preciosPorHora.find(p => 
+      p.personaEmail === equipo || 
+      p.personaEmail?.toLowerCase() === equipo.toLowerCase()
+    )
+    
+    // Si no tiene precio configurado, usar gabypino como fallback
+    return precio?.personaNombre || 'Gabriela Pino'
   }
 
   const handleOpenLinkDialog = (egresoId: string, tipo: 'factura' | 'comprobante', currentUrl?: string) => {
@@ -786,7 +820,7 @@ export function EgresosBasadosEnHorasTable() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>{egreso.equipo || '-'}</TableCell>
+                      <TableCell>{getPersonaNombre(egreso.equipo)}</TableCell>
                       <TableCell className="font-medium">{egreso.concepto || '-'}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">${(egreso.subtotal || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">${(egreso.iva || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>

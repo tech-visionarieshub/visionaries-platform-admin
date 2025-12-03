@@ -179,12 +179,14 @@ export async function POST(request: NextRequest) {
             // Si la tarea no tiene assignee, usar gabypino
             const assigneeFinal = task.assignee || (precioGabypino?.personaEmail || 'gabypino@visionarieshub.com');
             const personaFinal = assigneeFinal || personaEmail;
+            // Obtener el nombre de la persona para el campo equipo
+            const personaNombreFinal = precio.personaNombre;
             
             const egresoData: Omit<Egreso, 'id'> = {
               lineaNegocio: '',
               categoria: task.category || 'Tareas del Equipo',
               empresa: '',
-              equipo: personaFinal,
+              equipo: personaNombreFinal,
               concepto: `${personaFinal.split('@')[0]} - ${task.title}`,
               subtotal,
               iva: 0,
@@ -239,12 +241,14 @@ export async function POST(request: NextRequest) {
             // Si la feature no tiene assignee, usar gabypino
             const assigneeFinal = feature.assignee || (precioGabypino?.personaEmail || 'gabypino@visionarieshub.com');
             const personaFinal = assigneeFinal || personaEmail;
+            // Obtener el nombre de la persona para el campo equipo
+            const personaNombreFinal = precio.personaNombre;
             
             const egresoData: Omit<Egreso, 'id'> = {
               lineaNegocio: '',
               categoria: 'Funcionalidades',
               empresa: projectName,
-              equipo: personaFinal,
+              equipo: personaNombreFinal,
               concepto: `${personaFinal.split('@')[0]} - ${feature.title || feature.name || 'Funcionalidad'}`,
               subtotal,
               iva: 0,
@@ -309,7 +313,7 @@ export async function POST(request: NextRequest) {
                 lineaNegocio: '',
                 categoria: task.category || 'Tareas del Equipo',
                 empresa: '',
-                equipo: precioGabypino.personaEmail,
+                equipo: precioGabypino.personaNombre,
                 concepto: `${precioGabypino.personaEmail.split('@')[0]} - ${task.title}`,
                 subtotal,
                 iva: 0,
@@ -406,7 +410,7 @@ export async function POST(request: NextRequest) {
                     lineaNegocio: '',
                     categoria: 'Funcionalidades',
                     empresa: proyecto.name || proyecto.client || 'Sin nombre',
-                    equipo: personaAAplicar,
+                    equipo: personaNombreAAplicar,
                     concepto: `${personaAAplicar.split('@')[0]} - ${feature.title || feature.name || 'Funcionalidad'}`,
                     subtotal,
                     iva: 0,
