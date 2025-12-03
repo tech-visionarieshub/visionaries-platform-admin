@@ -90,25 +90,28 @@ export async function POST(request: NextRequest) {
       const errores: string[] = [];
       const resumenPorPersona: Array<{ persona: string; creados: number }> = [];
 
+      // Obtener TODAS las tareas completadas una sola vez para evitar múltiples queries y problemas de índices
+      let todasLasTareasCompletadas: any[] = [];
+      try {
+        todasLasTareasCompletadas = await teamTasksRepository.getAll({
+          status: 'completed',
+        });
+        console.log(`[Generar Automáticos] Total tareas completadas: ${todasLasTareasCompletadas.length}`);
+      } catch (error: any) {
+        console.error('[Generar Automáticos Todos API] Error obteniendo todas las tareas completadas:', error);
+        errores.push(`Error obteniendo tareas completadas: ${error.message}`);
+        // Continuar de todas formas, puede que haya features
+      }
+
       // Procesar cada persona con precio por hora
       for (const precio of precios) {
         const personaEmail = precio.personaEmail;
         const precioPorHora = precio.precioPorHora;
         let egresosPersona = 0;
 
-        // Obtener todas las tareas completadas de la persona
-        let teamTasks;
-        try {
-          teamTasks = await teamTasksRepository.getAll({
-            status: 'completed',
-            assignee: personaEmail,
-          });
-          console.log(`[Generar Automáticos] ${personaEmail}: ${teamTasks.length} tareas completadas`);
-        } catch (error: any) {
-          console.error(`[Generar Automáticos Todos API] Error obteniendo team tasks para ${personaEmail}:`, error);
-          errores.push(`Error obteniendo tareas para ${personaEmail}: ${error.message}`);
-          continue; // Continuar con la siguiente persona
-        }
+        // Filtrar tareas completadas de la persona en memoria
+        const teamTasks = todasLasTareasCompletadas.filter(t => t.assignee === personaEmail);
+        console.log(`[Generar Automáticos] ${personaEmail}: ${teamTasks.length} tareas completadas`);
 
         // Obtener todas las features completadas de la persona
         const featuresCompletadas: Array<{ feature: any; projectId: string; projectName: string }> = [];
@@ -283,11 +286,9 @@ export async function POST(request: NextRequest) {
       // Buscar tareas y features sin assignee y asignarlas a gabypino
       if (precioGabypino) {
         try {
-          // Buscar todas las tareas completadas sin assignee
-          const todasLasTareas = await teamTasksRepository.getAll({
-            status: 'completed',
-          });
-          const tareasSinAssignee = todasLasTareas.filter(t => !t.assignee || t.assignee.trim() === '');
+          // Usar las tareas completadas que ya obtuvimos arriba
+          const tareasSinAssignee = todasLasTareasCompletadas.filter(t => !t.assignee || t.assignee.trim() === '');
+          console.log(`[Generar Automáticos] Tareas sin assignee: ${tareasSinAssignee.length}`);
           
           for (const task of tareasSinAssignee) {
             const key = `team-task-${task.id}`;
