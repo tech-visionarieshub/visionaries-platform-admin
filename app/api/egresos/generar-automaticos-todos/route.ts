@@ -90,16 +90,16 @@ export async function POST(request: NextRequest) {
       const errores: string[] = [];
       const resumenPorPersona: Array<{ persona: string; creados: number }> = [];
 
-      // Obtener TODAS las tareas completadas una sola vez para evitar múltiples queries y problemas de índices
+      // Obtener TODAS las tareas una sola vez y filtrar en memoria para evitar problemas de índices compuestos
       let todasLasTareasCompletadas: any[] = [];
       try {
-        todasLasTareasCompletadas = await teamTasksRepository.getAll({
-          status: 'completed',
-        });
-        console.log(`[Generar Automáticos] Total tareas completadas: ${todasLasTareasCompletadas.length}`);
+        // Obtener todas las tareas sin filtros para evitar necesidad de índice compuesto
+        const todasLasTareas = await teamTasksRepository.getAll({});
+        todasLasTareasCompletadas = todasLasTareas.filter(t => t.status === 'completed');
+        console.log(`[Generar Automáticos] Total tareas completadas: ${todasLasTareasCompletadas.length} (de ${todasLasTareas.length} totales)`);
       } catch (error: any) {
-        console.error('[Generar Automáticos Todos API] Error obteniendo todas las tareas completadas:', error);
-        errores.push(`Error obteniendo tareas completadas: ${error.message}`);
+        console.error('[Generar Automáticos Todos API] Error obteniendo todas las tareas:', error);
+        errores.push(`Error obteniendo tareas: ${error.message}`);
         // Continuar de todas formas, puede que haya features
       }
 

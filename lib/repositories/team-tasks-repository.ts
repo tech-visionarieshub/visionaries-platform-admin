@@ -178,8 +178,27 @@ export class TeamTasksRepository {
       query = query.where('category', '==', filters.category)
     }
 
-    const snapshot = await query.orderBy('createdAt', 'desc').get()
-    return snapshot.docs.map(doc => this.fromFirestore(doc))
+    // Solo usar orderBy si no hay múltiples filtros que requieran índice compuesto
+    // Si hay múltiples filtros (status + assignee), no usar orderBy para evitar necesidad de índice compuesto
+    const tieneMultiplesFiltros = (filters?.status ? 1 : 0) + (filters?.assignee ? 1 : 0) + (filters?.projectId ? 1 : 0) + (filters?.category ? 1 : 0) > 1;
+    
+    if (!tieneMultiplesFiltros) {
+      query = query.orderBy('createdAt', 'desc');
+    }
+    
+    const snapshot = await query.get()
+    const results = snapshot.docs.map(doc => this.fromFirestore(doc));
+    
+    // Si no usamos orderBy, ordenar en memoria
+    if (tieneMultiplesFiltros) {
+      results.sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt || 0).getTime();
+        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt || 0).getTime();
+        return dateB - dateA; // Más reciente primero
+      });
+    }
+    
+    return results;
   }
 
   /**
