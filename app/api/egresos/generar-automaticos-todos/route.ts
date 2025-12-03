@@ -32,11 +32,21 @@ export async function POST(request: NextRequest) {
       if (precios.length === 0) {
         return NextResponse.json({
           success: true,
-          mensaje: 'No hay precios por hora configurados',
-          creados: 0,
-          totalEgresos: [],
+          data: {
+            mensaje: 'No hay precios por hora configurados',
+            creados: 0,
+            totalEgresos: [],
+            resumenPorPersona: [],
+            errores: [],
+          },
         });
       }
+
+      // Buscar precio de gabypino para asignar tareas sin assignee
+      const precioGabypino = precios.find(p => 
+        p.personaEmail?.toLowerCase().includes('gabypino') || 
+        p.personaNombre?.toLowerCase().includes('gabypino')
+      );
 
       // Obtener todos los proyectos una vez
       let proyectos;
@@ -127,12 +137,16 @@ export async function POST(request: NextRequest) {
           const total = subtotal; // Sin IVA por defecto
 
           try {
+            // Si la tarea no tiene assignee, usar gabypino
+            const assigneeFinal = task.assignee || (precioGabypino?.personaEmail || 'gabypino@visionarieshub.com');
+            const personaFinal = assigneeFinal || personaEmail;
+            
             const egresoData: Omit<Egreso, 'id'> = {
               lineaNegocio: '',
               categoria: task.category || 'Tareas del Equipo',
               empresa: '',
-              equipo: task.assignee || personaEmail,
-              concepto: `${task.assignee?.split('@')[0] || personaEmail.split('@')[0]} - ${task.title}`,
+              equipo: personaFinal,
+              concepto: `${personaFinal.split('@')[0]} - ${task.title}`,
               subtotal,
               iva: 0,
               total,
@@ -140,10 +154,10 @@ export async function POST(request: NextRequest) {
               mes: mesActual,
               status: 'Pendiente',
               tipoEgreso: 'basadoEnHoras',
-              persona: task.assignee || personaEmail,
+              persona: personaFinal,
               tarea: task.title,
               horas,
-              precioPorHora,
+              precioPorHora: precioGabypino && !task.assignee ? precioGabypino.precioPorHora : precioPorHora,
               tareaId: task.id,
               tareaTipo: 'team-task',
               aplicarIva: false,
@@ -175,12 +189,16 @@ export async function POST(request: NextRequest) {
           const total = subtotal; // Sin IVA por defecto
 
           try {
+            // Si la feature no tiene assignee, usar gabypino
+            const assigneeFinal = feature.assignee || (precioGabypino?.personaEmail || 'gabypino@visionarieshub.com');
+            const personaFinal = assigneeFinal || personaEmail;
+            
             const egresoData: Omit<Egreso, 'id'> = {
               lineaNegocio: '',
               categoria: 'Funcionalidades',
               empresa: projectName,
-              equipo: feature.assignee || personaEmail,
-              concepto: `${feature.assignee?.split('@')[0] || personaEmail.split('@')[0]} - ${feature.name}`,
+              equipo: personaFinal,
+              concepto: `${personaFinal.split('@')[0]} - ${feature.name}`,
               subtotal,
               iva: 0,
               total,
@@ -188,10 +206,10 @@ export async function POST(request: NextRequest) {
               mes: mesActual,
               status: 'Pendiente',
               tipoEgreso: 'basadoEnHoras',
-              persona: feature.assignee || personaEmail,
+              persona: personaFinal,
               tarea: feature.name,
               horas,
-              precioPorHora,
+              precioPorHora: precioGabypino && !feature.assignee ? precioGabypino.precioPorHora : precioPorHora,
               featureId: feature.id,
               tareaTipo: 'feature',
               aplicarIva: false,
@@ -216,12 +234,158 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Buscar tareas y features sin assignee y asignarlas a gabypino
+      if (precioGabypino) {
+        try {
+          // Buscar todas las tareas completadas sin assignee
+          const todasLasTareas = await teamTasksRepository.getAll({
+            status: 'completed',
+          });
+          const tareasSinAssignee = todasLasTareas.filter(t => !t.assignee || t.assignee.trim() === '');
+          
+          for (const task of tareasSinAssignee) {
+            const key = `team-task-${task.id}`;
+            if (egresosExistentesMap.has(key)) {
+              continue; // Ya existe un egreso para esta tarea
+            }
+
+            const horas = task.actualHours || 0;
+            if (horas <= 0) {
+              continue; // No tiene horas trabajadas
+            }
+
+            const subtotal = horas * precioGabypino.precioPorHora;
+            const total = subtotal;
+
+            try {
+              const egresoData: Omit<Egreso, 'id'> = {
+                lineaNegocio: '',
+                categoria: task.category || 'Tareas del Equipo',
+                empresa: '',
+                equipo: precioGabypino.personaEmail,
+                concepto: `${precioGabypino.personaEmail.split('@')[0]} - ${task.title}`,
+                subtotal,
+                iva: 0,
+                total,
+                tipo: 'Variable',
+                mes: mesActual,
+                status: 'Pendiente',
+                tipoEgreso: 'basadoEnHoras',
+                persona: precioGabypino.personaEmail,
+                tarea: task.title,
+                horas,
+                precioPorHora: precioGabypino.precioPorHora,
+                tareaId: task.id,
+                tareaTipo: 'team-task',
+                aplicarIva: false,
+              };
+
+              const egreso = await egresosRepository.create(egresoData);
+              totalEgresosCreados.push(egreso);
+              egresosExistentesMap.set(key, true);
+              
+              // Actualizar resumen
+              const resumenIndex = resumenPorPersona.findIndex(r => r.persona === precioGabypino.personaNombre);
+              if (resumenIndex >= 0) {
+                resumenPorPersona[resumenIndex].creados++;
+              } else {
+                resumenPorPersona.push({
+                  persona: precioGabypino.personaNombre,
+                  creados: 1,
+                });
+              }
+            } catch (error: any) {
+              errores.push(`Error creando egreso para tarea sin assignee ${task.id}: ${error.message}`);
+            }
+          }
+
+          // Buscar todas las features completadas sin assignee
+          for (const proyecto of proyectos) {
+            try {
+              const features = await featuresRepository.getAll(proyecto.id);
+              const completadasSinAssignee = features.filter(
+                f => (f.status === 'done' || f.status === 'completed') && 
+                     (!f.assignee || f.assignee.trim() === '')
+              );
+              
+              for (const feature of completadasSinAssignee) {
+                const key = `feature-${feature.id}`;
+                if (egresosExistentesMap.has(key)) {
+                  continue; // Ya existe un egreso para esta feature
+                }
+
+                const horas = feature.actualHours || 0;
+                if (horas <= 0) {
+                  continue; // No tiene horas trabajadas
+                }
+
+                const subtotal = horas * precioGabypino.precioPorHora;
+                const total = subtotal;
+
+                try {
+                  const egresoData: Omit<Egreso, 'id'> = {
+                    lineaNegocio: '',
+                    categoria: 'Funcionalidades',
+                    empresa: proyecto.name || proyecto.client || 'Sin nombre',
+                    equipo: precioGabypino.personaEmail,
+                    concepto: `${precioGabypino.personaEmail.split('@')[0]} - ${feature.name}`,
+                    subtotal,
+                    iva: 0,
+                    total,
+                    tipo: 'Variable',
+                    mes: mesActual,
+                    status: 'Pendiente',
+                    tipoEgreso: 'basadoEnHoras',
+                    persona: precioGabypino.personaEmail,
+                    tarea: feature.name,
+                    horas,
+                    precioPorHora: precioGabypino.precioPorHora,
+                    featureId: feature.id,
+                    tareaTipo: 'feature',
+                    aplicarIva: false,
+                    proyectoIds: [proyecto.id],
+                  };
+
+                  const egreso = await egresosRepository.create(egresoData);
+                  totalEgresosCreados.push(egreso);
+                  egresosExistentesMap.set(key, true);
+                  
+                  // Actualizar resumen
+                  const resumenIndex = resumenPorPersona.findIndex(r => r.persona === precioGabypino.personaNombre);
+                  if (resumenIndex >= 0) {
+                    resumenPorPersona[resumenIndex].creados++;
+                  } else {
+                    resumenPorPersona.push({
+                      persona: precioGabypino.personaNombre,
+                      creados: 1,
+                    });
+                  }
+                } catch (error: any) {
+                  errores.push(`Error creando egreso para feature sin assignee ${feature.id}: ${error.message}`);
+                }
+              }
+            } catch (error: any) {
+              console.error(`[Generar Automáticos Todos API] Error obteniendo features sin assignee para proyecto ${proyecto.id}:`, error);
+              errores.push(`Error obteniendo features sin assignee para proyecto ${proyecto.id}: ${error.message}`);
+            }
+          }
+        } catch (error: any) {
+          console.error('[Generar Automáticos Todos API] Error procesando tareas/features sin assignee:', error);
+          errores.push(`Error procesando tareas/features sin assignee: ${error.message}`);
+        }
+      }
+
       return NextResponse.json({
         success: true,
-        creados: totalEgresosCreados.length,
-        totalEgresos: totalEgresosCreados || [],
-        resumenPorPersona: resumenPorPersona || [],
-        errores: errores.length > 0 ? errores : undefined,
+        data: {
+          mensaje: totalEgresosCreados.length > 0 
+            ? undefined 
+            : 'No se generaron nuevos egresos',
+          creados: totalEgresosCreados.length,
+          totalEgresos: totalEgresosCreados,
+          resumenPorPersona: resumenPorPersona,
+          errores: errores.length > 0 ? errores : undefined,
+        },
       });
     } catch (error: any) {
       console.error('[Generar Automáticos Todos API] Error:', error);
@@ -230,8 +394,13 @@ export async function POST(request: NextRequest) {
           success: false,
           error: 'Error generando egresos automáticos', 
           message: error.message,
-          totalEgresos: [],
-          resumenPorPersona: [],
+          data: {
+            mensaje: error.message,
+            creados: 0,
+            totalEgresos: [],
+            resumenPorPersona: [],
+            errores: [error.message],
+          },
         },
         { status: 500 }
       );

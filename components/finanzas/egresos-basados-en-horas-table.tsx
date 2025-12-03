@@ -293,7 +293,7 @@ export function EgresosBasadosEnHorasTable() {
 
     setGenerandoAutomaticos(true)
     try {
-      const result = await apiPost<{
+      const response = await apiPost<{
         success?: boolean
         error?: string
         mensaje?: string
@@ -302,6 +302,9 @@ export function EgresosBasadosEnHorasTable() {
         resumenPorPersona?: Array<{ persona: string; creados: number }>
         errores?: string[]
       }>('/api/egresos/generar-automaticos-todos', {})
+      
+      // apiPost devuelve response.data, así que result ya es el objeto data
+      const result = response as any
       
       // Verificar si hay error en la respuesta
       if (result?.error) {
@@ -329,7 +332,7 @@ export function EgresosBasadosEnHorasTable() {
         if (result.errores && result.errores.length > 0) {
           console.warn('Errores parciales al generar egresos:', result.errores)
           if (result.errores.length <= 3) {
-            result.errores.forEach(err => toast.warning(err))
+            result.errores.forEach((err: string) => toast.warning(err))
           } else {
             toast.warning(`${result.errores.length} errores menores durante la generación`)
           }
