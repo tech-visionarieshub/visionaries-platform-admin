@@ -112,13 +112,30 @@ export async function POST(request: NextRequest) {
 
         // Obtener todas las features completadas de la persona
         const featuresCompletadas: Array<{ feature: any; projectId: string; projectName: string }> = [];
+        let totalFeaturesRevisadas = 0;
+        let featuresCompletadasTotal = 0;
         for (const proyecto of proyectos) {
           try {
             const features = await featuresRepository.getAll(proyecto.id);
+            totalFeaturesRevisadas += features.length;
+            
             const completadas = features.filter(
               f => (f.status === 'done' || f.status === 'completed') && 
                    f.assignee === personaEmail
             );
+            featuresCompletadasTotal += completadas.length;
+            
+            console.log(`[Generar Automáticos] ${personaEmail} - Proyecto ${proyecto.name || proyecto.id}: ${features.length} features totales, ${completadas.length} completadas con assignee ${personaEmail}`);
+            
+            // Log de features completadas pero sin assignee correcto
+            const completadasSinAssignee = features.filter(
+              f => (f.status === 'done' || f.status === 'completed') && 
+                   f.assignee !== personaEmail
+            );
+            if (completadasSinAssignee.length > 0) {
+              console.log(`[Generar Automáticos] ${personaEmail} - Proyecto ${proyecto.name || proyecto.id}: ${completadasSinAssignee.length} features completadas pero con otro assignee (${completadasSinAssignee[0]?.assignee || 'sin assignee'})`);
+            }
+            
             for (const feature of completadas) {
               featuresCompletadas.push({
                 feature,
@@ -134,7 +151,7 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        console.log(`[Generar Automáticos] ${personaEmail}: ${featuresCompletadas.length} features completadas`);
+        console.log(`[Generar Automáticos] ${personaEmail}: ${featuresCompletadas.length} features completadas (de ${featuresCompletadasTotal} totales completadas en ${totalFeaturesRevisadas} features revisadas)`);
 
         // Crear egresos para team tasks completadas
         for (const task of teamTasks) {
