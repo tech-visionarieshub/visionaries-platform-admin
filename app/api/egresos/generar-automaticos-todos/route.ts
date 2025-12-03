@@ -127,8 +127,9 @@ export async function POST(request: NextRequest) {
               });
             }
           } catch (error: any) {
-            console.error(`[Generar Automáticos Todos API] Error obteniendo features para proyecto ${proyecto.id}:`, error);
-            errores.push(`Error obteniendo features para proyecto ${proyecto.id}: ${error.message}`);
+            const errorMsg = `Error obteniendo features para proyecto ${proyecto.id} (${proyecto.name || proyecto.client || 'Sin nombre'}): ${error.message}`;
+            console.error(`[Generar Automáticos Todos API] ${errorMsg}`, error);
+            errores.push(errorMsg);
             // Continuar con el siguiente proyecto
           }
         }
@@ -187,7 +188,9 @@ export async function POST(request: NextRequest) {
             // Agregar a la lista de existentes para evitar duplicados en el mismo batch
             egresosExistentesMap.set(key, true);
           } catch (error: any) {
-            errores.push(`Error creando egreso para tarea ${task.id} de ${personaEmail}: ${error.message}`);
+            const errorMsg = `Error creando egreso para tarea ${task.id} (${task.title}) de ${personaEmail}: ${error.message}`;
+            console.error(`[Generar Automáticos] ${errorMsg}`, error);
+            errores.push(errorMsg);
           }
         }
 
@@ -246,7 +249,9 @@ export async function POST(request: NextRequest) {
             // Agregar a la lista de existentes para evitar duplicados en el mismo batch
             egresosExistentesMap.set(key, true);
           } catch (error: any) {
-            errores.push(`Error creando egreso para feature ${feature.id} de ${personaEmail}: ${error.message}`);
+            const errorMsg = `Error creando egreso para feature ${feature.id} (${feature.title || feature.name || 'Sin nombre'}) de ${personaEmail}: ${error.message}`;
+            console.error(`[Generar Automáticos] ${errorMsg}`, error);
+            errores.push(errorMsg);
           }
         }
 
@@ -319,7 +324,9 @@ export async function POST(request: NextRequest) {
                 });
               }
             } catch (error: any) {
-              errores.push(`Error creando egreso para tarea sin assignee ${task.id}: ${error.message}`);
+              const errorMsg = `Error creando egreso para tarea sin assignee ${task.id} (${task.title}): ${error.message}`;
+              console.error(`[Generar Automáticos] ${errorMsg}`, error);
+              errores.push(errorMsg);
             }
           }
 
@@ -396,12 +403,15 @@ export async function POST(request: NextRequest) {
                     });
                   }
                 } catch (error: any) {
-                  errores.push(`Error creando egreso para feature sin assignee ${feature.id}: ${error.message}`);
+                  const errorMsg = `Error creando egreso para feature sin assignee ${feature.id} (${feature.title || feature.name || 'Sin nombre'}): ${error.message}`;
+                  console.error(`[Generar Automáticos] ${errorMsg}`, error);
+                  errores.push(errorMsg);
                 }
               }
             } catch (error: any) {
-              console.error(`[Generar Automáticos Todos API] Error obteniendo features sin assignee para proyecto ${proyecto.id}:`, error);
-              errores.push(`Error obteniendo features sin assignee para proyecto ${proyecto.id}: ${error.message}`);
+              const errorMsg = `Error obteniendo features sin assignee para proyecto ${proyecto.id} (${proyecto.name || proyecto.client || 'Sin nombre'}): ${error.message}`;
+              console.error(`[Generar Automáticos Todos API] ${errorMsg}`, error);
+              errores.push(errorMsg);
             }
           }
           

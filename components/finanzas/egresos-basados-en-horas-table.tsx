@@ -433,11 +433,21 @@ export function EgresosBasadosEnHorasTable() {
 
         // Mostrar errores si los hay (pero no críticos)
         if (result.errores && result.errores.length > 0) {
-          console.warn('Errores parciales al generar egresos:', result.errores)
-          if (result.errores.length <= 3) {
-            result.errores.forEach((err: string) => toast.warning(err))
+          console.warn('[Generar Automáticos] Errores parciales:', result.errores)
+          // Mostrar todos los errores en la consola para debugging
+          result.errores.forEach((err: string, index: number) => {
+            console.error(`[Generar Automáticos] Error ${index + 1}:`, err)
+          })
+          
+          // Mostrar en toast solo los primeros 5 errores
+          if (result.errores.length <= 5) {
+            result.errores.forEach((err: string) => toast.warning(err, { duration: 5000 }))
           } else {
-            toast.warning(`${result.errores.length} errores menores durante la generación`)
+            toast.warning(`${result.errores.length} errores durante la generación. Revisa la consola para detalles.`, { duration: 8000 })
+            // Mostrar los primeros 3 como ejemplo
+            result.errores.slice(0, 3).forEach((err: string) => {
+              toast.warning(err, { duration: 5000 })
+            })
           }
         }
       } else {
