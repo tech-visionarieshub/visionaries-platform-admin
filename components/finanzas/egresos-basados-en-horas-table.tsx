@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit, Stethoscope } from "lucide-react"
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
-import { apiPost } from "@/lib/api/client"
+import { apiPost, apiGet } from "@/lib/api/client"
 import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
 import { DashboardMensual } from "./dashboard-mensual"
@@ -293,24 +293,20 @@ export function EgresosBasadosEnHorasTable() {
   const handleRunDiagnostic = async () => {
     setRunningDiagnostic(true)
     try {
-      const response = await fetch('/api/egresos/diagnostico', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      })
-      const data = await response.json()
+      const diagnostico = await apiGet<{
+        precios: any
+        teamTasks: any
+        features: any
+        egresos: any
+        proyectos: any
+        resumen: any
+      }>('/api/egresos/diagnostico')
       
-      if (data.success) {
-        setDiagnosticResult(data.data)
-        setShowDiagnosticDialog(true)
-      } else {
-        toast.error(data.error || 'Error al ejecutar diagnóstico')
-      }
+      setDiagnosticResult(diagnostico)
+      setShowDiagnosticDialog(true)
     } catch (error: any) {
       console.error('Error running diagnostic:', error)
-      toast.error('Error al ejecutar diagnóstico')
+      toast.error(error?.message || 'Error al ejecutar diagnóstico')
     } finally {
       setRunningDiagnostic(false)
     }
