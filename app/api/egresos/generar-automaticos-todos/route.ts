@@ -347,38 +347,57 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Buscar todas las features completadas sin assignee
-          let totalFeaturesSinAssignee = 0;
-          let featuresSinAssigneeConHoras = 0;
+          // Buscar TODAS las features completadas con horas (no solo las sin assignee)
+          // Si el assignee no tiene precio configurado, asignarlas a gabypino
+          let totalFeaturesCompletadas = 0;
+          let featuresProcesadas = 0;
           for (const proyecto of proyectos) {
             try {
               const features = await featuresRepository.getAll(proyecto.id);
-              const completadasSinAssignee = features.filter(
+              const completadas = features.filter(
                 f => (f.status === 'done' || f.status === 'completed') && 
-                     (!f.assignee || f.assignee.trim() === '')
+                     (f.actualHours && f.actualHours > 0)
               );
               
-              totalFeaturesSinAssignee += completadasSinAssignee.length;
-              console.log(`[Generar Automáticos] Proyecto ${proyecto.id}: ${completadasSinAssignee.length} features completadas sin assignee`);
+              totalFeaturesCompletadas += completadas.length;
+              console.log(`[Generar Automáticos] Proyecto ${proyecto.id} (${proyecto.name || proyecto.client || 'Sin nombre'}): ${completadas.length} features completadas con horas`);
               
-              for (const feature of completadasSinAssignee) {
+              for (const feature of completadas) {
                 const key = `feature-${feature.id}`;
                 if (egresosExistentesMap.has(key)) {
-                  console.log(`[Generar Automáticos] Feature sin assignee ${feature.id} ya tiene egreso, saltando`);
+                  console.log(`[Generar Automáticos] Feature ${feature.id} ya tiene egreso, saltando`);
                   continue; // Ya existe un egreso para esta feature
                 }
 
                 const horas = feature.actualHours || 0;
-                console.log(`[Generar Automáticos] Feature sin assignee ${feature.id}: status=${feature.status}, horas=${horas}, assignee=${feature.assignee || 'sin assignee'}`);
-                
                 if (horas <= 0) {
-                  console.log(`[Generar Automáticos] Feature sin assignee ${feature.id} sin horas (${horas}), saltando`);
                   continue; // No tiene horas trabajadas
                 }
-                
-                featuresSinAssigneeConHoras++;
 
-                const subtotal = horas * precioGabypino.precioPorHora;
+                // Determinar a quién asignar el egreso
+                let precioAAplicar = precioGabypino;
+                let personaAAplicar = precioGabypino.personaEmail;
+                let personaNombreAAplicar = precioGabypino.personaNombre;
+                
+                // Si la feature tiene assignee, buscar si tiene precio configurado
+                if (feature.assignee && feature.assignee.trim() !== '') {
+                  const precioDelAssignee = precios.find(p => 
+                    p.personaEmail === feature.assignee || 
+                    p.personaEmail?.toLowerCase() === feature.assignee.toLowerCase()
+                  );
+                  if (precioDelAssignee) {
+                    precioAAplicar = precioDelAssignee;
+                    personaAAplicar = precioDelAssignee.personaEmail;
+                    personaNombreAAplicar = precioDelAssignee.personaNombre;
+                    console.log(`[Generar Automáticos] Feature ${feature.id} asignada a ${personaAAplicar} (tiene precio configurado)`);
+                  } else {
+                    console.log(`[Generar Automáticos] Feature ${feature.id} tiene assignee ${feature.assignee} pero no tiene precio, asignando a gabypino`);
+                  }
+                } else {
+                  console.log(`[Generar Automáticos] Feature ${feature.id} sin assignee, asignando a gabypino`);
+                }
+
+                const subtotal = horas * precioAAplicar.precioPorHora;
                 const total = subtotal;
 
                 try {
@@ -386,8 +405,8 @@ export async function POST(request: NextRequest) {
                     lineaNegocio: '',
                     categoria: 'Funcionalidades',
                     empresa: proyecto.name || proyecto.client || 'Sin nombre',
-                    equipo: precioGabypino.personaEmail,
-                    concepto: `${precioGabypino.personaEmail.split('@')[0]} - ${feature.title || feature.name || 'Funcionalidad'}`,
+                    equipo: personaAAplicar,
+                    concepto: `${personaAAplicar.split('@')[0]} - ${feature.title || feature.name || 'Funcionalidad'}`,
                     subtotal,
                     iva: 0,
                     total,
@@ -395,10 +414,10 @@ export async function POST(request: NextRequest) {
                     mes: mesActual,
                     status: 'Pendiente',
                     tipoEgreso: 'basadoEnHoras',
-                    persona: precioGabypino.personaEmail,
+                    persona: personaAAplicar,
                     tarea: feature.title || feature.name || 'Funcionalidad',
                     horas,
-                    precioPorHora: precioGabypino.precioPorHora,
+                    precioPorHora: precioAAplicar.precioPorHora,
                     featureId: feature.id,
                     tareaTipo: 'feature',
                     aplicarIva: false,
@@ -408,31 +427,34 @@ export async function POST(request: NextRequest) {
                   const egreso = await egresosRepository.create(egresoData);
                   totalEgresosCreados.push(egreso);
                   egresosExistentesMap.set(key, true);
+                  featuresProcesadas++;
                   
                   // Actualizar resumen
-                  const resumenIndex = resumenPorPersona.findIndex(r => r.persona === precioGabypino.personaNombre);
+                  const resumenIndex = resumenPorPersona.findIndex(r => r.persona === personaNombreAAplicar);
                   if (resumenIndex >= 0) {
                     resumenPorPersona[resumenIndex].creados++;
                   } else {
                     resumenPorPersona.push({
-                      persona: precioGabypino.personaNombre,
+                      persona: personaNombreAAplicar,
                       creados: 1,
                     });
                   }
+                  
+                  console.log(`[Generar Automáticos] ✅ Egreso creado para feature ${feature.id}: ${horas}h × $${precioAAplicar.precioPorHora} = $${total} (${personaNombreAAplicar})`);
                 } catch (error: any) {
-                  const errorMsg = `Error creando egreso para feature sin assignee ${feature.id} (${feature.title || feature.name || 'Sin nombre'}): ${error.message}`;
+                  const errorMsg = `Error creando egreso para feature ${feature.id} (${feature.title || feature.name || 'Sin nombre'}): ${error.message}`;
                   console.error(`[Generar Automáticos] ${errorMsg}`, error);
                   errores.push(errorMsg);
                 }
               }
             } catch (error: any) {
-              const errorMsg = `Error obteniendo features sin assignee para proyecto ${proyecto.id} (${proyecto.name || proyecto.client || 'Sin nombre'}): ${error.message}`;
+              const errorMsg = `Error obteniendo features del proyecto ${proyecto.id} (${proyecto.name || proyecto.client || 'Sin nombre'}): ${error.message}`;
               console.error(`[Generar Automáticos Todos API] ${errorMsg}`, error);
               errores.push(errorMsg);
             }
           }
           
-          console.log(`[Generar Automáticos] Resumen features sin assignee: ${totalFeaturesSinAssignee} total, ${featuresSinAssigneeConHoras} con horas`);
+          console.log(`[Generar Automáticos] Resumen features: ${totalFeaturesCompletadas} completadas con horas, ${featuresProcesadas} procesadas`);
         } catch (error: any) {
           console.error('[Generar Automáticos Todos API] Error procesando tareas/features sin assignee:', error);
           errores.push(`Error procesando tareas/features sin assignee: ${error.message}`);
