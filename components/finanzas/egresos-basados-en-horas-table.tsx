@@ -313,7 +313,7 @@ export function EgresosBasadosEnHorasTable() {
   }
 
   const handleFixCompletedTasksHours = async () => {
-    if (!confirm("¿Estás seguro de que deseas:\n1. Asignar 0.1 horas a tareas/features completadas sin horas\n2. Marcar como completadas las tareas/features con horas pero no completadas?")) {
+    if (!confirm("¿Estás seguro de que deseas asignar 0.1 horas a todas las tareas/features completadas que no tienen horas?")) {
       return
     }
 
@@ -557,7 +557,7 @@ export function EgresosBasadosEnHorasTable() {
               onClick={handleFixCompletedTasksHours} 
               variant="outline"
               disabled={fixingHours}
-              title="Asignar 0.1 horas a tareas/features completadas sin horas y marcar como completadas las que tienen horas"
+              title="Asignar 0.1 horas a tareas/features completadas sin horas"
             >
               {fixingHours ? (
                 <>
