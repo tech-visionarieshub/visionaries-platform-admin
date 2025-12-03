@@ -31,24 +31,65 @@ def normalize_empresa_for_matching(empresa: str) -> str:
     return empresa.lower().strip()
 
 def find_cliente_invomex(db):
-    """Busca el cliente invomex."""
+    """Busca el cliente invomex de manera flexible."""
     clientes_ref = db.collection('clientes')
     
-    # Buscar por nombre exacto
-    query = clientes_ref.where('empresa', '==', 'invomex').limit(1)
-    docs = list(query.stream())
-    if docs:
-        return docs[0]
+    # Buscar por nombre exacto (varias variaciones)
+    variaciones = ['invomex', 'Invomex', 'INVOMEX', 'Invomex Integración de Valor Orientado a México']
+    for variacion in variaciones:
+        query = clientes_ref.where('empresa', '==', variacion).limit(1)
+        docs = list(query.stream())
+        if docs:
+            return docs[0]
     
-    # Buscar case-insensitive
-    all_clientes = clientes_ref.stream()
+    # Buscar case-insensitive en todos los clientes
+    all_clientes = list(clientes_ref.stream())
+    
+    # Buscar por RFC (IV0100127GI5 según la imagen)
+    for doc in all_clientes:
+        data = doc.to_dict()
+        rfc = data.get('rfc', '')
+        if rfc and 'IV0100127GI5' in rfc.upper():
+            empresa = data.get('empresa', '')
+            print(f"   ✅ Encontrado por RFC: {empresa} (RFC: {rfc})")
+            return doc
+    
+    # Buscar por nombre "invomex" o variaciones
     for doc in all_clientes:
         data = doc.to_dict()
         empresa = data.get('empresa', '')
-        if normalize_empresa_for_matching(empresa) == 'invomex' or 'invomex' in normalize_empresa_for_matching(empresa):
+        razon_social = data.get('razonSocial', '')
+        empresa_normalizada = normalize_empresa_for_matching(empresa)
+        razon_normalizada = normalize_empresa_for_matching(razon_social)
+        
+        # Buscar "invomex" en el nombre
+        if 'invomex' in empresa_normalizada or 'invomex' in razon_normalizada:
+            print(f"   ✅ Encontrado: {empresa} (Razón Social: {razon_social})")
+            return doc
+        
+        # Buscar por "integración de valor orientado a méxico"
+        if all(palabra in empresa_normalizada or palabra in razon_normalizada 
+               for palabra in ['integración', 'valor', 'méxico']):
+            print(f"   ✅ Encontrado por nombre completo: {empresa} (Razón Social: {razon_social})")
             return doc
     
-    return None
+    # Si no se encuentra, intentar crearlo automáticamente
+    print("   ⚠️  No se encontró el cliente Invomex en la base de datos")
+    print("   Creando cliente Invomex automáticamente...")
+    
+    # Crear cliente Invomex
+    cliente_data = {
+        'empresa': 'Invomex',
+        'razonSocial': 'Integración de Valor Orientado a México',
+        'rfc': 'IV0100127GI5',
+        'personaCobranza': '',
+        'correoCobranza': '',
+    }
+    doc_ref = clientes_ref.document()
+    doc_ref.set(cliente_data)
+    print(f"   ✅ Cliente Invomex creado con ID: {doc_ref.id}")
+    # Obtener el documento creado
+    return doc_ref.get()
 
 def main():
     """Función principal."""
