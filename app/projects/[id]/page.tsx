@@ -14,6 +14,15 @@ import { FileText, TrendingUp, TrendingDown, CheckCircle2, Circle, Info } from "
 import Link from "next/link"
 import { PriorityInfoDialog } from "@/components/projects/priority-info-dialog"
 
+// Helper function para formatear horas (evita decimales excesivos)
+function formatHours(hours: number): string {
+  if (Number.isInteger(hours)) {
+    return hours.toString()
+  }
+  // Redondear a 1 decimal máximo
+  return (Math.round(hours * 10) / 10).toString()
+}
+
 export default function ProjectSummaryPage() {
   const params = useParams()
   const id = params.id as string
@@ -232,7 +241,7 @@ export default function ProjectSummaryPage() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Horas trabajadas</p>
                   <p className="text-lg font-semibold text-[#0E0734]">
-                    {project.hoursWorked} / {project.hoursEstimated}h
+                    {formatHours(project.hoursWorked)} / {formatHours(project.hoursEstimated)}h
                   </p>
                 </div>
               </div>

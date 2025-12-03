@@ -66,12 +66,16 @@ export async function GET(
           : (project.progress || 0)
 
         // Calcular horas trabajadas sumando las horas reales de las features completadas
-        const hoursWorked = features
+        const hoursWorkedRaw = features
           .filter(f => f.status === 'done' || f.status === 'completed')
           .reduce((sum, f) => sum + (f.actualHours || 0), 0)
+        // Redondear a 1 decimal para evitar problemas de precisión de punto flotante
+        const hoursWorked = Math.round(hoursWorkedRaw * 10) / 10
 
         // Calcular horas estimadas sumando las horas estimadas de todas las features
-        const hoursEstimated = features.reduce((sum, f) => sum + (f.estimatedHours || 0), 0)
+        const hoursEstimatedRaw = features.reduce((sum, f) => sum + (f.estimatedHours || 0), 0)
+        // Redondear a 1 decimal para evitar problemas de precisión de punto flotante
+        const hoursEstimated = Math.round(hoursEstimatedRaw * 10) / 10
 
         // Obtener nombre del usuario creador - SIEMPRE usar createdBy si existe
         let responsibleName = 'Sin asignar'

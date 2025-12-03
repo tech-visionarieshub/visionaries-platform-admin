@@ -24,6 +24,15 @@ const hasFinanzasAccess = (userEmail: string | undefined): boolean => {
   return FINANZAS_AUTHORIZED_EMAILS.includes(userEmail.toLowerCase())
 }
 
+// Helper function para formatear horas (evita decimales excesivos)
+function formatHours(hours: number): string {
+  if (Number.isInteger(hours)) {
+    return hours.toString()
+  }
+  // Redondear a 1 decimal máximo
+  return (Math.round(hours * 10) / 10).toString()
+}
+
 export default function ProjectFinancePage({ params }: { params: { id: string } }) {
   const { user } = useUser()
   const router = useRouter()
@@ -202,7 +211,7 @@ export default function ProjectFinancePage({ params }: { params: { id: string } 
             <div className="flex items-center justify-between pb-3 border-b">
               <span className="text-sm text-muted-foreground">Horas Trabajadas</span>
               <span className="font-semibold">
-                {project.hoursWorked} / {project.hoursEstimated} hrs
+                {formatHours(project.hoursWorked)} / {formatHours(project.hoursEstimated)} hrs
               </span>
             </div>
             <div className="flex items-center justify-between pb-3 border-b">
