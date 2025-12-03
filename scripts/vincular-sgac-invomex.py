@@ -11,16 +11,28 @@ import sys
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-SERVICE_ACCOUNT_PATH = "/Users/gabrielapino/Library/Mobile Documents/com~apple~CloudDocs/9 nov 2025/visionaries-tech-firebase-adminsdk-fbsvc-5e928cfca6.json"
+# Intentar primero con visionaries-platform-admin, luego con visionaries-tech
+SERVICE_ACCOUNT_PATHS = [
+    "/Users/gabrielapino/Downloads/visionaries-platform-admin-firebase-adminsdk-fbsvc-eb269c3166.json",
+    "/Users/gabrielapino/Library/Mobile Documents/com~apple~CloudDocs/9 nov 2025/visionaries-tech-firebase-adminsdk-fbsvc-5e928cfca6.json",
+]
 
 def initialize_firebase():
     """Inicializa Firebase Admin SDK."""
     if not firebase_admin._apps:
-        if not os.path.exists(SERVICE_ACCOUNT_PATH):
+        service_account_path = None
+        for path in SERVICE_ACCOUNT_PATHS:
+            if os.path.exists(path):
+                service_account_path = path
+                break
+        
+        if not service_account_path:
             raise FileNotFoundError(
-                f"❌ No se encontró el service account en:\n   {SERVICE_ACCOUNT_PATH}"
+                f"❌ No se encontró ningún service account en:\n   " + "\n   ".join(SERVICE_ACCOUNT_PATHS)
             )
-        cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
+        
+        print(f"   Usando service account: {service_account_path}")
+        cred = credentials.Certificate(service_account_path)
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
@@ -117,31 +129,58 @@ def main():
     print("2️⃣  Buscando egresos de SGAC Platform...")
     egresos_ref = db.collection('egresos')
     
-    # Buscar por empresa que contenga "SGAC" o "sgac"
-    all_egresos = egresos_ref.stream()
+    # Buscar todos los egresos
+    all_egresos = list(egresos_ref.stream())
+    print(f"   Total de egresos en la base de datos: {len(all_egresos)}")
+    
     sgac_egresos = []
+    sgac_encontrados = []
     
     for doc in all_egresos:
         data = doc.to_dict()
         empresa = data.get('empresa', '')
         empresa_normalizada = data.get('empresaNormalizada', '')
+        categoria = data.get('categoria', '')
+        tipo_egreso = data.get('tipoEgreso', '')
+        cliente_id_actual = data.get('clienteId')
         
         # Verificar si es SGAC Platform
         empresa_match = normalize_empresa_for_matching(empresa)
         empresa_norm_match = normalize_empresa_for_matching(empresa_normalizada) if empresa_normalizada else ""
         
         if 'sgac' in empresa_match or 'sgac' in empresa_norm_match:
+            sgac_encontrados.append({
+                'id': doc.id,
+                'empresa': empresa,
+                'empresaNormalizada': empresa_normalizada,
+                'categoria': categoria,
+                'tipoEgreso': tipo_egreso,
+                'clienteId': cliente_id_actual,
+                'concepto': data.get('concepto', '')[:50],
+                'mes': data.get('mes', ''),
+            })
+            
             # Verificar que no tenga clienteId o que tenga uno diferente
-            cliente_id_actual = data.get('clienteId')
             if cliente_id_actual != invomex_id:
                 sgac_egresos.append({
                     'id': doc.id,
                     'empresa': empresa,
                     'empresaNormalizada': empresa_normalizada,
+                    'categoria': categoria,
+                    'tipoEgreso': tipo_egreso,
                     'clienteId': cliente_id_actual,
                     'concepto': data.get('concepto', ''),
                     'mes': data.get('mes', ''),
                 })
+    
+    print(f"   Total de egresos de SGAC Platform encontrados: {len(sgac_encontrados)}")
+    if len(sgac_encontrados) > 0:
+        print("   Detalle de egresos SGAC Platform encontrados:")
+        for i, egreso in enumerate(sgac_encontrados[:10], 1):
+            cliente_info = f"Cliente: {egreso['clienteId']}" if egreso['clienteId'] else "Sin cliente"
+            print(f"      {i}. {egreso['empresa']} | {egreso['categoria']} | {egreso['tipoEgreso']} | {cliente_info} | {egreso['concepto']}")
+        if len(sgac_encontrados) > 10:
+            print(f"      ... y {len(sgac_encontrados) - 10} más")
     
     print(f"   ✅ Encontrados {len(sgac_egresos)} egresos de SGAC Platform sin vincular a invomex")
     print()
@@ -158,11 +197,8 @@ def main():
         print(f"   ... y {len(sgac_egresos) - 10} más")
     print()
     
-    # Confirmar
-    respuesta = input(f"¿Deseas vincular {len(sgac_egresos)} egresos con invomex? (s/n): ")
-    if respuesta.lower() != 's':
-        print("   ⚠️  Operación cancelada")
-        return
+    # Vincular automáticamente (sin confirmación)
+    print(f"   🔗 Vinculando automáticamente {len(sgac_egresos)} egresos con invomex...")
     
     # Vincular egresos
     print()
