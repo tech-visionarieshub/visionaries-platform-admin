@@ -324,6 +324,8 @@ export async function POST(request: NextRequest) {
           }
 
           // Buscar todas las features completadas sin assignee
+          let totalFeaturesSinAssignee = 0;
+          let featuresSinAssigneeConHoras = 0;
           for (const proyecto of proyectos) {
             try {
               const features = await featuresRepository.getAll(proyecto.id);
@@ -332,16 +334,25 @@ export async function POST(request: NextRequest) {
                      (!f.assignee || f.assignee.trim() === '')
               );
               
+              totalFeaturesSinAssignee += completadasSinAssignee.length;
+              console.log(`[Generar Automáticos] Proyecto ${proyecto.id}: ${completadasSinAssignee.length} features completadas sin assignee`);
+              
               for (const feature of completadasSinAssignee) {
                 const key = `feature-${feature.id}`;
                 if (egresosExistentesMap.has(key)) {
+                  console.log(`[Generar Automáticos] Feature sin assignee ${feature.id} ya tiene egreso, saltando`);
                   continue; // Ya existe un egreso para esta feature
                 }
 
                 const horas = feature.actualHours || 0;
+                console.log(`[Generar Automáticos] Feature sin assignee ${feature.id}: status=${feature.status}, horas=${horas}, assignee=${feature.assignee || 'sin assignee'}`);
+                
                 if (horas <= 0) {
+                  console.log(`[Generar Automáticos] Feature sin assignee ${feature.id} sin horas (${horas}), saltando`);
                   continue; // No tiene horas trabajadas
                 }
+                
+                featuresSinAssigneeConHoras++;
 
                 const subtotal = horas * precioGabypino.precioPorHora;
                 const total = subtotal;
@@ -393,6 +404,8 @@ export async function POST(request: NextRequest) {
               errores.push(`Error obteniendo features sin assignee para proyecto ${proyecto.id}: ${error.message}`);
             }
           }
+          
+          console.log(`[Generar Automáticos] Resumen features sin assignee: ${totalFeaturesSinAssignee} total, ${featuresSinAssigneeConHoras} con horas`);
         } catch (error: any) {
           console.error('[Generar Automáticos Todos API] Error procesando tareas/features sin assignee:', error);
           errores.push(`Error procesando tareas/features sin assignee: ${error.message}`);
