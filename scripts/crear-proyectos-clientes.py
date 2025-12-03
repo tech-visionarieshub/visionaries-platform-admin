@@ -184,7 +184,7 @@ def create_project(db, cliente_empresa: str, client_id: str, meses_duracion, fec
         'name': nombre_proyecto,
         'client': cliente_empresa,
         'clientId': client_id,
-        'status': 'En desarrollo',
+        'status': 'En ejecución',
         'progress': 0,
         'startDate': fecha_inicio.strftime('%Y-%m-%d'),
         'endDate': fecha_fin.strftime('%Y-%m-%d'),

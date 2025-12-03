@@ -9,8 +9,10 @@ import { getCotizacionById } from "@/lib/api/cotizaciones-api"
 import type { Project } from "@/lib/mock-data/projects"
 import type { Cotizacion } from "@/lib/mock-data/cotizaciones"
 import { Badge } from "@/components/ui/badge"
-import { FileText, TrendingUp, TrendingDown, CheckCircle2, Circle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { FileText, TrendingUp, TrendingDown, CheckCircle2, Circle, Info } from "lucide-react"
 import Link from "next/link"
+import { PriorityInfoDialog } from "@/components/projects/priority-info-dialog"
 
 export default function ProjectSummaryPage() {
   const params = useParams()
@@ -18,6 +20,7 @@ export default function ProjectSummaryPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [cotizacion, setCotizacion] = useState<Cotizacion | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showPriorityInfo, setShowPriorityInfo] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -124,7 +127,18 @@ export default function ProjectSummaryPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-6">
-          <h3 className="font-semibold text-lg text-[#0E0734] mb-4">Estado de Funcionalidades</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="font-semibold text-lg text-[#0E0734]">Estado de Funcionalidades</h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => setShowPriorityInfo(true)}
+              title="Información sobre priorización"
+            >
+              <Info className="h-4 w-4" />
+            </Button>
+          </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
@@ -235,6 +249,8 @@ export default function ProjectSummaryPage() {
           </div>
         </Card>
       </div>
+
+      <PriorityInfoDialog open={showPriorityInfo} onOpenChange={setShowPriorityInfo} />
     </div>
   )
 }

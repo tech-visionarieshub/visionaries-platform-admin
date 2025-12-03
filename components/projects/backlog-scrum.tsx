@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, User, Plus, Search, GitBranch, MoreHorizontal, ExternalLink, Loader2, Upload, TestTube, ChevronDown, ChevronRight, Play, Pause, Check, Sparkles, Edit, Trash2, Trash } from "lucide-react"
+import { Clock, User, Plus, Search, GitBranch, MoreHorizontal, ExternalLink, Loader2, Upload, TestTube, ChevronDown, ChevronRight, Play, Pause, Check, Sparkles, Edit, Trash2, Trash, Info } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { getFeatures, updateFeature, moveFeatureToQA, deleteFeature, type Feature } from "@/lib/api/features-api"
@@ -20,6 +20,7 @@ import Link from "next/link"
 import { FeatureEditor } from "./feature-editor"
 import { FeatureFileUploader } from "./feature-file-uploader"
 import { TranscriptFeatureGenerator } from "./transcript-feature-generator"
+import { PriorityInfoDialog } from "./priority-info-dialog"
 
 const statusConfig = {
   backlog: { label: "Backlog", color: "bg-gray-500" },
@@ -50,6 +51,7 @@ export function BacklogScrum() {
   const [showTranscriptGenerator, setShowTranscriptGenerator] = useState(false)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [reEstimating, setReEstimating] = useState(false)
+  const [showPriorityInfo, setShowPriorityInfo] = useState(false)
 
   // Función para extraer el número consecutivo del ID
   // Formato esperado: SIGLAS-P{NUM}-{NUM_FUNCIONALIDAD} (ej: SP-P7-97, SGAC-P1-10)
@@ -562,9 +564,22 @@ export function BacklogScrum() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-[#0E0734]">Funcionalidades del Proyecto</h2>
-          <p className="text-xs text-muted-foreground">{filteredFeatures.length} funcionalidades</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#0E0734]">Funcionalidades del Proyecto</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={() => setShowPriorityInfo(true)}
+                title="Información sobre priorización"
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{filteredFeatures.length} funcionalidades</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {filteredEpics.length > 0 && (
@@ -1248,6 +1263,9 @@ export function BacklogScrum() {
         projectId={projectId}
         onGenerateComplete={loadFeatures}
       />
+
+      {/* Priority Info Dialog */}
+      <PriorityInfoDialog open={showPriorityInfo} onOpenChange={setShowPriorityInfo} />
     </div>
   )
 }

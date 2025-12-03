@@ -363,13 +363,18 @@ Responde SOLO con los criterios de aceptación, sin texto adicional.`
 
     const prompt = `Analiza las siguientes funcionalidades y estima para cada una:
 1. Horas estimadas de desarrollo (número decimal con 1 decimal, ej: 2.5, 8.0)
-2. Prioridad ("high", "medium", o "low")
+2. Prioridad ("high", "medium", o "low") usando estos criterios:
+   - "high": Si no lo haces hoy o en la fecha establecida, pasa algo malo (afecta pagos, clientes o plazos)
+   - "medium": Importa, pero si lo mueves un día no pasa nada
+   - "low": Pregunta: "Si no lo hago… ¿importa?" Si no, es baja. Es opcional
+   Regla rápida: ¿Qué pasa si no lo hago hoy? Grave = Alta · Molesto = Media · Nada = Baja
 
 Considera:
 - Complejidad técnica
 - Alcance de la funcionalidad
 - Dependencias
 - Tamaño del equipo típico
+- Impacto en pagos, clientes o plazos para determinar prioridad
 
 Funcionalidades:
 ${JSON.stringify(features.map(f => ({
@@ -883,10 +888,11 @@ Para cada funcionalidad, requisito o característica mencionada en el transcript
 
 7. Status: "backlog" (todas empiezan aquí)
 
-8. Priority: 
-   - "high" si se menciona como urgente, crítica, importante, prioritaria
-   - "low" si se menciona como opcional, nice-to-have, futuro
-   - "medium" para todo lo demás
+8. Priority: Determina la prioridad usando estos criterios:
+   - "high": Si no lo haces hoy o en la fecha establecida, pasa algo malo (afecta pagos, clientes o plazos). Si se menciona como urgente, crítica, importante, prioritaria con impacto inmediato.
+   - "low": Pregunta: "Si no lo hago… ¿importa?" Si no, es baja. Es opcional. Si se menciona como opcional, nice-to-have, futuro sin consecuencias inmediatas.
+   - "medium": Importa, pero si lo mueves un día no pasa nada. Para todo lo demás que no es crítico pero tampoco es opcional.
+   Regla rápida: ¿Qué pasa si no lo hago hoy? Grave = Alta · Molesto = Media · Nada = Baja
 
 9. Estimated Hours: Estima horas de desarrollo basándote en la complejidad mencionada (mínimo 1h, máximo 40h, usar decimales como 2.5, 8.0)
 
@@ -1232,10 +1238,12 @@ Para cada tarea, pendiente o acción mencionada, genera una tarea con la siguien
    - "Pagos": Tareas relacionadas con pagos y facturación
    - "Otra": Si no encaja en ninguna categoría anterior (en este caso, incluye customCategory con una descripción)
 
-4. Priority: 
-   - "high" si se menciona como urgente, crítica, importante, prioritaria, o si es parte de proyectos prioritarios
-   - "low" si se menciona como opcional, nice-to-have, futuro, o proyecto adicional opcional
-   - "medium" para todo lo demás
+4. Priority: Determina la prioridad usando estos criterios:
+   - "high": Si no lo haces hoy o en la fecha establecida, pasa algo malo (afecta pagos, clientes o plazos). Si se menciona como urgente, crítica, importante, prioritaria, o si es parte de proyectos prioritarios que tienen impacto inmediato.
+   - "low": Pregunta: "Si no lo hago… ¿importa?" Si no, es baja. Es opcional. Si se menciona como opcional, nice-to-have, futuro, o proyecto adicional opcional que no tiene consecuencias inmediatas.
+   - "medium": Importa, pero si lo mueves un día no pasa nada. Para todo lo demás que no es crítico pero tampoco es opcional.
+   
+   Regla rápida: ¿Qué pasa si no lo hago hoy? Grave = Alta · Molesto = Media · Nada = Baja
 
 5. Status: "pending" (todas empiezan aquí)
 
@@ -1468,10 +1476,11 @@ INSTRUCCIONES:
    - "Pagos": Tareas relacionadas con pagos y facturación
    - "Otra": Si no encaja en ninguna categoría anterior (en este caso, incluye customCategory)
 
-4. Priority: 
-   - "high" si la tarjeta tiene labels como "urgente", "alta", "high", "urgent", o si la fecha de vencimiento está cerca
-   - "low" si tiene labels como "baja", "low", "opcional"
-   - "medium" para todo lo demás
+4. Priority: Determina la prioridad usando estos criterios:
+   - "high": Si no lo haces hoy o en la fecha establecida, pasa algo malo (afecta pagos, clientes o plazos). Si la tarjeta tiene labels como "urgente", "alta", "high", "urgent", o si la fecha de vencimiento está cerca y tiene impacto inmediato.
+   - "low": Pregunta: "Si no lo hago… ¿importa?" Si no, es baja. Es opcional. Si tiene labels como "baja", "low", "opcional" sin consecuencias inmediatas.
+   - "medium": Importa, pero si lo mueves un día no pasa nada. Para todo lo demás que no es crítico pero tampoco es opcional.
+   Regla rápida: ¿Qué pasa si no lo hago hoy? Grave = Alta · Molesto = Media · Nada = Baja
 
 5. Status: Mapea el estado basándote en la lista (list) donde está la tarjeta:
    - Listas como "To Do", "Pendiente", "Backlog" → "pending"

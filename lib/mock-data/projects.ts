@@ -1,9 +1,27 @@
+export type ProjectStatus = 
+  | "lead"
+  | "Onboarding"
+  | "Mapeo de procesos"
+  | "Lista de funcionalidades"
+  | "Planificación"
+  | "Kickoff"
+  | "En ejecución"
+  | "En espera"
+  | "Bloqueado"
+  | "Revisión interna"
+  | "Revisión cliente"
+  | "Carta de aceptación"
+  | "Último pago pendiente"
+  | "Entregado"
+  | "En-garantía"
+  | "Finalizado"
+
 export type Project = {
   id: string
   name: string
   client: string
   clientId: string
-  status: "En desarrollo" | "QA" | "Garantía" | "Finalizado"
+  status: ProjectStatus
   progress: number
   startDate: string
   endDate: string
@@ -15,6 +33,7 @@ export type Project = {
   hoursWorked: number
   description?: string
   cotizacionId?: string
+  archived?: boolean
 }
 
 export const mockProjects: Project[] = []

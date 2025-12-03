@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         name: projectName || extractedInfo.titulo || 'Proyecto Generado',
         client: extractedInfo.cliente || 'Cliente',
         clientId: extractedInfo.clienteId || '',
-        status: 'En desarrollo' as const,
+        status: 'En ejecución' as const,
         progress: 0,
         startDate: startDateObj.toISOString().split('T')[0],
         endDate: endDate.toISOString().split('T')[0],

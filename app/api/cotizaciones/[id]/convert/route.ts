@@ -27,7 +27,7 @@ export async function POST(
         name: cotizacion.titulo,
         client: cotizacion.clienteNombre,
         clientId: cotizacion.clienteId,
-        status: 'En desarrollo' as const,
+        status: 'En ejecución' as const,
         progress: 0,
         startDate: new Date().toISOString().split('T')[0],
         endDate: '',

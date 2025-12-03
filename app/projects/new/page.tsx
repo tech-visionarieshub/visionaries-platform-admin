@@ -93,7 +93,7 @@ export default function NewProjectPage() {
         description: formData.description,
         client: cliente?.nombre || "",
         clientId: formData.clientId,
-        status: "En desarrollo" as const,
+        status: "En ejecución" as const,
         progress: 0,
         startDate: formData.startDate,
         endDate: formData.endDate,
