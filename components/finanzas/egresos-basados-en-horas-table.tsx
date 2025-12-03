@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit, Stethoscope } from "lucide-react"
+import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit, Stethoscope, ChevronDown, X } from "lucide-react"
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, getPreciosPorHora, type Egreso, type Cliente, type PrecioPorHora } from "@/lib/api/finanzas-api"
 import { apiPost, apiGet } from "@/lib/api/client"
@@ -24,6 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export function EgresosBasadosEnHorasTable() {
   const [egresos, setEgresos] = useState<Egreso[]>([])
@@ -36,7 +38,7 @@ export function EgresosBasadosEnHorasTable() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [tipoFilter, setTipoFilter] = useState<string>("all")
   const [mesFilter, setMesFilter] = useState<string>("all")
-  const [categoriaFilter, setCategoriaFilter] = useState<string>("all")
+  const [categoriaFilter, setCategoriaFilter] = useState<string[]>([])
   const [empresaFilter, setEmpresaFilter] = useState<string>("all")
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [isNuevoEgresoDialogOpen, setIsNuevoEgresoDialogOpen] = useState(false)
@@ -173,7 +175,7 @@ export function EgresosBasadosEnHorasTable() {
       const matchesStatus = statusFilter === "all" || egreso.status === statusFilter
       const matchesTipo = tipoFilter === "all" || egreso.tipo === tipoFilter
       const matchesMes = mesFilter === "all" || egreso.mes === mesFilter
-      const matchesCategoria = categoriaFilter === "all" || egreso.categoria === categoriaFilter
+      const matchesCategoria = categoriaFilter.length === 0 || categoriaFilter.includes(egreso.categoria)
       // Comparar con empresa normalizada en el filtro
       const matchesEmpresa = empresaFilter === "all" || empresaNormalizada === empresaFilter
 
@@ -666,19 +668,73 @@ export function EgresosBasadosEnHorasTable() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Categoría</Label>
-            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Todas" />
-              </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {uniqueCategorias.filter(cat => cat && cat.trim() !== '').map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between"
+                >
+                  <span className="truncate">
+                    {categoriaFilter.length === 0
+                      ? "Todas"
+                      : categoriaFilter.length === 1
+                      ? categoriaFilter[0]
+                      : `${categoriaFilter.length} seleccionadas`}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0" align="start">
+                <div className="p-2 space-y-2">
+                  <div className="flex items-center justify-between px-2 py-1.5">
+                    <Label className="text-sm font-medium">Categorías</Label>
+                    {categoriaFilter.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setCategoriaFilter([])}
+                      >
+                        Limpiar
+                      </Button>
+                    )}
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto space-y-1">
+                    {uniqueCategorias.filter(cat => cat && cat.trim() !== '').map((cat) => {
+                      const isSelected = categoriaFilter.includes(cat)
+                      return (
+                        <div
+                          key={cat}
+                          className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent rounded-sm cursor-pointer"
+                          onClick={() => {
+                            if (isSelected) {
+                              setCategoriaFilter(categoriaFilter.filter(c => c !== cat))
+                            } else {
+                              setCategoriaFilter([...categoriaFilter, cat])
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setCategoriaFilter([...categoriaFilter, cat])
+                              } else {
+                                setCategoriaFilter(categoriaFilter.filter(c => c !== cat))
+                              }
+                            }}
+                          />
+                          <Label className="text-sm font-normal cursor-pointer flex-1">
+                            {cat}
+                          </Label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-1">

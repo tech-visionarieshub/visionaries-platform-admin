@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""
+Script para vincular egresos de SGAC Platform con el cliente invomex.
+
+Uso:
+    python3 scripts/vincular-sgac-invomex.py
+"""
+
+import os
+import sys
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+SERVICE_ACCOUNT_PATH = "/Users/gabrielapino/Library/Mobile Documents/com~apple~CloudDocs/9 nov 2025/visionaries-tech-firebase-adminsdk-fbsvc-5e928cfca6.json"
+
+def initialize_firebase():
+    """Inicializa Firebase Admin SDK."""
+    if not firebase_admin._apps:
+        if not os.path.exists(SERVICE_ACCOUNT_PATH):
+            raise FileNotFoundError(
+                f"❌ No se encontró el service account en:\n   {SERVICE_ACCOUNT_PATH}"
+            )
+        cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
+        firebase_admin.initialize_app(cred)
+    return firestore.client()
+
+def normalize_empresa_for_matching(empresa: str) -> str:
+    """Normaliza el nombre de empresa para matching (lowercase, sin espacios extra)."""
+    if not empresa:
+        return ""
+    return empresa.lower().strip()
+
+def find_cliente_invomex(db):
+    """Busca el cliente invomex."""
+    clientes_ref = db.collection('clientes')
+    
+    # Buscar por nombre exacto
+    query = clientes_ref.where('empresa', '==', 'invomex').limit(1)
+    docs = list(query.stream())
+    if docs:
+        return docs[0]
+    
+    # Buscar case-insensitive
+    all_clientes = clientes_ref.stream()
+    for doc in all_clientes:
+        data = doc.to_dict()
+        empresa = data.get('empresa', '')
+        if normalize_empresa_for_matching(empresa) == 'invomex' or 'invomex' in normalize_empresa_for_matching(empresa):
+            return doc
+    
+    return None
+
+def main():
+    """Función principal."""
+    print("=" * 80)
+    print("🔗 VINCULAR EGRESOS SGAC PLATFORM CON INVOMEX")
+    print("=" * 80)
+    print()
+    
+    db = initialize_firebase()
+    
+    # Buscar cliente invomex
+    print("1️⃣  Buscando cliente invomex...")
+    invomex_doc = find_cliente_invomex(db)
+    if not invomex_doc:
+        print("   ❌ No se encontró el cliente invomex")
+        print("   Por favor, crea el cliente invomex primero")
+        return
+    
+    invomex_id = invomex_doc.id
+    invomex_empresa = invomex_doc.to_dict().get('empresa', 'invomex')
+    print(f"   ✅ Cliente encontrado: {invomex_empresa} (ID: {invomex_id})")
+    print()
+    
+    # Buscar egresos de SGAC Platform
+    print("2️⃣  Buscando egresos de SGAC Platform...")
+    egresos_ref = db.collection('egresos')
+    
+    # Buscar por empresa que contenga "SGAC" o "sgac"
+    all_egresos = egresos_ref.stream()
+    sgac_egresos = []
+    
+    for doc in all_egresos:
+        data = doc.to_dict()
+        empresa = data.get('empresa', '')
+        empresa_normalizada = data.get('empresaNormalizada', '')
+        
+        # Verificar si es SGAC Platform
+        empresa_match = normalize_empresa_for_matching(empresa)
+        empresa_norm_match = normalize_empresa_for_matching(empresa_normalizada) if empresa_normalizada else ""
+        
+        if 'sgac' in empresa_match or 'sgac' in empresa_norm_match:
+            # Verificar que no tenga clienteId o que tenga uno diferente
+            cliente_id_actual = data.get('clienteId')
+            if cliente_id_actual != invomex_id:
+                sgac_egresos.append({
+                    'id': doc.id,
+                    'empresa': empresa,
+                    'empresaNormalizada': empresa_normalizada,
+                    'clienteId': cliente_id_actual,
+                    'concepto': data.get('concepto', ''),
+                    'mes': data.get('mes', ''),
+                })
+    
+    print(f"   ✅ Encontrados {len(sgac_egresos)} egresos de SGAC Platform sin vincular a invomex")
+    print()
+    
+    if len(sgac_egresos) == 0:
+        print("   ℹ️  No hay egresos para vincular")
+        return
+    
+    # Mostrar resumen
+    print("3️⃣  Resumen de egresos a vincular:")
+    for i, egreso in enumerate(sgac_egresos[:10], 1):
+        print(f"   {i}. {egreso['empresa']} - {egreso['concepto'][:50]}... ({egreso['mes']})")
+    if len(sgac_egresos) > 10:
+        print(f"   ... y {len(sgac_egresos) - 10} más")
+    print()
+    
+    # Confirmar
+    respuesta = input(f"¿Deseas vincular {len(sgac_egresos)} egresos con invomex? (s/n): ")
+    if respuesta.lower() != 's':
+        print("   ⚠️  Operación cancelada")
+        return
+    
+    # Vincular egresos
+    print()
+    print("4️⃣  Vinculando egresos...")
+    actualizados = 0
+    errores = []
+    
+    for egreso in sgac_egresos:
+        try:
+            egreso_ref = egresos_ref.document(egreso['id'])
+            egreso_ref.update({
+                'clienteId': invomex_id,
+                'empresaNormalizada': 'SGAC Platform',  # Asegurar normalización
+            })
+            actualizados += 1
+        except Exception as e:
+            errores.append(f"Error actualizando {egreso['id']}: {str(e)}")
+    
+    print()
+    print("=" * 80)
+    print("📊 RESUMEN")
+    print("=" * 80)
+    print(f"✅ Egresos actualizados: {actualizados}")
+    if errores:
+        print(f"❌ Errores: {len(errores)}")
+        for error in errores[:5]:
+            print(f"   • {error}")
+        if len(errores) > 5:
+            print(f"   ... y {len(errores) - 5} errores más")
+    print()
+    print("=" * 80)
+    print("✅ Proceso completado")
+    print("=" * 80)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Proceso cancelado por el usuario")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Error fatal: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
