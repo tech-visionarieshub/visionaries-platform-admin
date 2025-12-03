@@ -205,3 +205,4 @@ Formulario con campos:
 14. Usuario puede editar concepto si lo desea
 15. Usuario guarda → Egreso creado con status "Pendiente" y mes actual
 
+

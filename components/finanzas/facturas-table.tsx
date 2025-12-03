@@ -143,8 +143,8 @@ export function FacturasTable() {
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="w-full">
-            <TableHeader>
-              <TableRow className="bg-muted/50">
+          <TableHeader>
+            <TableRow className="bg-muted/50">
                 <TableHead className="h-8 text-xs min-w-[100px]">Folio</TableHead>
                 <TableHead className="h-8 text-xs min-w-[150px]">Empresa</TableHead>
                 <TableHead className="h-8 text-xs min-w-[120px]">RFC</TableHead>
@@ -156,9 +156,9 @@ export function FacturasTable() {
                 <TableHead className="h-8 text-xs min-w-[100px]">Mes</TableHead>
                 <TableHead className="h-8 text-xs min-w-[120px]">Vencimiento</TableHead>
                 <TableHead className="h-8 text-xs text-right min-w-[120px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
               {filteredFacturas.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
@@ -168,66 +168,66 @@ export function FacturasTable() {
               ) : (
                 filteredFacturas.map((factura) => (
                   <TableRow key={factura.id}>
-                    <TableCell className="py-1 text-xs font-mono">{factura.folio}</TableCell>
-                    <TableCell className="py-1 text-xs">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{factura.empresa}</span>
-                        <span className="text-muted-foreground text-[10px]">{factura.razonSocial}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-1 text-xs font-mono">{factura.rfc}</TableCell>
+                <TableCell className="py-1 text-xs font-mono">{factura.folio}</TableCell>
+                <TableCell className="py-1 text-xs">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{factura.empresa}</span>
+                    <span className="text-muted-foreground text-[10px]">{factura.razonSocial}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="py-1 text-xs font-mono">{factura.rfc}</TableCell>
                     <TableCell className="py-1 text-xs">{factura.conceptos}</TableCell>
                     <TableCell className="py-1 text-xs text-right whitespace-nowrap">{formatCurrency(factura.subtotal)}</TableCell>
                     <TableCell className="py-1 text-xs text-right whitespace-nowrap">{formatCurrency(factura.iva)}</TableCell>
                     <TableCell className="py-1 text-xs text-right font-medium whitespace-nowrap">{formatCurrency(factura.total)}</TableCell>
-                    <TableCell className="py-1">{getStatusBadge(factura.status)}</TableCell>
-                    <TableCell className="py-1 text-xs">{factura.mesFacturacion}</TableCell>
-                    <TableCell className="py-1 text-xs">
-                      {new Date(factura.fechaVencimiento).toLocaleDateString("es-MX")}
-                    </TableCell>
-                    <TableCell className="py-1 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {factura.pdfUrl && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={() => window.open(factura.pdfUrl, "_blank")}
-                          >
-                            <FileText className="h-3.5 w-3.5" />
+                <TableCell className="py-1">{getStatusBadge(factura.status)}</TableCell>
+                <TableCell className="py-1 text-xs">{factura.mesFacturacion}</TableCell>
+                <TableCell className="py-1 text-xs">
+                  {new Date(factura.fechaVencimiento).toLocaleDateString("es-MX")}
+                </TableCell>
+                <TableCell className="py-1 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {factura.pdfUrl && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => window.open(factura.pdfUrl, "_blank")}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {factura.status !== "Cancelada" && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => handleSendFactura(factura)}
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                        </Button>
+                        {factura.requiereComplemento && factura.status === "Pagada" && (
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            <Receipt className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        {factura.status !== "Cancelada" && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0"
-                              onClick={() => handleSendFactura(factura)}
-                            >
-                              <Send className="h-3.5 w-3.5" />
-                            </Button>
-                            {factura.requiereComplemento && factura.status === "Pagada" && (
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                <Receipt className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-destructive"
-                              onClick={() => handleCancelFactura(factura.id)}
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive"
+                          onClick={() => handleCancelFactura(factura.id)}
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
                 ))
               )}
-            </TableBody>
+          </TableBody>
         </Table>
         </div>
       </div>

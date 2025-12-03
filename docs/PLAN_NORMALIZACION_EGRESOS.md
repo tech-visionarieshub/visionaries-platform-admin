@@ -181,3 +181,4 @@ export type Egreso = {
    - Considerar script para actualizar egresos ya cargados
    - O permitir re-procesamiento con opción de actualizar existentes
 
+

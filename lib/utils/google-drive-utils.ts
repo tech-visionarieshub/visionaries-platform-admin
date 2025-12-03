@@ -147,3 +147,4 @@ export function isValidFileType(mimeType: string): boolean {
   return allowedTypes.includes(mimeType.toLowerCase());
 }
 
+

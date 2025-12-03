@@ -24,3 +24,4 @@ export class PreciosPorHoraRepository extends BaseRepository<PrecioPorHoraEntity
 
 export const preciosPorHoraRepository = new PreciosPorHoraRepository();
 
+

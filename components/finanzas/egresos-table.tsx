@@ -314,41 +314,41 @@ export function EgresosTable() {
       <div className="rounded-md border overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="w-full">
-            <TableHeader>
-              <TableRow>
+          <TableHeader>
+            <TableRow>
                 <TableHead className="min-w-[180px]">Concepto</TableHead>
-                <TableHead className="min-w-[120px]">Categoría</TableHead>
-                <TableHead className="min-w-[150px]">Cliente</TableHead>
-                <TableHead className="min-w-[120px]">Equipo</TableHead>
+              <TableHead className="min-w-[120px]">Categoría</TableHead>
+              <TableHead className="min-w-[150px]">Cliente</TableHead>
+              <TableHead className="min-w-[120px]">Equipo</TableHead>
                 <TableHead className="min-w-[100px]">Tipo</TableHead>
-                <TableHead className="min-w-[100px]">Mes</TableHead>
-                <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
-                <TableHead className="text-right min-w-[100px]">IVA</TableHead>
-                <TableHead className="text-right min-w-[100px]">Total</TableHead>
-                <TableHead className="min-w-[100px]">Status</TableHead>
-                <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEgresos.length === 0 ? (
-                <TableRow>
+              <TableHead className="min-w-[100px]">Mes</TableHead>
+              <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
+              <TableHead className="text-right min-w-[100px]">IVA</TableHead>
+              <TableHead className="text-right min-w-[100px]">Total</TableHead>
+              <TableHead className="min-w-[100px]">Status</TableHead>
+              <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredEgresos.length === 0 ? (
+              <TableRow>
                   <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                    No se encontraron egresos
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredEgresos.map((egreso) => (
-                  <TableRow key={egreso.id}>
-                    <TableCell className="font-medium">{egreso.concepto}</TableCell>
-                    <TableCell>{egreso.categoria}</TableCell>
-                    <TableCell>{egreso.empresa}</TableCell>
-                    <TableCell>{egreso.equipo}</TableCell>
-                    <TableCell>{getTipoBadge(egreso.tipo)}</TableCell>
-                    <TableCell>{egreso.mes}</TableCell>
+                  No se encontraron egresos
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredEgresos.map((egreso) => (
+                <TableRow key={egreso.id}>
+                  <TableCell className="font-medium">{egreso.concepto}</TableCell>
+                  <TableCell>{egreso.categoria}</TableCell>
+                  <TableCell>{egreso.empresa}</TableCell>
+                  <TableCell>{egreso.equipo}</TableCell>
+                  <TableCell>{getTipoBadge(egreso.tipo)}</TableCell>
+                  <TableCell>{egreso.mes}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">${egreso.subtotal.toLocaleString("es-MX")}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">${egreso.iva.toLocaleString("es-MX")}</TableCell>
                     <TableCell className="text-right font-medium whitespace-nowrap">${egreso.total.toLocaleString("es-MX")}</TableCell>
-                    <TableCell>{getStatusBadge(egreso.status)}</TableCell>
+                  <TableCell>{getStatusBadge(egreso.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       {egreso.factura && (

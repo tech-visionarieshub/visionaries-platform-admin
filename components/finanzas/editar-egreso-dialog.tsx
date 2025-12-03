@@ -270,3 +270,4 @@ export function EditarEgresoDialog({ open, onOpenChange, egreso, onSuccess }: Ed
   )
 }
 
+
