@@ -375,12 +375,21 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const mensaje = totalEgresosCreados.length > 0 
+        ? `Se generaron ${totalEgresosCreados.length} egresos automáticos exitosamente`
+        : 'No se generaron nuevos egresos. Verifica que haya tareas/features completadas con horas trabajadas y precios por hora configurados.';
+
+      console.log('[Generar Automáticos Todos API] Resultado final:', {
+        creados: totalEgresosCreados.length,
+        resumenPorPersona: resumenPorPersona.length,
+        errores: errores.length,
+        mensaje,
+      });
+
       return NextResponse.json({
         success: true,
         data: {
-          mensaje: totalEgresosCreados.length > 0 
-            ? undefined 
-            : 'No se generaron nuevos egresos',
+          mensaje,
           creados: totalEgresosCreados.length,
           totalEgresos: totalEgresosCreados,
           resumenPorPersona: resumenPorPersona,

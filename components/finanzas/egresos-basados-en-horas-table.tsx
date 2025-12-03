@@ -293,6 +293,7 @@ export function EgresosBasadosEnHorasTable() {
 
     setGenerandoAutomaticos(true)
     try {
+      console.log('[Generar Automáticos] Iniciando generación...')
       const response = await apiPost<{
         success?: boolean
         error?: string
@@ -302,6 +303,8 @@ export function EgresosBasadosEnHorasTable() {
         resumenPorPersona?: Array<{ persona: string; creados: number }>
         errores?: string[]
       }>('/api/egresos/generar-automaticos-todos', {})
+      
+      console.log('[Generar Automáticos] Respuesta recibida:', response)
       
       // apiPost devuelve response.data, así que result ya es el objeto data
       const result = response as any
@@ -315,6 +318,13 @@ export function EgresosBasadosEnHorasTable() {
       if (!result) {
         throw new Error('No se recibió respuesta del servidor')
       }
+
+      console.log('[Generar Automáticos] Resultado procesado:', {
+        creados: result.creados,
+        totalEgresos: result.totalEgresos?.length,
+        mensaje: result.mensaje,
+        resumenPorPersona: result.resumenPorPersona,
+      })
 
       // Si hay egresos creados, mostrar éxito
       if (result.totalEgresos && result.totalEgresos.length > 0) {
@@ -339,15 +349,17 @@ export function EgresosBasadosEnHorasTable() {
         }
       } else {
         // No se generaron egresos, mostrar mensaje informativo
-        toast.info(result.mensaje || 'No se generaron nuevos egresos')
+        const mensaje = result.mensaje || 'No se generaron nuevos egresos. Verifica que haya tareas/features completadas con horas trabajadas.'
+        toast.info(mensaje)
+        console.log('[Generar Automáticos]', mensaje)
       }
 
       // Refrescar la lista de egresos
       await handleRefresh()
     } catch (error: any) {
-      console.error('Error generating automatic egresos:', error)
+      console.error('[Generar Automáticos] Error completo:', error)
       const errorMessage = error?.message || error?.error || 'Error al generar egresos automáticos'
-      toast.error(errorMessage)
+      toast.error(`Error: ${errorMessage}`)
     } finally {
       setGenerandoAutomaticos(false)
     }
