@@ -872,61 +872,116 @@ The report must use bullets for all lists. Format example:
 TRANSCRIPT:
 ${transcriptToProcess}
 
-INSTRUCCIONES CRÍTICAS SOBRE EPICS:
+INSTRUCCIONES CRÍTICAS PARA LA GENERACIÓN DE EPICS Y FEATURES
 
-1. **RECONOCER EPICS SUGERIDAS**: Si el transcript menciona epics específicas (por ejemplo: "EPIC 2A — Scholarship Registry / CRM", "EPIC 2B — Scholarship Winners Tracking", "EPIC 2C — Eligibility Automation", etc.), DEBES usar EXACTAMENTE esos nombres de epic tal como aparecen en el transcript.
+🔵 1. Reconocimiento y uso de EPICs existentes
 
-2. **AGRUPAR EN EPICS EXISTENTES**: Todas las funcionalidades mencionadas dentro de una sección de epic deben agruparse en esa epic específica. NO crees nuevas epics si ya están definidas en el transcript.
+Si el transcript menciona epics explícitamente (ejemplo:
+- "EPIC — Nombre"
+- "EPIC 2B — Scholarship Winners Tracking"
+- "EPIC — Eligibility Automation"
+entonces DEBES usar esos nombres exactamente como están escritos.
 
-3. **NO NUMERAR FUNCIONALIDADES**: Los títulos de las funcionalidades NO deben incluir números o prefijos como "2.1", "2.2", etc. Solo usa el nombre descriptivo de la funcionalidad.
+Toda funcionalidad mencionada dentro de una sección de un epic se debe agrupar en ese epic, sin cambiar su nombre.
 
-4. **USAR NOMBRES EXACTOS**: Si el transcript dice "EPIC 2A — Scholarship Registry / CRM", usa exactamente "EPIC 2A — Scholarship Registry / CRM" como epicTitle. NO lo cambies a "Scholarship Registry" o "CRM de Becas".
+NO debes crear nuevas epics si ya existen epics en el transcript.
 
-5. **FUNCIONALIDADES SIN EPIC**: Si hay funcionalidades que no pertenecen claramente a ninguna epic mencionada, puedes crear una epic genérica, pero PRIORIZA usar las epics sugeridas en el transcript.
+🔵 2. Creación de epics nuevas (solo si es necesario)
 
-Para cada funcionalidad, requisito o característica mencionada en el transcript, genera una feature con la siguiente estructura:
+Solo crea epics nuevas cuando:
+- No existan epics mencionadas en el transcript.
+- O haya funcionalidades que no encajan claramente en ninguno de los epics sugeridos.
 
-1. Epic Title: 
-   - **CRÍTICO**: Si el transcript menciona epics específicas (ej: "EPIC 2A — Scholarship Registry / CRM", "EPIC 2B — Scholarship Winners Tracking"), DEBES usar EXACTAMENTE ese nombre completo tal como aparece en el transcript
-   - Si el transcript dice "EPIC 2A — Scholarship Registry / CRM", usa "EPIC 2A — Scholarship Registry / CRM" (NO "Scholarship Registry", NO "CRM de Becas", NO "EPIC 2A")
-   - Si el transcript dice "EPIC 2B — Scholarship Winners Tracking", usa "EPIC 2B — Scholarship Winners Tracking" (exactamente así)
-   - Agrupa TODAS las funcionalidades mencionadas dentro de cada sección de epic en esa epic específica
-   - SOLO crea nuevas epics si NO hay epics mencionadas en el transcript
-   - Si no hay epics mencionadas, agrupa funcionalidades relacionadas en epics lógicos (máximo 4-5 epics)
-   - Usa nombres descriptivos como "Sistema de Autenticación", "Dashboard de Analytics", "Gestión de Usuarios", etc. SOLO si NO hay epics sugeridas en el transcript
+Cuando crees epics nuevas:
+- Úsalas de forma lógica y genérica (ej.: "Sistema de Autenticación", "Gestión de Usuarios", "Dashboard de Analytics").
+- Mantén el total máximo de 4–5 epics nuevas.
 
-2. Title: Nombre claro y técnico de la funcionalidad basado en lo mencionado en el transcript
-   - NO incluyas números o prefijos como "2.1", "2.2", etc.
-   - Solo el nombre descriptivo de la funcionalidad
+🔵 3. Nombres de funcionalidades
 
-3. Description: Descripción detallada de lo que debe hacer la funcionalidad, incluyendo contexto de la conversación cuando sea relevante
+No uses números ni prefijos como "2.1", "2.2", "A", "B".
 
-4. Criterios de Aceptación: Lista de criterios claros y medibles (3-5 puntos) basados en los requisitos mencionados
+Usa solo nombres descriptivos y técnicos, basados en el transcript.
 
-5. Tipo: "Funcionalidad" (la mayoría), "QA" solo si se menciona explícitamente testing, o "Bug" solo si se menciona un error específico
+🔵 4. Estructura de cada feature
 
-6. Categoria: "Funcionalidad" (la mayoría), "QA" solo si es explícitamente de testing, "Bugs Generales" solo si es un bug, "Otra" solo si no encaja en las anteriores
+Cada funcionalidad, requisito o corrección mencionada en el transcript se debe convertir en una feature con esta estructura exacta:
 
-7. Status: "backlog" (todas empiezan aquí)
+{
+  "epicTitle": "Nombre exacto del Epic",
+  "title": "Nombre técnico de la funcionalidad",
+  "description": "Descripción detallada basada en el transcript",
+  "criteriosAceptacion": "1. Criterio 1\n2. Criterio 2\n3. Criterio 3",
+  "comentarios": "Notas adicionales si las hay",
+  "tipo": "Funcionalidad | QA | Bug",
+  "categoria": "Funcionalidad | QA | Bugs Generales | Otra",
+  "status": "backlog",
+  "priority": "high | medium | low",
+  "estimatedHours": 8.0,
+  "storyPoints": 5
+}
 
-8. Priority: Determina la prioridad usando estos criterios:
-   - "high": Si no lo haces hoy o en la fecha establecida, pasa algo malo (afecta pagos, clientes o plazos). Si se menciona como urgente, crítica, importante, prioritaria con impacto inmediato.
-   - "low": Pregunta: "Si no lo hago… ¿importa?" Si no, es baja. Es opcional. Si se menciona como opcional, nice-to-have, futuro sin consecuencias inmediatas.
-   - "medium": Importa, pero si lo mueves un día no pasa nada. Para todo lo demás que no es crítico pero tampoco es opcional.
-   Regla rápida: ¿Qué pasa si no lo hago hoy? Grave = Alta · Molesto = Media · Nada = Baja
+🔵 5. Reglas específicas por campo
 
-9. Estimated Hours: Estima horas de desarrollo basándote en la complejidad mencionada (mínimo 1h, máximo 40h, usar decimales como 2.5, 8.0)
+epicTitle:
+- Debe coincidir exactamente con lo escrito en el transcript.
+- Ejemplos válidos:
+  - "EPIC — Scholarship Winners Tracking"
+  - "EPIC 2C — Eligibility Automation"
+  - "EPIC — Global CRM / Dashboards"
+- Si el transcript dice "EPIC — Nombre", usa ese nombre sin modificar.
 
-10. Story Points: Estima story points (1-13) basado en la complejidad
+description:
+- Explica claramente lo que debe implementar la funcionalidad.
+- Usa contexto de la conversación cuando ayude a clarificar.
 
-IMPORTANTE:
-- Extrae TODAS las funcionalidades mencionadas, no solo las principales
-- Si se menciona algo como "necesitamos que...", "debería tener...", "sería bueno que...", "requerimos...", conviértelo en una feature
-- PRIORIZA usar las epics que el usuario sugiere en el transcript, usa sus nombres EXACTOS
-- NO numeres las funcionalidades (no uses "2.1", "2.2", etc. en los títulos)
-- Agrupa funcionalidades relacionadas en la misma epic sugerida
-- Si no hay suficiente información para estimar horas, usa valores conservadores (2-4 horas)
-- Responde SOLO con un JSON válido en este formato exacto:
+criteriosAceptacion:
+- Deben ser 3–5 puntos, claros, medibles y ejecutables.
+
+tipo:
+- "Funcionalidad" → casi siempre.
+- "QA" → solo si en el transcript se menciona explícitamente testing.
+- "Bug" → solo si el transcript describe claramente un error real.
+
+priority:
+- Usa estas reglas:
+  - high → si no se implementa, causa impacto inmediato o crítico, o el transcript lo pide como urgente.
+  - medium → importante pero sin impacto crítico inmediato.
+  - low → nice-to-have, futuro, opcional o sin impacto si se retrasa.
+
+estimatedHours:
+- 1.0 a 40.0 horas → basado en complejidad.
+- Usa valores conservadores (2–4 horas) cuando no haya suficiente detalle.
+
+storyPoints:
+- Valor entre 1 y 13 basado en complejidad.
+
+🔵 6. Extracción de funcionalidades
+
+Debes extraer TODAS las funcionalidades mencionadas, incluso si aparecen implícitas por frases como:
+- "necesitamos que…"
+- "debería tener…"
+- "sería ideal si…"
+- "requerimos…"
+- "el sistema debe poder…"
+
+Cada frase relevante → se convierte en una feature.
+
+🔵 7. Output final
+
+La respuesta debe ser EXCLUSIVAMENTE un JSON válido con:
+
+{
+  "features": [ ... ]
+}
+
+🔵 8. Prohibiciones
+
+- No numerar títulos de features.
+- No inventar epics si existen epics en el transcript.
+- No modificar nombres de epics sugeridos.
+- No agregar texto fuera del JSON final.
+
+Responde SOLO con un JSON válido en este formato exacto:
 {
   "features": [
     {
