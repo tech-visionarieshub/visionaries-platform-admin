@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit } from "lucide-react"
+import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2, Link2, Pencil, Edit, Stethoscope } from "lucide-react"
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, type Egreso, type Cliente } from "@/lib/api/finanzas-api"
 import { apiPost } from "@/lib/api/client"
@@ -47,6 +47,9 @@ export function EgresosBasadosEnHorasTable() {
   const [editingEgreso, setEditingEgreso] = useState<Egreso | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [fixingHours, setFixingHours] = useState(false)
+  const [runningDiagnostic, setRunningDiagnostic] = useState(false)
+  const [diagnosticResult, setDiagnosticResult] = useState<any>(null)
+  const [showDiagnosticDialog, setShowDiagnosticDialog] = useState(false)
 
   useEffect(() => {
     async function loadEgresos() {
@@ -287,8 +290,34 @@ export function EgresosBasadosEnHorasTable() {
     }
   }
 
+  const handleRunDiagnostic = async () => {
+    setRunningDiagnostic(true)
+    try {
+      const response = await fetch('/api/egresos/diagnostico', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        setDiagnosticResult(data.data)
+        setShowDiagnosticDialog(true)
+      } else {
+        toast.error(data.error || 'Error al ejecutar diagnóstico')
+      }
+    } catch (error: any) {
+      console.error('Error running diagnostic:', error)
+      toast.error('Error al ejecutar diagnóstico')
+    } finally {
+      setRunningDiagnostic(false)
+    }
+  }
+
   const handleFixCompletedTasksHours = async () => {
-    if (!confirm("¿Estás seguro de que deseas asignar 0.1 horas a todas las tareas/features completadas que no tienen horas?")) {
+    if (!confirm("¿Estás seguro de que deseas:\n1. Asignar 0.1 horas a tareas/features completadas sin horas\n2. Marcar como completadas las tareas/features con horas pero no completadas?")) {
       return
     }
 
@@ -532,7 +561,7 @@ export function EgresosBasadosEnHorasTable() {
               onClick={handleFixCompletedTasksHours} 
               variant="outline"
               disabled={fixingHours}
-              title="Asignar 0.1 horas a tareas/features completadas sin horas"
+              title="Asignar 0.1 horas a tareas/features completadas sin horas y marcar como completadas las que tienen horas"
             >
               {fixingHours ? (
                 <>
@@ -543,6 +572,24 @@ export function EgresosBasadosEnHorasTable() {
                 <>
                   <Plus className="mr-2 h-4 w-4" />
                   Arreglar Horas
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={handleRunDiagnostic} 
+              variant="outline"
+              disabled={runningDiagnostic}
+              title="Ver diagnóstico del estado de tareas, features y precios"
+            >
+              {runningDiagnostic ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analizando...
+                </>
+              ) : (
+                <>
+                  <Stethoscope className="mr-2 h-4 w-4" />
+                  Diagnóstico
                 </>
               )}
             </Button>
@@ -891,6 +938,182 @@ export function EgresosBasadosEnHorasTable() {
                 </>
               ) : (
                 "Guardar Link"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diagnostic Dialog */}
+      <Dialog open={showDiagnosticDialog} onOpenChange={setShowDiagnosticDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico del Sistema de Egresos</DialogTitle>
+            <DialogDescription>
+              Estado actual de tareas, features y precios por hora
+            </DialogDescription>
+          </DialogHeader>
+          
+          {diagnosticResult && (
+            <div className="space-y-6 py-4">
+              {/* Resumen */}
+              {diagnosticResult.resumen && (
+                <div className="p-4 rounded-lg border bg-muted/50">
+                  <h4 className="font-semibold mb-2">
+                    {diagnosticResult.resumen.puedeGenerarEgresos ? (
+                      <span className="text-green-600">✅ Sistema listo para generar egresos</span>
+                    ) : (
+                      <span className="text-orange-600">⚠️ No se pueden generar egresos</span>
+                    )}
+                  </h4>
+                  {diagnosticResult.resumen.razonesNoGenera?.length > 0 && (
+                    <ul className="text-sm space-y-1 mt-2">
+                      {diagnosticResult.resumen.razonesNoGenera.map((razon: string, i: number) => (
+                        <li key={i} className="text-muted-foreground">• {razon}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Precios por Hora */}
+              <div className="space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  💰 Precios por Hora ({diagnosticResult.precios?.total || 0})
+                </h4>
+                {diagnosticResult.precios?.lista?.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {diagnosticResult.precios.lista.map((p: any, i: number) => (
+                      <div key={i} className="text-sm p-2 rounded border">
+                        <div className="font-medium">{p.personaNombre}</div>
+                        <div className="text-muted-foreground text-xs">{p.personaEmail}</div>
+                        <div className="text-green-600">${p.precioPorHora}/hora</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-red-500">No hay precios configurados</p>
+                )}
+              </div>
+
+              {/* Team Tasks */}
+              <div className="space-y-2">
+                <h4 className="font-semibold">📋 Team Tasks ({diagnosticResult.teamTasks?.total || 0})</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Por Status</div>
+                    {diagnosticResult.teamTasks?.porStatus && Object.entries(diagnosticResult.teamTasks.porStatus).map(([status, count]) => (
+                      <div key={status} className="flex justify-between">
+                        <span>{status}:</span>
+                        <span className="font-medium">{String(count)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Con Horas</div>
+                    <div className="text-2xl font-bold text-green-600">{diagnosticResult.teamTasks?.conHoras || 0}</div>
+                  </div>
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Sin Horas</div>
+                    <div className="text-2xl font-bold text-orange-600">{diagnosticResult.teamTasks?.sinHoras || 0}</div>
+                  </div>
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Completadas + Horas</div>
+                    <div className="text-2xl font-bold text-blue-600">{diagnosticResult.teamTasks?.completadasConHoras || 0}</div>
+                  </div>
+                </div>
+                {diagnosticResult.teamTasks?.ejemplos?.length > 0 && (
+                  <div className="mt-2">
+                    <div className="text-sm text-muted-foreground mb-1">Ejemplos de tareas con horas:</div>
+                    <div className="space-y-1">
+                      {diagnosticResult.teamTasks.ejemplos.map((t: any, i: number) => (
+                        <div key={i} className="text-xs p-2 rounded bg-muted/50">
+                          <span className="font-medium">{t.title}</span>
+                          <span className="text-muted-foreground"> | {t.status} | {t.actualHours}h | {t.assignee || 'Sin asignar'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Features */}
+              <div className="space-y-2">
+                <h4 className="font-semibold">🚀 Features ({diagnosticResult.features?.total || 0})</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Por Status</div>
+                    {diagnosticResult.features?.porStatus && Object.entries(diagnosticResult.features.porStatus).map(([status, count]) => (
+                      <div key={status} className="flex justify-between">
+                        <span>{status}:</span>
+                        <span className="font-medium">{String(count)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Con Horas</div>
+                    <div className="text-2xl font-bold text-green-600">{diagnosticResult.features?.conHoras || 0}</div>
+                  </div>
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Sin Horas</div>
+                    <div className="text-2xl font-bold text-orange-600">{diagnosticResult.features?.sinHoras || 0}</div>
+                  </div>
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Completadas + Horas</div>
+                    <div className="text-2xl font-bold text-blue-600">{diagnosticResult.features?.completadasConHoras || 0}</div>
+                  </div>
+                </div>
+                {diagnosticResult.features?.ejemplos?.length > 0 && (
+                  <div className="mt-2">
+                    <div className="text-sm text-muted-foreground mb-1">Ejemplos de features con horas:</div>
+                    <div className="space-y-1">
+                      {diagnosticResult.features.ejemplos.map((f: any, i: number) => (
+                        <div key={i} className="text-xs p-2 rounded bg-muted/50">
+                          <span className="font-medium">{f.title}</span>
+                          <span className="text-muted-foreground"> | {f.status} | {f.actualHours}h | {f.assignee || 'Sin asignar'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Egresos */}
+              <div className="space-y-2">
+                <h4 className="font-semibold">💸 Egresos Existentes ({diagnosticResult.egresos?.total || 0})</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Basados en Horas</div>
+                    <div className="text-2xl font-bold">{diagnosticResult.egresos?.basadosEnHoras || 0}</div>
+                  </div>
+                  <div className="p-2 rounded border">
+                    <div className="text-muted-foreground">Por Mes</div>
+                    {diagnosticResult.egresos?.porMes && Object.entries(diagnosticResult.egresos.porMes)
+                      .slice(0, 5)
+                      .map(([mes, count]) => (
+                        <div key={mes} className="flex justify-between text-xs">
+                          <span>{mes}:</span>
+                          <span className="font-medium">{String(count)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDiagnosticDialog(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={handleRunDiagnostic} disabled={runningDiagnostic}>
+              {runningDiagnostic ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                "Actualizar Diagnóstico"
               )}
             </Button>
           </DialogFooter>

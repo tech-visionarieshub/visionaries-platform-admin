@@ -10,6 +10,11 @@ import type { Egreso } from '@/lib/mock-data/finanzas';
 /**
  * Genera egresos automáticos para TODAS las personas que tienen precio por hora configurado
  * Busca tareas completadas y funcionalidades done de cada persona
+ * 
+ * IMPORTANTE: Solo procesa tareas/features que:
+ * 1. Tienen status 'completed' o 'done'
+ * 2. Tienen actualHours > 0
+ * 3. No tienen ya un egreso creado para el mes actual
  */
 export async function POST(request: NextRequest) {
   return withFinanzasAuth(request, async (user) => {
@@ -20,10 +25,14 @@ export async function POST(request: NextRequest) {
                      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
       const mesActual = `${meses[ahora.getMonth()]} ${ahora.getFullYear()}`;
 
+      console.log(`[Generar Automáticos] Generando egresos para ${mesActual}`);
+
       // Obtener todos los precios por hora configurados
       let precios;
       try {
         precios = await preciosPorHoraRepository.getAll();
+        console.log(`[Generar Automáticos] Encontrados ${precios.length} precios por hora:`, 
+          precios.map(p => `${p.personaNombre} (${p.personaEmail}): $${p.precioPorHora}`));
       } catch (error: any) {
         console.error('[Generar Automáticos Todos API] Error obteniendo precios:', error);
         throw new Error(`Error obteniendo precios por hora: ${error.message}`);
@@ -33,7 +42,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           data: {
-            mensaje: 'No hay precios por hora configurados',
+            mensaje: 'No hay precios por hora configurados. Ve a Finanzas > Precios por Hora para configurarlos.',
             creados: 0,
             totalEgresos: [],
             resumenPorPersona: [],
@@ -47,6 +56,8 @@ export async function POST(request: NextRequest) {
         p.personaEmail?.toLowerCase().includes('gabypino') || 
         p.personaNombre?.toLowerCase().includes('gabypino')
       );
+      
+      console.log(`[Generar Automáticos] Precio gabypino encontrado:`, precioGabypino ? 'Sí' : 'No');
 
       // Obtener todos los proyectos una vez
       let proyectos;
@@ -92,6 +103,7 @@ export async function POST(request: NextRequest) {
             status: 'completed',
             assignee: personaEmail,
           });
+          console.log(`[Generar Automáticos] ${personaEmail}: ${teamTasks.length} tareas completadas`);
         } catch (error: any) {
           console.error(`[Generar Automáticos Todos API] Error obteniendo team tasks para ${personaEmail}:`, error);
           errores.push(`Error obteniendo tareas para ${personaEmail}: ${error.message}`);
@@ -120,18 +132,24 @@ export async function POST(request: NextRequest) {
             // Continuar con el siguiente proyecto
           }
         }
+        
+        console.log(`[Generar Automáticos] ${personaEmail}: ${featuresCompletadas.length} features completadas`);
 
         // Crear egresos para team tasks completadas
         for (const task of teamTasks) {
           const key = `team-task-${task.id}`;
           if (egresosExistentesMap.has(key)) {
+            console.log(`[Generar Automáticos] Tarea ${task.id} ya tiene egreso, saltando`);
             continue; // Ya existe un egreso para esta tarea
           }
 
           const horas = task.actualHours || 0;
           if (horas <= 0) {
+            console.log(`[Generar Automáticos] Tarea ${task.id} sin horas (${horas}), saltando`);
             continue; // No tiene horas trabajadas
           }
+          
+          console.log(`[Generar Automáticos] Procesando tarea ${task.id}: ${task.title}, ${horas} horas`);
 
           const subtotal = horas * precioPorHora;
           const total = subtotal; // Sin IVA por defecto
@@ -177,13 +195,19 @@ export async function POST(request: NextRequest) {
         for (const { feature, projectId, projectName } of featuresCompletadas) {
           const key = `feature-${feature.id}`;
           if (egresosExistentesMap.has(key)) {
+            console.log(`[Generar Automáticos] Feature ${feature.id} ya tiene egreso, saltando`);
             continue; // Ya existe un egreso para esta feature
           }
 
           const horas = feature.actualHours || 0;
           if (horas <= 0) {
+            console.log(`[Generar Automáticos] Feature ${feature.id} sin horas (${horas}), saltando`);
             continue; // No tiene horas trabajadas
           }
+          
+          // Usar title o name (algunos documentos usan name en lugar de title)
+          const featureName = feature.title || feature.name || 'Sin nombre';
+          console.log(`[Generar Automáticos] Procesando feature ${feature.id}: ${featureName}, ${horas} horas`);
 
           const subtotal = horas * precioPorHora;
           const total = subtotal; // Sin IVA por defecto
@@ -198,7 +222,7 @@ export async function POST(request: NextRequest) {
               categoria: 'Funcionalidades',
               empresa: projectName,
               equipo: personaFinal,
-              concepto: `${personaFinal.split('@')[0]} - ${feature.name}`,
+              concepto: `${personaFinal.split('@')[0]} - ${feature.title || feature.name || 'Funcionalidad'}`,
               subtotal,
               iva: 0,
               total,
@@ -207,7 +231,7 @@ export async function POST(request: NextRequest) {
               status: 'Pendiente',
               tipoEgreso: 'basadoEnHoras',
               persona: personaFinal,
-              tarea: feature.name,
+              tarea: feature.title || feature.name || 'Funcionalidad',
               horas,
               precioPorHora: precioGabypino && !feature.assignee ? precioGabypino.precioPorHora : precioPorHora,
               featureId: feature.id,
@@ -328,7 +352,7 @@ export async function POST(request: NextRequest) {
                     categoria: 'Funcionalidades',
                     empresa: proyecto.name || proyecto.client || 'Sin nombre',
                     equipo: precioGabypino.personaEmail,
-                    concepto: `${precioGabypino.personaEmail.split('@')[0]} - ${feature.name}`,
+                    concepto: `${precioGabypino.personaEmail.split('@')[0]} - ${feature.title || feature.name || 'Funcionalidad'}`,
                     subtotal,
                     iva: 0,
                     total,
@@ -337,7 +361,7 @@ export async function POST(request: NextRequest) {
                     status: 'Pendiente',
                     tipoEgreso: 'basadoEnHoras',
                     persona: precioGabypino.personaEmail,
-                    tarea: feature.name,
+                    tarea: feature.title || feature.name || 'Funcionalidad',
                     horas,
                     precioPorHora: precioGabypino.precioPorHora,
                     featureId: feature.id,
