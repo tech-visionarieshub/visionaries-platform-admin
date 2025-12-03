@@ -11,7 +11,7 @@ import { Plus, Search, FileText, Download, Trash2, Upload, ExternalLink, Loader2
 import { toast } from "sonner"
 import { getEgresosBasadosEnHoras, deleteEgreso, updateEgreso, getClientes, getPreciosPorHora, type Egreso, type Cliente, type PrecioPorHora } from "@/lib/api/finanzas-api"
 import { apiPost, apiGet } from "@/lib/api/client"
-import { normalizeEmpresa } from "@/lib/utils/normalize-empresa"
+import { normalizeEmpresa, normalizeEmpresaForMatching } from "@/lib/utils/normalize-empresa"
 import { CargarHistoricoDialog } from "./cargar-historico-dialog"
 import { DashboardMensual } from "./dashboard-mensual"
 import { NuevoEgresoDialog } from "./nuevo-egreso-dialog"
@@ -53,6 +53,14 @@ export function EgresosBasadosEnHorasTable() {
   const [runningDiagnostic, setRunningDiagnostic] = useState(false)
   const [diagnosticResult, setDiagnosticResult] = useState<any>(null)
   const [showDiagnosticDialog, setShowDiagnosticDialog] = useState(false)
+  const [applyClienteDialog, setApplyClienteDialog] = useState<{
+    open: boolean
+    egresoId: string
+    clienteId: string | undefined
+    empresa: string
+    clienteNombre: string
+    totalSimilares: number
+  } | null>(null)
 
   useEffect(() => {
     async function loadEgresos() {
@@ -209,10 +217,16 @@ export function EgresosBasadosEnHorasTable() {
     setPreviewFile({ url, name, type })
   }
 
-  const handleUpdateCliente = async (egresoId: string, clienteId: string | undefined) => {
+  const handleUpdateCliente = async (egresoId: string, clienteId: string | undefined, applyToAll: boolean = false) => {
     try {
       setUpdatingEgresoId(egresoId)
       
+      const egreso = egresos.find(e => e.id === egresoId)
+      if (!egreso) {
+        toast.error("Egreso no encontrado")
+        return
+      }
+
       // Preparar updates: si clienteId es undefined, enviarlo explícitamente para eliminar el campo
       const updates: any = {};
       if (clienteId) {
@@ -221,22 +235,87 @@ export function EgresosBasadosEnHorasTable() {
         // Si es undefined, enviar null para que Firestore lo elimine
         updates.clienteId = null;
       }
-      
-      await updateEgreso(egresoId, updates)
-      
-      // Actualizar el estado local
-      setEgresos(egresos.map(e => 
-        e.id === egresoId 
-          ? { ...e, clienteId: clienteId || undefined }
-          : e
-      ))
-      
-      toast.success("Cliente vinculado exitosamente")
+
+      if (applyToAll) {
+        // Aplicar a todos los egresos con la misma empresa normalizada
+        const empresaNormalizada = normalizeEmpresaForMatching(egreso.empresaNormalizada || egreso.empresa || '')
+        const egresosSimilares = egresos.filter(e => {
+          const empresaNorm = normalizeEmpresaForMatching(e.empresaNormalizada || e.empresa || '')
+          return empresaNorm === empresaNormalizada && e.id !== egresoId
+        })
+
+        // Actualizar el egreso actual
+        await updateEgreso(egresoId, updates)
+
+        // Actualizar todos los egresos similares
+        const updatePromises = egresosSimilares.map(e => 
+          updateEgreso(e.id, updates).catch(err => {
+            console.error(`Error actualizando egreso ${e.id}:`, err)
+            return null
+          })
+        )
+
+        const results = await Promise.all(updatePromises)
+        const actualizados = results.filter(r => r !== null).length
+
+        // Actualizar el estado local
+        setEgresos(egresos.map(e => {
+          const empresaNorm = normalizeEmpresaForMatching(e.empresaNormalizada || e.empresa || '')
+          if (e.id === egresoId || empresaNorm === empresaNormalizada) {
+            return { ...e, clienteId: clienteId || undefined }
+          }
+          return e
+        }))
+
+        toast.success(`Cliente vinculado a ${actualizados + 1} egreso(s) exitosamente`)
+      } else {
+        // Solo actualizar este egreso
+        await updateEgreso(egresoId, updates)
+        
+        // Actualizar el estado local
+        setEgresos(egresos.map(e => 
+          e.id === egresoId 
+            ? { ...e, clienteId: clienteId || undefined }
+            : e
+        ))
+        
+        toast.success("Cliente vinculado exitosamente")
+      }
     } catch (error: any) {
       console.error("Error updating cliente:", error)
       toast.error(error.message || "Error al vincular cliente")
     } finally {
       setUpdatingEgresoId(null)
+    }
+  }
+
+  const handleClienteSelect = (egresoId: string, clienteId: string | undefined) => {
+    const egreso = egresos.find(e => e.id === egresoId)
+    if (!egreso) return
+
+    const empresaNormalizada = normalizeEmpresaForMatching(egreso.empresaNormalizada || egreso.empresa || '')
+    const egresosSimilares = egresos.filter(e => {
+      const empresaNorm = normalizeEmpresaForMatching(e.empresaNormalizada || e.empresa || '')
+      return empresaNorm === empresaNormalizada && e.id !== egresoId && !e.clienteId
+    })
+
+    const clienteNombre = clienteId 
+      ? clientes.find(c => c.id === clienteId)?.empresa || 'cliente seleccionado'
+      : 'Sin cliente'
+
+    // Si hay egresos similares sin cliente, mostrar diálogo
+    if (egresosSimilares.length > 0 && clienteId) {
+      setApplyClienteDialog({
+        open: true,
+        egresoId,
+        clienteId,
+        empresa: egreso.empresa || '',
+        clienteNombre,
+        totalSimilares: egresosSimilares.length
+      })
+    } else {
+      // Si no hay similares o se está quitando el cliente, actualizar directamente
+      handleUpdateCliente(egresoId, clienteId, false)
     }
   }
 
@@ -1062,6 +1141,55 @@ export function EgresosBasadosEnHorasTable() {
               ) : (
                 "Guardar Link"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para aplicar cliente a todos los egresos similares */}
+      <Dialog 
+        open={applyClienteDialog?.open || false} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setApplyClienteDialog(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Aplicar cliente a todos los egresos similares?</DialogTitle>
+            <DialogDescription>
+              Has seleccionado el cliente <strong>{applyClienteDialog?.clienteNombre}</strong> para el egreso de <strong>{applyClienteDialog?.empresa}</strong>.
+              <br /><br />
+              Hay <strong>{applyClienteDialog?.totalSimilares} egreso(s)</strong> más de la misma empresa sin cliente vinculado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              ¿Deseas aplicar este cliente a todos los egresos de <strong>{applyClienteDialog?.empresa}</strong>?
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (applyClienteDialog) {
+                  handleUpdateCliente(applyClienteDialog.egresoId, applyClienteDialog.clienteId, false)
+                  setApplyClienteDialog(null)
+                }
+              }}
+            >
+              Solo este egreso
+            </Button>
+            <Button
+              onClick={() => {
+                if (applyClienteDialog) {
+                  handleUpdateCliente(applyClienteDialog.egresoId, applyClienteDialog.clienteId, true)
+                  setApplyClienteDialog(null)
+                }
+              }}
+            >
+              Aplicar a todos ({applyClienteDialog?.totalSimilares ? applyClienteDialog.totalSimilares + 1 : 1} egresos)
             </Button>
           </DialogFooter>
         </DialogContent>

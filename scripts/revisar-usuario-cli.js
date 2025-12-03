@@ -112,13 +112,33 @@ async function revisarUsuario() {
     console.log('\n🔍 3. VERIFICANDO hasPortalAdminAccess EN FIRESTORE...\n');
     
     try {
-      // Inicializar app para visionaries-platform-admin
+      // Inicializar app para visionaries-platform-admin con credenciales explícitas
       let platformAdminApp;
       try {
         platformAdminApp = admin.app('platform-admin');
       } catch (e) {
+        // Intentar usar service account de platform-admin si está disponible
+        const serviceAccountPath = '/Users/gabrielapino/Downloads/visionaries-platform-admin-firebase-adminsdk-fbsvc-eb269c3166.json';
+        let cred;
+        
+        try {
+          const fs = require('fs');
+          if (fs.existsSync(serviceAccountPath)) {
+            const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+            cred = admin.credential.cert(serviceAccount);
+            console.log('   ✅ Usando service account de visionaries-platform-admin');
+          } else {
+            console.log('   ⚠️  Service account no encontrado, usando Application Default Credentials');
+            cred = admin.credential.applicationDefault();
+          }
+        } catch (error) {
+          console.log('   ⚠️  Error cargando service account, usando Application Default Credentials');
+          cred = admin.credential.applicationDefault();
+        }
+        
         // Crear nueva app para visionaries-platform-admin
         platformAdminApp = admin.initializeApp({
+          credential: cred,
           projectId: 'visionaries-platform-admin',
         }, 'platform-admin');
       }
@@ -163,10 +183,34 @@ async function revisarUsuario() {
     const hasInternalAccess = claims.internal === true;
     const hasRoleAccess = !!claims.role;
     
-    // Verificar hasPortalAdminAccess
+    // Verificar hasPortalAdminAccess (reutilizar app si ya existe)
     let hasPortalAccess = false;
     try {
-      const platformAdminApp = admin.app('platform-admin');
+      let platformAdminApp;
+      try {
+        platformAdminApp = admin.app('platform-admin');
+      } catch (e) {
+        // Si no existe, crear uno nuevo con service account de platform-admin
+        const serviceAccountPath = '/Users/gabrielapino/Downloads/visionaries-platform-admin-firebase-adminsdk-fbsvc-eb269c3166.json';
+        let cred;
+        
+        try {
+          const fs = require('fs');
+          if (fs.existsSync(serviceAccountPath)) {
+            const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+            cred = admin.credential.cert(serviceAccount);
+          } else {
+            cred = admin.credential.applicationDefault();
+          }
+        } catch (error) {
+          cred = admin.credential.applicationDefault();
+        }
+        
+        platformAdminApp = admin.initializeApp({
+          credential: cred,
+          projectId: 'visionaries-platform-admin',
+        }, 'platform-admin');
+      }
       const db = platformAdminApp.firestore();
       const usersRef = db.collection('users');
       const snapshot = await usersRef.where('email', '==', email).limit(1).get();

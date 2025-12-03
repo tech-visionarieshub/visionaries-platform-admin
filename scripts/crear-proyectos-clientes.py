@@ -13,7 +13,11 @@ from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-SERVICE_ACCOUNT_PATH = "/Users/gabrielapino/Library/Mobile Documents/com~apple~CloudDocs/9 nov 2025/visionaries-tech-firebase-adminsdk-fbsvc-5e928cfca6.json"
+# Intentar primero con visionaries-platform-admin, luego con visionaries-tech como fallback
+SERVICE_ACCOUNT_PATHS = [
+    "/Users/gabrielapino/Downloads/visionaries-platform-admin-firebase-adminsdk-fbsvc-eb269c3166.json",
+    "/Users/gabrielapino/Library/Mobile Documents/com~apple~CloudDocs/9 nov 2025/visionaries-tech-firebase-adminsdk-fbsvc-5e928cfca6.json",
+]
 
 # Mapeo de meses en español a números
 MESES_ESP = {
@@ -84,14 +88,25 @@ CLIENTES_LISTA = [
 ]
 
 def initialize_firebase():
-    """Inicializa Firebase Admin SDK."""
+    """Inicializa Firebase Admin SDK con service account de visionaries-platform-admin."""
     if not firebase_admin._apps:
-        if not os.path.exists(SERVICE_ACCOUNT_PATH):
+        service_account_path = None
+        for path in SERVICE_ACCOUNT_PATHS:
+            if os.path.exists(path):
+                service_account_path = path
+                break
+        
+        if not service_account_path:
             raise FileNotFoundError(
-                f"❌ No se encontró el service account en:\n   {SERVICE_ACCOUNT_PATH}"
+                f"❌ No se encontró ningún service account en:\n   " + "\n   ".join(SERVICE_ACCOUNT_PATHS) +
+                "\n\n   Este script necesita el service account de visionaries-platform-admin para crear proyectos y clientes."
             )
-        cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
-        firebase_admin.initialize_app(cred)
+        
+        print(f"   Usando service account: {service_account_path}")
+        cred = credentials.Certificate(service_account_path)
+        firebase_admin.initialize_app(cred, {
+            'projectId': 'visionaries-platform-admin',
+        })
     return firestore.client()
 
 def parse_fecha(fecha_str: str) -> datetime:
