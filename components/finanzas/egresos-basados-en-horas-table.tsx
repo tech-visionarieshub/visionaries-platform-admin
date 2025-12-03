@@ -46,6 +46,7 @@ export function EgresosBasadosEnHorasTable() {
   const [savingLink, setSavingLink] = useState(false)
   const [editingEgreso, setEditingEgreso] = useState<Egreso | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [fixingHours, setFixingHours] = useState(false)
 
   useEffect(() => {
     async function loadEgresos() {
@@ -286,6 +287,73 @@ export function EgresosBasadosEnHorasTable() {
     }
   }
 
+  const handleFixCompletedTasksHours = async () => {
+    if (!confirm("¿Estás seguro de que deseas asignar 0.1 horas a todas las tareas/features completadas que no tienen horas?")) {
+      return
+    }
+
+    setFixingHours(true)
+    try {
+      console.log('[Fix Hours] Iniciando actualización...')
+      const response = await apiPost<{
+        success?: boolean
+        error?: string
+        mensaje?: string
+        teamTasksUpdated?: number
+        featuresUpdated?: number
+        totalUpdated?: number
+        errores?: {
+          teamTasks?: string[]
+          features?: string[]
+        }
+      }>('/api/egresos/fix-completed-tasks-hours', {})
+      
+      console.log('[Fix Hours] Respuesta recibida:', response)
+      
+      const result = response as any
+      
+      if (result?.error) {
+        throw new Error(result.error)
+      }
+
+      if (!result) {
+        throw new Error('No se recibió respuesta del servidor')
+      }
+
+      if (result.totalUpdated && result.totalUpdated > 0) {
+        toast.success(result.mensaje || `Se actualizaron ${result.totalUpdated} tareas/features`)
+        
+        if (result.errores) {
+          const totalErrores = (result.errores.teamTasks?.length || 0) + (result.errores.features?.length || 0)
+          if (totalErrores > 0) {
+            console.warn('[Fix Hours] Errores:', result.errores)
+            if (totalErrores <= 3) {
+              if (result.errores.teamTasks) {
+                result.errores.teamTasks.forEach((err: string) => toast.warning(err))
+              }
+              if (result.errores.features) {
+                result.errores.features.forEach((err: string) => toast.warning(err))
+              }
+            } else {
+              toast.warning(`${totalErrores} errores menores durante la actualización`)
+            }
+          }
+        }
+      } else {
+        toast.info('No se encontraron tareas/features completadas sin horas para actualizar')
+      }
+
+      // Refrescar la lista de egresos
+      await handleRefresh()
+    } catch (error: any) {
+      console.error('[Fix Hours] Error completo:', error)
+      const errorMessage = error?.message || error?.error || 'Error al actualizar horas'
+      toast.error(`Error: ${errorMessage}`)
+    } finally {
+      setFixingHours(false)
+    }
+  }
+
   const handleGenerarAutomaticos = async () => {
     if (!confirm("¿Estás seguro de que deseas generar egresos automáticos para todas las personas con precio por hora configurado?")) {
       return
@@ -459,6 +527,24 @@ export function EgresosBasadosEnHorasTable() {
             <Button onClick={() => setIsUploadDialogOpen(true)} variant="outline">
               <Upload className="mr-2 h-4 w-4" />
               Cargar Histórico
+            </Button>
+            <Button 
+              onClick={handleFixCompletedTasksHours} 
+              variant="outline"
+              disabled={fixingHours}
+              title="Asignar 0.1 horas a tareas/features completadas sin horas"
+            >
+              {fixingHours ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Arreglar Horas
+                </>
+              )}
             </Button>
           </div>
         </div>
