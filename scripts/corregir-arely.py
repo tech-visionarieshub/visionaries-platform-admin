@@ -164,20 +164,43 @@ def main():
         cambios = False
         
         # Corregir Custom Claims
-        if not has_internal or not has_role:
-            print("📝 Actualizando Custom Claims...")
-            nuevos_claims = dict(claims) if claims else {}
+        nuevos_claims = dict(claims) if claims else {}
+        claims_actualizados = False
+        
+        if not has_internal:
             nuevos_claims['internal'] = True
-            if not has_role:
-                nuevos_claims['role'] = 'admin'
-            
+            claims_actualizados = True
+        
+        if not has_role:
+            nuevos_claims['role'] = 'admin'
+            claims_actualizados = True
+        
+        # Agregar allowedRoutes para Finanzas, CRM y Equipo
+        allowed_routes = nuevos_claims.get('allowedRoutes', [])
+        rutas_necesarias = ['/finanzas', '/crm', '/equipo']
+        rutas_agregadas = []
+        
+        for ruta in rutas_necesarias:
+            if ruta not in allowed_routes:
+                allowed_routes.append(ruta)
+                rutas_agregadas.append(ruta)
+                claims_actualizados = True
+        
+        if claims_actualizados:
+            nuevos_claims['allowedRoutes'] = allowed_routes
+            print("📝 Actualizando Custom Claims...")
             auth_instance.set_custom_user_claims(user.uid, nuevos_claims)
             print("✅ Custom Claims actualizados:")
-            print(f"   internal: true")
-            print(f"   role: {nuevos_claims.get('role', 'admin')}")
+            print(f"   internal: {nuevos_claims.get('internal', False)}")
+            print(f"   role: {nuevos_claims.get('role', 'NO')}")
+            if rutas_agregadas:
+                print(f"   allowedRoutes agregadas: {', '.join(rutas_agregadas)}")
+            print(f"   Total allowedRoutes: {len(allowed_routes)}")
             cambios = True
         else:
             print("✅ Custom Claims correctos")
+            if allowed_routes:
+                print(f"   allowedRoutes actuales: {', '.join(allowed_routes)}")
         
         # Corregir Firestore
         if not firestore_data or not firestore_data['has_portal_access']:
