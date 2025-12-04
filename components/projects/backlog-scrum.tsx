@@ -165,6 +165,18 @@ export function BacklogScrum() {
     return matchesSearch && matchesStatus && matchesPriority && matchesEpic && matchesAssignee
   })
 
+  // Calcular estadísticas por status
+  const statusStats = {
+    backlog: features.filter(f => f.status === 'backlog').length,
+    todo: features.filter(f => f.status === 'todo').length,
+    'in-progress': features.filter(f => f.status === 'in-progress').length,
+    review: features.filter(f => f.status === 'review').length,
+    done: features.filter(f => f.status === 'done').length,
+    completed: features.filter(f => f.status === 'completed').length,
+  }
+  
+  const totalTasks = features.length
+
   // Agrupar features filtradas por epic y ordenar por número consecutivo global
   // Primero obtener los epics de las features filtradas
   const filteredEpicsSet = Array.from(new Set(filteredFeatures.map(f => f.epicTitle)))
@@ -658,6 +670,35 @@ export function BacklogScrum() {
             Nueva Funcionalidad
           </Button>
         </div>
+      </div>
+
+      {/* Cards de estadísticas por status */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        {Object.entries(statusConfig).map(([status, config]) => {
+          const count = statusStats[status as keyof typeof statusStats]
+          const isActive = filterStatus === status
+          return (
+            <Card 
+              key={status}
+              className={`p-3 cursor-pointer transition-all hover:shadow-md ${
+                isActive ? 'ring-2 ring-[#4514F9]' : ''
+              }`}
+              onClick={() => setFilterStatus(isActive ? 'all' : status)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${config.color}`} />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {config.label}
+                  </span>
+                </div>
+                <span className="text-lg font-bold text-[#0E0734]">
+                  {count}
+                </span>
+              </div>
+            </Card>
+          )
+        })}
       </div>
 
       <Card className="p-2">
