@@ -150,6 +150,49 @@ function generateTaskAssignedEmailHTML(data: TaskEmailData): string {
       </div>
     </div>
     
+    <!-- Guía de Priorización -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 25px 0;">
+      <h3 style="margin: 0 0 16px 0; color: #334155; font-size: 16px; text-align: center;">
+        📋 Cómo Priorizar Tareas y Funcionalidades
+      </h3>
+      <p style="margin: 0 0 16px 0; color: #64748b; font-size: 13px; text-align: center;">
+        Guía para determinar la prioridad correcta de tus tareas
+      </p>
+      
+      <div style="display: grid; gap: 12px;">
+        <!-- Alta -->
+        <div style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 12px 16px; border-radius: 0 6px 6px 0;">
+          <div style="font-weight: 700; color: #dc2626; font-size: 14px; margin-bottom: 4px;">🔴 Alta</div>
+          <div style="color: #7f1d1d; font-size: 13px;">
+            Si no lo haces hoy o en la fecha establecida, pasa algo malo (afecta pagos, clientes o plazos).
+          </div>
+        </div>
+        
+        <!-- Media -->
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 6px 6px 0;">
+          <div style="font-weight: 700; color: #b45309; font-size: 14px; margin-bottom: 4px;">🟡 Media</div>
+          <div style="color: #78350f; font-size: 13px;">
+            Importa, pero si lo mueves un día no pasa nada.
+          </div>
+        </div>
+        
+        <!-- Baja -->
+        <div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 0 6px 6px 0;">
+          <div style="font-weight: 700; color: #065f46; font-size: 14px; margin-bottom: 4px;">🟢 Baja</div>
+          <div style="color: #064e3b; font-size: 13px;">
+            Pregunta: "Si no lo hago… ¿importa?" Si no, es baja. Es opcional.
+          </div>
+        </div>
+      </div>
+      
+      <div style="background: #e0e7ff; border-radius: 6px; padding: 12px 16px; margin-top: 16px; text-align: center;">
+        <div style="font-weight: 600; color: #4338ca; font-size: 13px; margin-bottom: 4px;">💡 Regla Rápida</div>
+        <div style="color: #3730a3; font-size: 13px;">
+          ¿Qué pasa si no lo hago hoy? <strong>Grave = Alta</strong> • <strong>Molesto = Media</strong> • <strong>Nada = Baja</strong>
+        </div>
+      </div>
+    </div>
+    
     <div style="text-align: center; margin: 30px 0;">
       <a href="${taskUrl}" style="background: #4514F9; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
         Ver Tarea en la Plataforma →
@@ -158,7 +201,7 @@ function generateTaskAssignedEmailHTML(data: TaskEmailData): string {
     
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; text-align: center;">
       <p style="margin: 0;">
-        Este es un email automático del sistema de gestión de tareas de Visionaries Hub.<br>
+        Este es un email automático de <strong>TASK Visionaries Suite</strong>.<br>
         ID de la tarea: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${task.id}</code>
       </p>
     </div>
@@ -218,10 +261,28 @@ ${task.comentarios ? `\nComentarios / Notas:\n${task.comentarios}\n` : ''}
 
 Para medir el tiempo real trabajado en esta tarea, utiliza el botón de Timer en la plataforma. Esto nos ayuda a tener métricas precisas del tiempo invertido en cada tarea y mejorar la estimación de futuros proyectos.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 CÓMO PRIORIZAR TAREAS Y FUNCIONALIDADES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔴 ALTA
+Si no lo haces hoy o en la fecha establecida, pasa algo malo (afecta pagos, clientes o plazos).
+
+🟡 MEDIA
+Importa, pero si lo mueves un día no pasa nada.
+
+🟢 BAJA
+Pregunta: "Si no lo hago… ¿importa?" Si no, es baja. Es opcional.
+
+💡 Regla Rápida: ¿Qué pasa si no lo hago hoy?
+• Grave = Alta
+• Molesto = Media
+• Nada = Baja
+
 Ver tarea: ${taskUrl}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Este es un email automático del sistema de gestión de tareas de Visionaries Hub.
+Este es un email automático de TASK Visionaries Suite.
 ID de la tarea: ${task.id}`
 }
 
@@ -320,6 +381,7 @@ export async function sendTaskAssignedEmail(
       subject: `Nueva tarea asignada: ${task.title}`,
       body: textBody,
       htmlBody: htmlBody,
+      fromName: 'TASK Visionaries Suite',
     }
     
     console.log('[TeamTaskEmailService] Llamando a gmailService.sendEmail:', {

@@ -16,6 +16,7 @@ export interface EmailMessage {
   subject: string;
   body: string;
   htmlBody?: string;
+  fromName?: string; // Nombre del remitente (ej: "TASK Visionaries Suite")
   attachments?: Array<{
     filename: string;
     content: string; // Base64 encoded
@@ -263,7 +264,12 @@ export class GmailService {
     const cc = message.cc ? (Array.isArray(message.cc) ? message.cc.join(', ') : message.cc) : '';
     const bcc = message.bcc ? (Array.isArray(message.bcc) ? message.bcc.join(', ') : message.bcc) : '';
     
+    // Construir el header From con nombre si está disponible
+    const fromName = message.fromName || 'Visionaries Hub';
+    const fromHeader = `From: ${fromName} <${ADMIN_EMAIL}>`;
+    
     const headers = [
+      fromHeader,
       `To: ${to}`,
       cc ? `Cc: ${cc}` : '',
       bcc ? `Bcc: ${bcc}` : '',
